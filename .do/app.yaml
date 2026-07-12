@@ -1,0 +1,15 @@
+name: bell-tracker
+services:
+  - name: web
+    dockerfile_path: Dockerfile
+    source_dir: /
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+    # NOTE: no DATABASE_URL is set here, so the app falls back to the default
+    # SQLite file under instance/. On App Platform this filesystem is ephemeral -
+    # data is wiped on every redeploy/restart. See README for options.
