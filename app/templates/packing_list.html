@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Packing List - {{ concert.name }}{% endblock %}
+{% block content %}
+<h1>Packing List</h1>
+<p class="text-muted">{{ concert.name }} &middot; {{ concert.date.strftime('%B %-d, %Y') }}</p>
+
+{% if cases_by_type %}
+  {% for instrument_type, cases in cases_by_type.items() %}
+    <h5>{{ instrument_type.name }}</h5>
+    <ul>
+      {% for case in cases %}
+        <li>{{ case.case_number }} ({{ case.note_range_low }}-{{ case.note_range_high }})</li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">No equipment has been signed up for this concert yet.</p>
+{% endif %}
+{% endblock %}

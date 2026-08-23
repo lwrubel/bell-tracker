@@ -12,4 +12,4 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8080
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "wsgi:app"]
+CMD ["sh", "-c", "flask --app wsgi db upgrade && gunicorn --bind 0.0.0.0:8080 wsgi:app"]

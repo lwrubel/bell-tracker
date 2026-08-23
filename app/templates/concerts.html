@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Concerts - bell-tracker{% endblock %}
+{% block content %}
+<h1>Concerts</h1>
+{% if concerts %}
+<div class="list-group">
+  {% for concert in concerts %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-center">
+        <a href="{{ url_for('routes.concert_detail', concert_id=concert.id) }}">{{ concert.name }}</a>
+        <span class="text-muted">{{ concert.date.strftime('%B %-d, %Y') }}</span>
+      </div>
+      {% if current_user.is_admin %}
+      <div class="mt-1">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_packing_list', concert_id=concert.id) }}">Packing list</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_table', concert_id=concert.id) }}">Equipment table</a>
+      </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No concerts yet.</p>
+{% endif %}
+{% endblock %}

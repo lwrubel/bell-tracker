@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Login - bell-tracker{% endblock %}
+{% block content %}
+<h1>Login</h1>
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="form-group">
+    {{ form.email.label }}
+    {{ form.email(class="form-control") }}
+  </div>
+  <div class="form-group">
+    {{ form.password.label }}
+    {{ form.password(class="form-control") }}
+  </div>
+  <div class="form-check mb-3">
+    {{ form.remember_me(class="form-check-input") }}
+    {{ form.remember_me.label(class="form-check-label") }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

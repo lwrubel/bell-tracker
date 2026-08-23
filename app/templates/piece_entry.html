@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ piece.title }} - bell-tracker{% endblock %}
+{% block content %}
+<h1>{{ piece.title }}</h1>
+<p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ entry.position }}</strong></p>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  {% for instrument_type in piece.instrument_types %}
+    {% set field = form["instrument_" ~ instrument_type.id] %}
+    <div class="form-group">
+      {{ field.label }}
+      {{ field(class="form-control", size=8) }}
+      <small class="form-text text-muted">Ctrl/Cmd-click to select multiple notes.</small>
+    </div>
+  {% endfor %}
+  <div class="form-group">
+    {{ form.misc_notes.label }}
+    {{ form.misc_notes(class="form-control", rows=3) }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

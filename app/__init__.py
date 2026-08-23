@@ -1,9 +1,14 @@
 import os
 
 from flask import Flask
+from flask_login import LoginManager
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
 
 db = SQLAlchemy()
+login_manager = LoginManager()
+migrate = Migrate()
 
 
 def create_app():
@@ -21,15 +26,20 @@ def create_app():
     )
 
     db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+    CSRFProtect(app)
 
-    from app import models
+    from app import models  # noqa: F401
     from app.admin import init_admin
+    from app.auth import bp as auth_bp
+    from app.cli import register_cli
     from app.routes import bp as routes_bp
 
     app.register_blueprint(routes_bp)
+    app.register_blueprint(auth_bp)
     init_admin(app)
-
-    with app.app_context():
-        db.create_all()
+    register_cli(app)
 
     return app
