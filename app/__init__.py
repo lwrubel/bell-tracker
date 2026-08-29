@@ -11,7 +11,7 @@ login_manager = LoginManager()
 migrate = Migrate()
 
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
     os.makedirs(app.instance_path, exist_ok=True)
@@ -24,6 +24,9 @@ def create_app():
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
+
+    if test_config is not None:
+        app.config.update(test_config)
 
     db.init_app(app)
     migrate.init_app(app, db)

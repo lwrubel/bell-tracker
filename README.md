@@ -19,6 +19,15 @@ There's no self-signup — bootstrap the first admin with:
 uv run flask --app wsgi create-admin
 ```
 
+## Tests
+
+```sh
+uv run pytest
+```
+
+Tests run against a throwaway on-disk SQLite database created fresh per
+test (see `tests/conftest.py`) — they never touch `instance/app.db`.
+
 ## Assigning ringers to pieces and positions (admin)
 
 Roster assignment is admin-driven: a ringer only sees a piece in their own
