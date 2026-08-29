@@ -42,6 +42,10 @@ def build_equipment_form(piece, formdata=None, **kwargs):
     """
     attrs = {}
     for instrument_type in piece.instrument_types:
+        # Value/label stay the sharp-spelled pitch (what's stored); the
+        # template attaches a data-flat attribute to each checkbox (via the
+        # flat_name Jinja global) so it can offer a flats display toggle
+        # without touching what's actually submitted/stored.
         choices = [
             (p, p)
             for p in pitch.pitches_in_range(

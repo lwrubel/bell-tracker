@@ -6,6 +6,11 @@ so it lives here as a constant rather than a database table.
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+# Flat spellings, index-aligned with NOTE_NAMES, for display only. Pitches are
+# always stored/keyed using the sharp names above; this is purely a rendering
+# option for users who prefer flat notation.
+FLAT_NOTE_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
+
 LOWEST_PITCH = "C1"
 HIGHEST_PITCH = "C9"
 
@@ -15,6 +20,13 @@ def pitch_index(name: str) -> int:
     octave = int(name[-1])
     note = name[:-1]
     return octave * 12 + NOTE_NAMES.index(note)
+
+
+def flat_name(name: str) -> str:
+    """Return the flat spelling of a (sharp-stored) pitch name, e.g. "C#4" -> "Db4"."""
+    octave = int(name[-1])
+    note = name[:-1]
+    return f"{FLAT_NOTE_NAMES[NOTE_NAMES.index(note)]}{octave}"
 
 
 def all_pitches(low: str = LOWEST_PITCH, high: str = HIGHEST_PITCH) -> list[str]:

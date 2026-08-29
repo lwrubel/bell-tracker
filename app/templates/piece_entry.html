@@ -20,6 +20,12 @@
 
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
+  {% if piece.instrument_types %}
+    <div class="custom-control custom-switch mb-3">
+      <input type="checkbox" class="custom-control-input" id="flatToggle">
+      <label class="custom-control-label" for="flatToggle">Show flats instead of sharps</label>
+    </div>
+  {% endif %}
   {% for instrument_type in piece.instrument_types %}
     {% set field = form["instrument_" ~ instrument_type.id] %}
     <div class="form-group">
@@ -27,7 +33,7 @@
       <div class="pitch-checkboxes">
         {% for subfield in field %}
           <div class="form-check form-check-inline">
-            {{ subfield(class="form-check-input") }}
+            {{ subfield(class="form-check-input", **{"data-flat": flat_name(subfield._value())}) }}
             {{ subfield.label(class="form-check-label") }}
           </div>
         {% endfor %}
@@ -40,4 +46,44 @@
   </div>
   {{ form.submit(class="btn btn-primary") }}
 </form>
+
+<script>
+(function () {
+  // Purely a display preference: pitches are always submitted/stored using
+  // their sharp spelling (the checkbox's value never changes), this only
+  // swaps what the label text shows.
+  var STORAGE_KEY = "bellTracker.pitchDisplay";
+  var toggle = document.getElementById("flatToggle");
+  if (!toggle) return;
+
+  var checkboxes = document.querySelectorAll(".pitch-checkboxes input[type=checkbox]");
+
+  function applyDisplay(useFlats) {
+    checkboxes.forEach(function (cb) {
+      var label = document.querySelector('label[for="' + cb.id + '"]');
+      if (!label || !cb.dataset.flat) return;
+      label.textContent = useFlats ? cb.dataset.flat : cb.value;
+    });
+  }
+
+  var stored = null;
+  try {
+    stored = localStorage.getItem(STORAGE_KEY);
+  } catch (e) {
+    // localStorage unavailable (private mode, etc.) - fall back to sharps.
+  }
+  var useFlats = stored === "flat";
+  toggle.checked = useFlats;
+  applyDisplay(useFlats);
+
+  toggle.addEventListener("change", function () {
+    applyDisplay(toggle.checked);
+    try {
+      localStorage.setItem(STORAGE_KEY, toggle.checked ? "flat" : "sharp");
+    } catch (e) {
+      // ignore - preference just won't persist
+    }
+  });
+})();
+</script>
 {% endblock %}

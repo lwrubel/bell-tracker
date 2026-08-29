@@ -32,6 +32,7 @@ def create_app():
     CSRFProtect(app)
 
     from app import models  # noqa: F401
+    from app import pitch
     from app.admin import init_admin
     from app.auth import bp as auth_bp
     from app.cli import register_cli
@@ -41,5 +42,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     init_admin(app)
     register_cli(app)
+
+    app.jinja_env.globals["flat_name"] = pitch.flat_name
 
     return app
