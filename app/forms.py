@@ -6,6 +6,7 @@ from wtforms import (
     StringField,
     SubmitField,
     TextAreaField,
+    widgets,
 )
 from wtforms.validators import DataRequired, Email, Optional
 
@@ -17,6 +18,15 @@ class LoginForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     remember_me = BooleanField("Remember me")
     submit = SubmitField("Log in")
+
+
+class MultiCheckboxField(SelectMultipleField):
+    """A SelectMultipleField that renders as checkboxes instead of a
+    <select multiple> list, so pitches can be picked without a keyboard
+    modifier click."""
+
+    widget = widgets.ListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()
 
 
 def instrument_field_name(instrument_type_id):
@@ -38,7 +48,7 @@ def build_equipment_form(piece, formdata=None, **kwargs):
                 instrument_type.note_range_low, instrument_type.note_range_high
             )
         ]
-        attrs[instrument_field_name(instrument_type.id)] = SelectMultipleField(
+        attrs[instrument_field_name(instrument_type.id)] = MultiCheckboxField(
             instrument_type.name, choices=choices, validators=[Optional()]
         )
     attrs["misc_notes"] = TextAreaField("Miscellaneous", validators=[Optional()])

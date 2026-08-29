@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% block title %}{{ piece.title }} - bell-tracker{% endblock %}
+{% block head %}
+<style>
+  .pitch-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    max-width: 40rem;
+  }
+  .pitch-checkboxes .form-check {
+    width: 5rem;
+    margin-right: 0;
+  }
+</style>
+{% endblock %}
 {% block content %}
 <h1>{{ piece.title }}</h1>
 <p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ entry.position }}</strong></p>
@@ -10,8 +24,14 @@
     {% set field = form["instrument_" ~ instrument_type.id] %}
     <div class="form-group">
       {{ field.label }}
-      {{ field(class="form-control", size=8) }}
-      <small class="form-text text-muted">Ctrl/Cmd-click to select multiple notes.</small>
+      <div class="pitch-checkboxes">
+        {% for subfield in field %}
+          <div class="form-check form-check-inline">
+            {{ subfield(class="form-check-input") }}
+            {{ subfield.label(class="form-check-label") }}
+          </div>
+        {% endfor %}
+      </div>
     </div>
   {% endfor %}
   <div class="form-group">
