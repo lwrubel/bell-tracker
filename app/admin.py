@@ -44,7 +44,11 @@ class UserAdminView(SecureModelView):
 
 class ConcertAdminView(SecureModelView):
     column_list = ("name", "date")
-    inline_models = [(Piece, {"form_columns": ["title", "program_order"]})]
+    # "id" must stay in form_columns even though it's not user-editable:
+    # Flask-Admin's inline-form machinery reads it to tell new rows from
+    # existing ones when saving. Omitting it raises
+    # AttributeError: 'PieceForm' object has no attribute 'id'.
+    inline_models = [(Piece, {"form_columns": ["id", "title", "program_order"]})]
 
 
 class PieceAdminView(SecureModelView):
