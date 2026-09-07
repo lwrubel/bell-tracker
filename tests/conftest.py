@@ -80,7 +80,21 @@ def instrument_type(db):
 
 @pytest.fixture()
 def mallet_instrument_type(db):
-    it = InstrumentType(name="Mallets", selection_mode="color")
+    it = InstrumentType(name="Mallets", selection_mode="color", enabled_by_default=True)
+    db.session.add(it)
+    db.session.commit()
+    return it
+
+
+@pytest.fixture()
+def bass_instrument_type(db):
+    it = InstrumentType(
+        name="Bass Bells",
+        note_range_low="C2",
+        note_range_high="C4",
+        position_prefix="LB",
+        enabled_by_default=True,
+    )
     db.session.add(it)
     db.session.commit()
     return it

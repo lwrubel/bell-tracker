@@ -72,11 +72,16 @@ def piece_entry(concert_id, piece_id):
     if entry is None or entry.position == FLOAT_POSITION:
         abort(404)
 
+    # Position-restricted types (bass bells for LB positions) drop out here,
+    # and this same list drives the save loop below - so a ringer moved off
+    # LB won't have their stored bass bells wiped on their next save.
+    visible_types = entry.visible_instrument_types()
+
     existing_by_type = {
         sel.instrument_type_id: sel for sel in entry.instrument_selections
     }
     initial = {"misc_notes": entry.misc_notes or ""}
-    for t in piece.instrument_types:
+    for t in visible_types:
         selection = existing_by_type.get(t.id)
         if t.selection_mode == "color":
             counts = dict(selection.color_counts()) if selection else {}
@@ -100,7 +105,7 @@ def piece_entry(concert_id, piece_id):
 
     is_post = request.method == "POST"
     form = build_equipment_form(
-        piece,
+        entry,
         formdata=request.form if is_post else None,
         data=None if is_post else initial,
     )
@@ -110,7 +115,7 @@ def piece_entry(concert_id, piece_id):
         existing_selections = {
             sel.instrument_type_id: sel for sel in entry.instrument_selections
         }
-        for instrument_type in piece.instrument_types:
+        for instrument_type in visible_types:
             notes_value = _selected_notes_value(form, instrument_type)
             selection = existing_selections.get(instrument_type.id)
             if notes_value:
@@ -133,6 +138,7 @@ def piece_entry(concert_id, piece_id):
         piece=piece,
         entry=entry,
         form=form,
+        instrument_types=visible_types,
         mallet_totals=mallet_totals,
     )
 

@@ -35,6 +35,24 @@ def upgrade():
 
 
 def downgrade():
+    # Color-mode rows leave the note range null, and a later revision keeps
+    # any that a ringer has signed up on - so fill those in with the full
+    # chromatic range before putting NOT NULL back, or the batch rebuild
+    # fails with an IntegrityError.
+    bind = op.get_bind()
+    bind.execute(
+        sa.text(
+            "UPDATE instrument_types SET note_range_low = 'C1' "
+            "WHERE note_range_low IS NULL"
+        )
+    )
+    bind.execute(
+        sa.text(
+            "UPDATE instrument_types SET note_range_high = 'C9' "
+            "WHERE note_range_high IS NULL"
+        )
+    )
+
     with op.batch_alter_table('instrument_types') as batch_op:
         batch_op.alter_column(
             'note_range_high', existing_type=sa.String(length=10), nullable=False

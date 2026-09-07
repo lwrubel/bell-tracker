@@ -75,17 +75,17 @@ def _add_color_fields(attrs, instrument_type):
     )
 
 
-def build_equipment_form(piece, formdata=None, **kwargs):
-    """Build a form with one picker per instrument type enabled on `piece`,
-    plus a misc_notes field.
+def build_equipment_form(entry, formdata=None, **kwargs):
+    """Build a form with one picker per instrument type this ringer sees on
+    their piece, plus a misc_notes field.
 
     Pitch-mode types get a pitch checkbox field; color-mode types get one
     integer count field per mallet color plus an "Other" label + count.
-    The field set depends on the piece's instrument types, so the form
-    class is constructed per request rather than being static.
+    The field set depends on the entry's visible instrument types, so the
+    form class is constructed per request rather than being static.
     """
     attrs = {}
-    for instrument_type in piece.instrument_types:
+    for instrument_type in entry.visible_instrument_types():
         if instrument_type.selection_mode == "color":
             _add_color_fields(attrs, instrument_type)
         else:

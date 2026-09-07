@@ -79,7 +79,7 @@ def test_default_does_not_duplicate_an_explicit_selection(
     assert p.instrument_types == [mallet_instrument_type]
 
 
-def test_pitch_types_are_not_enabled_by_default(db, concert, instrument_type):
+def test_types_without_the_default_flag_are_not_enabled(db, concert, instrument_type):
     p = Piece(concert_id=concert.id, title="Interlude", program_order=10)
     db.session.add(p)
     db.session.commit()

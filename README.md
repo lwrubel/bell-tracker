@@ -80,12 +80,30 @@ Per-piece mallet totals (summed across every ringer assigned to the piece)
 appear on the ringer's concert-detail and piece-entry pages and in the
 **Equipment Table** report ("Mallets Needed Per Piece").
 
-**Color-mode types are enabled on every new piece automatically.** Pieces get
-created from two different admin forms (the Piece view and the inline form
-under a Concert), so the default lives in a `before_flush` hook in
-`app/models.py` rather than in either form. It only applies to pieces being
-created — you can still uncheck the type on a piece that has no mallets, and
-it won't come back.
+### Where a type is enabled, and who sees it
+
+Two more fields on an Instrument Type control this, independently of the
+selection mode:
+
+- **`enabled_by_default`**: the type is attached to every newly created piece.
+  Pieces get created from two different admin forms (the Piece view and the
+  inline form under a Concert), so this lives in a `before_flush` hook in
+  `app/models.py` rather than in either form. It only applies to pieces being
+  created — you can still uncheck the type on a piece that doesn't use it, and
+  it won't come back. Set on **Mallets** and **Bass Bells**.
+- **`position_prefix`**: when set, only ringers whose position starts with it
+  see that picker on their equipment form. **Bass Bells** uses `LB`, so it
+  reaches `LB1`–`LB3` and nobody else. Blank means everyone on the piece sees
+  it. The dropdown is derived from `POSITION_CODES` by
+  `positions.position_prefixes()`, so it can't drift out of sync.
+
+The two combine: Bass Bells is enabled on every piece, but since only LB
+ringers ever see it, enabling it everywhere costs nothing and saves the admin
+from ticking it piece by piece.
+
+Visibility is presentation only. A selection that's hidden from its own ringer
+— say an `LB1` ringer who's since been moved to `P1` — is left untouched when
+they save, and still counts in the reports.
 
 ## Deploying to DigitalOcean
 

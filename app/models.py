@@ -95,6 +95,11 @@ class InstrumentType(db.Model):
     selection_mode = db.Column(db.String(10), nullable=False, default="pitch")
     note_range_low = db.Column(db.String(10), nullable=True)
     note_range_high = db.Column(db.String(10), nullable=True)
+    # When set, only ringers whose position starts with this string see the
+    # type - "LB" for bass bells. Null means everyone on the piece sees it.
+    position_prefix = db.Column(db.String(10), nullable=True)
+    # Attach this type to every newly created piece.
+    enabled_by_default = db.Column(db.Boolean, nullable=False, default=False)
 
     pieces = db.relationship(
         "Piece", secondary=piece_instrument_types, back_populates="instrument_types"
@@ -108,23 +113,23 @@ class InstrumentType(db.Model):
 
 
 @event.listens_for(db.session, "before_flush")
-def _enable_color_types_on_new_pieces(session, flush_context, instances):
-    """Enable every color-mode instrument type (mallets) on new pieces.
+def _enable_default_instrument_types_on_new_pieces(session, flush_context, instances):
+    """Enable every `enabled_by_default` instrument type on new pieces.
 
     Pieces get created from two different admin forms - the Piece view and
     the inline form under a Concert - so the default lives here rather
     than in either one. It only fires for pieces being inserted, so an
-    admin can still remove the type from a piece that has no mallets.
+    admin can still remove a type from a piece that doesn't use it.
     """
     new_pieces = [obj for obj in session.new if isinstance(obj, Piece)]
     if not new_pieces:
         return
     with session.no_autoflush:
-        color_types = (
-            session.query(InstrumentType).filter_by(selection_mode="color").all()
+        default_types = (
+            session.query(InstrumentType).filter_by(enabled_by_default=True).all()
         )
         for piece in new_pieces:
-            for instrument_type in color_types:
+            for instrument_type in default_types:
                 if instrument_type not in piece.instrument_types:
                     piece.instrument_types.append(instrument_type)
 
@@ -169,6 +174,20 @@ class Entry(db.Model):
     instrument_selections = db.relationship(
         "EntryInstrument", back_populates="entry", cascade="all, delete-orphan"
     )
+
+    def visible_instrument_types(self):
+        """Instrument types this ringer sees on their equipment form.
+
+        A type carrying a position_prefix (bass bells with "LB") is limited
+        to positions starting with it; everything else is shown to everyone
+        on the piece. Presentation only - reports still count a hidden
+        type's selections.
+        """
+        return [
+            t
+            for t in self.piece.instrument_types
+            if not t.position_prefix or self.position.startswith(t.position_prefix)
+        ]
 
     def __repr__(self):
         return f"<Entry user={self.user_id} piece={self.piece_id} position={self.position}>"

@@ -7,13 +7,17 @@ from wtforms import PasswordField, SelectField
 
 from app import color, db, pitch
 from app.models import Case, Concert, Entry, InstrumentType, Piece, User
-from app.positions import POSITION_CODES
+from app.positions import POSITION_CODES, position_prefixes
 
 PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
 # Range is optional for color-mode instrument types, so offer a blank choice.
 OPTIONAL_PITCH_CHOICES = [("", "— none —")] + PITCH_CHOICES
 POSITION_CHOICES = [(c, c) for c in POSITION_CODES]
 SELECTION_MODE_CHOICES = [("pitch", "pitch"), ("color", "color")]
+# Picking from the real prefixes means a typo can't silently disable the rule.
+POSITION_PREFIX_CHOICES = [("", "— any position —")] + [
+    (p, p) for p in position_prefixes()
+]
 
 
 class AdminAccessMixin:
@@ -60,20 +64,39 @@ class PieceAdminView(SecureModelView):
 
 
 class InstrumentTypeAdminView(SecureModelView):
-    column_list = ("name", "selection_mode", "note_range_low", "note_range_high")
-    form_columns = ("name", "selection_mode", "note_range_low", "note_range_high")
+    column_list = (
+        "name",
+        "selection_mode",
+        "note_range_low",
+        "note_range_high",
+        "position_prefix",
+        "enabled_by_default",
+    )
+    form_columns = (
+        "name",
+        "selection_mode",
+        "note_range_low",
+        "note_range_high",
+        "position_prefix",
+        "enabled_by_default",
+    )
     form_overrides = {
         "selection_mode": SelectField,
         "note_range_low": SelectField,
         "note_range_high": SelectField,
+        "position_prefix": SelectField,
     }
     form_args = {
         "selection_mode": {"choices": SELECTION_MODE_CHOICES},
         "note_range_low": {"choices": OPTIONAL_PITCH_CHOICES},
         "note_range_high": {"choices": OPTIONAL_PITCH_CHOICES},
+        "position_prefix": {"choices": POSITION_PREFIX_CHOICES},
     }
 
     def on_model_change(self, form, model, is_created):
+        # "" from the blank choice means "no restriction", not a prefix.
+        if not model.position_prefix:
+            model.position_prefix = None
         if model.selection_mode == "color":
             # Color-mode types (mallets) pick from app/color.py, not pitches.
             model.note_range_low = None
