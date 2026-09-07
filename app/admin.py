@@ -5,12 +5,15 @@ from flask_admin.theme import Bootstrap4Theme
 from flask_login import current_user
 from wtforms import PasswordField, SelectField
 
-from app import db, pitch
+from app import color, db, pitch
 from app.models import Case, Concert, Entry, InstrumentType, Piece, User
 from app.positions import POSITION_CODES
 
 PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
+# Range is optional for color-mode instrument types, so offer a blank choice.
+OPTIONAL_PITCH_CHOICES = [("", "— none —")] + PITCH_CHOICES
 POSITION_CHOICES = [(c, c) for c in POSITION_CODES]
+SELECTION_MODE_CHOICES = [("pitch", "pitch"), ("color", "color")]
 
 
 class AdminAccessMixin:
@@ -57,13 +60,33 @@ class PieceAdminView(SecureModelView):
 
 
 class InstrumentTypeAdminView(SecureModelView):
-    column_list = ("name", "note_range_low", "note_range_high")
-    form_columns = ("name", "note_range_low", "note_range_high")
-    form_overrides = {"note_range_low": SelectField, "note_range_high": SelectField}
-    form_args = {
-        "note_range_low": {"choices": PITCH_CHOICES},
-        "note_range_high": {"choices": PITCH_CHOICES},
+    column_list = ("name", "selection_mode", "note_range_low", "note_range_high")
+    form_columns = ("name", "selection_mode", "note_range_low", "note_range_high")
+    form_overrides = {
+        "selection_mode": SelectField,
+        "note_range_low": SelectField,
+        "note_range_high": SelectField,
     }
+    form_args = {
+        "selection_mode": {"choices": SELECTION_MODE_CHOICES},
+        "note_range_low": {"choices": OPTIONAL_PITCH_CHOICES},
+        "note_range_high": {"choices": OPTIONAL_PITCH_CHOICES},
+    }
+
+    def on_model_change(self, form, model, is_created):
+        if model.selection_mode == "color":
+            # Color-mode types (mallets) pick from app/color.py, not pitches.
+            model.note_range_low = None
+            model.note_range_high = None
+            return
+        if not model.note_range_low or not model.note_range_high:
+            raise Exception(
+                "Pitch-based instrument types need both a low and a high note."
+            )
+        if pitch.pitch_index(model.note_range_low) > pitch.pitch_index(
+            model.note_range_high
+        ):
+            raise Exception("Low note must not be above the high note.")
 
 
 class CaseAdminView(SecureModelView):
@@ -76,6 +99,8 @@ class CaseAdminView(SecureModelView):
     }
 
     def on_model_change(self, form, model, is_created):
+        if model.instrument_type.selection_mode == "color":
+            raise Exception("Cases only apply to pitch-based instrument types.")
         type_low = model.instrument_type.note_range_low
         type_high = model.instrument_type.note_range_high
         if not pitch.in_range(model.note_range_low, type_low, type_high) or not pitch.in_range(
@@ -88,10 +113,17 @@ class CaseAdminView(SecureModelView):
 
 
 def _format_instrument_selections(view, context, model, name):
-    return ", ".join(
-        f"{sel.instrument_type.name}: {sel.notes or ''}"
-        for sel in model.instrument_selections
-    )
+    parts = []
+    for sel in model.instrument_selections:
+        instrument_type = sel.instrument_type
+        if instrument_type.selection_mode == "color":
+            body = ", ".join(
+                f"{label} ×{count}" for label, count in sel.color_counts()
+            )
+        else:
+            body = sel.notes or ""
+        parts.append(f"{instrument_type.name}: {body}")
+    return ", ".join(parts)
 
 
 class EntryAdminView(SecureModelView):

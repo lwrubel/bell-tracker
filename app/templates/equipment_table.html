@@ -13,6 +13,24 @@
   <p class="text-muted">No notes have been signed up for this concert yet.</p>
 {% endif %}
 
+<h2>Mallets Needed Per Piece</h2>
+{% set any_mallets = namespace(found=false) %}
+{% for piece in concert.pieces %}
+  {% set mallet_needs = mallet_requirements_by_piece.get(piece.id) %}
+  {% if mallet_needs %}
+    {% set any_mallets.found = true %}
+    <h5>{{ piece.title }}</h5>
+    <ul>
+      {% for label, count in mallet_needs.items() %}
+        <li>{{ label }}: {{ count }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endfor %}
+{% if not any_mallets.found %}
+  <p class="text-muted">No mallets have been signed up for this concert yet.</p>
+{% endif %}
+
 <h5>Miscellaneous / Other Equipment</h5>
 {% if misc_entries %}
 <ul>

@@ -18,6 +18,8 @@ def packing_list(concert):
     overlaps a pitch actually used somewhere in this concert."""
     used_pitches_by_type = defaultdict(set)
     for entry_instrument in _entry_instruments_for_concert(concert):
+        if entry_instrument.instrument_type.selection_mode == "color":
+            continue  # color-mode types have no pitch cases
         used_pitches_by_type[entry_instrument.instrument_type].update(
             entry_instrument.note_list()
         )
@@ -40,21 +42,32 @@ def packing_list(concert):
 
 
 def equipment_table(concert):
-    """Return (notes_by_type, misc_entries) for laying equipment out for this concert.
+    """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
+    equipment out for this concert.
 
-    notes_by_type: {instrument_type: [pitch, ...]} sorted low to high.
+    notes_by_type: {instrument_type: [pitch, ...]} sorted low to high (pitch-mode types).
+    mallet_counts_by_type: {instrument_type: {label: total_count}} (color-mode types).
     misc_entries: Entry rows with non-empty misc_notes, for attribution.
     """
     notes_by_type = defaultdict(set)
+    mallet_counts_by_type = defaultdict(lambda: defaultdict(int))
     for entry_instrument in _entry_instruments_for_concert(concert):
-        notes_by_type[entry_instrument.instrument_type].update(
-            entry_instrument.note_list()
-        )
+        instrument_type = entry_instrument.instrument_type
+        if instrument_type.selection_mode == "color":
+            for label, count in entry_instrument.color_counts():
+                mallet_counts_by_type[instrument_type][label] += count
+        else:
+            notes_by_type[instrument_type].update(entry_instrument.note_list())
 
     sorted_notes_by_type = {
         instrument_type: sorted(notes, key=pitch.pitch_index)
         for instrument_type, notes in notes_by_type.items()
         if notes
+    }
+    mallet_counts_by_type = {
+        instrument_type: dict(counts)
+        for instrument_type, counts in mallet_counts_by_type.items()
+        if counts
     }
 
     misc_entries = [
@@ -63,4 +76,17 @@ def equipment_table(concert):
         if entry.misc_notes and entry.misc_notes.strip()
     ]
 
-    return sorted_notes_by_type, misc_entries
+    return sorted_notes_by_type, mallet_counts_by_type, misc_entries
+
+
+def mallet_requirements(concert):
+    """Return {piece_id: {label: total_count}} — mallet colors needed per
+    piece, summed across every ringer's entry for that piece."""
+    result = defaultdict(lambda: defaultdict(int))
+    for entry_instrument in _entry_instruments_for_concert(concert):
+        if entry_instrument.instrument_type.selection_mode != "color":
+            continue
+        piece_id = entry_instrument.entry.piece_id
+        for label, count in entry_instrument.color_counts():
+            result[piece_id][label] += count
+    return {piece_id: dict(counts) for piece_id, counts in result.items()}

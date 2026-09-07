@@ -79,6 +79,14 @@ def instrument_type(db):
 
 
 @pytest.fixture()
+def mallet_instrument_type(db):
+    it = InstrumentType(name="Mallets", selection_mode="color")
+    db.session.add(it)
+    db.session.commit()
+    return it
+
+
+@pytest.fixture()
 def concert(db):
     c = Concert(name="Spring Concert", date=datetime.date(2026, 5, 1))
     db.session.add(c)
@@ -90,6 +98,15 @@ def concert(db):
 def piece(db, concert, instrument_type):
     p = Piece(concert_id=concert.id, title="Ode to Joy", program_order=1)
     p.instrument_types.append(instrument_type)
+    db.session.add(p)
+    db.session.commit()
+    return p
+
+
+@pytest.fixture()
+def mallet_piece(db, concert, mallet_instrument_type):
+    p = Piece(concert_id=concert.id, title="Toccata", program_order=2)
+    p.instrument_types.append(mallet_instrument_type)
     db.session.add(p)
     db.session.commit()
     return p

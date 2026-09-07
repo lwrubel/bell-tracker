@@ -12,33 +12,77 @@
     width: 5rem;
     margin-right: 0;
   }
+  .mallet-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    max-width: 40rem;
+  }
+  .mallet-grid .mallet-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 12rem;
+  }
+  .mallet-grid .mallet-count {
+    width: 4.5rem;
+  }
 </style>
 {% endblock %}
 {% block content %}
+{% set has_pitch_type = piece.instrument_types | rejectattr("selection_mode", "equalto", "color") | list %}
 <h1>{{ piece.title }}</h1>
 <p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ entry.position }}</strong></p>
 
+{% if mallet_totals %}
+  <p class="text-muted">
+    Mallets needed for this piece (all ringers):
+    {% for label, count in mallet_totals.items() %}{{ label }} &times;{{ count }}{{ ", " if not loop.last }}{% endfor %}
+  </p>
+{% endif %}
+
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
-  {% if piece.instrument_types %}
+  {% if piece.instrument_types and has_pitch_type %}
     <div class="custom-control custom-switch mb-3">
       <input type="checkbox" class="custom-control-input" id="flatToggle">
       <label class="custom-control-label" for="flatToggle">Show flats instead of sharps</label>
     </div>
   {% endif %}
   {% for instrument_type in piece.instrument_types %}
-    {% set field = form["instrument_" ~ instrument_type.id] %}
-    <div class="form-group">
-      {{ field.label }}
-      <div class="pitch-checkboxes">
-        {% for subfield in field %}
-          <div class="form-check form-check-inline">
-            {{ subfield(class="form-check-input", **{"data-flat": flat_name(subfield._value())}) }}
-            {{ subfield.label(class="form-check-label") }}
-          </div>
-        {% endfor %}
+    {% if instrument_type.selection_mode == "color" %}
+      <fieldset class="form-group">
+        <legend class="col-form-label">{{ instrument_type.name }}</legend>
+        <div class="mallet-grid">
+          {% for i in range(mallet_colors | length) %}
+            {% set f = form["color_" ~ instrument_type.id ~ "_" ~ i] %}
+            <div class="mallet-row">
+              {{ f(type="number", min=0, class="form-control mallet-count") }}
+              {{ f.label(class="mb-0") }}
+            </div>
+          {% endfor %}
+        </div>
+        {% set other_label = form["other_" ~ instrument_type.id ~ "_label"] %}
+        {% set other_count = form["other_" ~ instrument_type.id ~ "_count"] %}
+        <div class="form-inline mt-2" style="gap: 0.5rem;">
+          {{ other_count(type="number", min=0, class="form-control mallet-count") }}
+          {{ other_label(class="form-control", placeholder="Other (describe)") }}
+        </div>
+      </fieldset>
+    {% else %}
+      {% set field = form["instrument_" ~ instrument_type.id] %}
+      <div class="form-group">
+        {{ field.label }}
+        <div class="pitch-checkboxes">
+          {% for subfield in field %}
+            <div class="form-check form-check-inline">
+              {{ subfield(class="form-check-input", **{"data-flat": flat_name(subfield._value())}) }}
+              {{ subfield.label(class="form-check-label") }}
+            </div>
+          {% endfor %}
+        </div>
       </div>
-    </div>
+    {% endif %}
   {% endfor %}
   <div class="form-group">
     {{ form.misc_notes.label }}

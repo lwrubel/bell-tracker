@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import db
+from app import color, db
 
 
 def utcnow():
@@ -88,8 +88,12 @@ class InstrumentType(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    note_range_low = db.Column(db.String(10), nullable=False)
-    note_range_high = db.Column(db.String(10), nullable=False)
+    # "pitch": ringers pick chromatic pitches from note_range_low..high.
+    # "color": ringers pick counts of named mallet colors (app/color.py);
+    # the note range columns are unused and left null.
+    selection_mode = db.Column(db.String(10), nullable=False, default="pitch")
+    note_range_low = db.Column(db.String(10), nullable=True)
+    note_range_high = db.Column(db.String(10), nullable=True)
 
     pieces = db.relationship(
         "Piece", secondary=piece_instrument_types, back_populates="instrument_types"
@@ -164,7 +168,12 @@ class EntryInstrument(db.Model):
     instrument_type = db.relationship("InstrumentType")
 
     def note_list(self):
+        """Pitch names for a pitch-mode instrument type."""
         return [n for n in (self.notes or "").split(",") if n]
+
+    def color_counts(self):
+        """`[(label, count), ...]` for a color-mode instrument type."""
+        return color.parse_color_counts(self.notes)
 
     def __repr__(self):
         return f"<EntryInstrument entry={self.entry_id} type={self.instrument_type_id}>"

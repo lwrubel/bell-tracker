@@ -34,6 +34,7 @@ def create_app(test_config=None):
     login_manager.login_view = "auth.login"
     CSRFProtect(app)
 
+    from app import color
     from app import models  # noqa: F401
     from app import pitch
     from app.admin import init_admin
@@ -47,5 +48,6 @@ def create_app(test_config=None):
     register_cli(app)
 
     app.jinja_env.globals["flat_name"] = pitch.flat_name
+    app.jinja_env.globals["mallet_colors"] = color.MALLET_COLORS
 
     return app

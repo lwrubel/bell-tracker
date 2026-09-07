@@ -56,7 +56,7 @@ def test_equipment_table_groups_and_sorts_pitches_per_type(
     )
     db.session.commit()
 
-    notes_by_type, _ = reports.equipment_table(concert)
+    notes_by_type, _, _ = reports.equipment_table(concert)
 
     assert notes_by_type[instrument_type] == ["C4", "D4", "E4"]
 
@@ -73,7 +73,7 @@ def test_equipment_table_misc_entries_only_include_nonblank_notes(
     db.session.add_all([entry_with_misc, entry_blank])
     db.session.commit()
 
-    _, misc_entries = reports.equipment_table(concert)
+    _, _, misc_entries = reports.equipment_table(concert)
 
     assert misc_entries == [entry_with_misc]
 

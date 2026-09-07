@@ -62,6 +62,24 @@ A few things worth knowing:
   up on the Entry list/detail view, but read-only — those are filled in by
   the ringer from the front end, not set by the admin here.
 
+## Instrument types: pitch vs. color (mallets)
+
+Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode**:
+
+- **`pitch`** (default): the type has a low/high note range, and a ringer's
+  equipment form shows a chromatic pitch picker for it. `Case` rows and the
+  packing list only apply to pitch-mode types.
+- **`color`**: for mallets. Leave the note ranges blank. The permitted colors
+  are a fixed list in `app/color.py` (`Black yarn`, `Red yarn`, …). A ringer's
+  equipment form shows a **count field per color** plus one free-text
+  **Other** row (description + count). Selections are stored in
+  `EntryInstrument.notes` as `label:count` pairs, e.g.
+  `Green yarn:2,Red yarn:1,Other: soft bass:1`.
+
+Per-piece mallet totals (summed across every ringer assigned to the piece)
+appear on the ringer's concert-detail and piece-entry pages and in the
+**Equipment Table** report ("Mallets Needed Per Piece").
+
 ## Deploying to DigitalOcean
 
 This repo includes a `Dockerfile` and `.do/app.yaml` for [App Platform](https://docs.digitalocean.com/products/app-platform/).
