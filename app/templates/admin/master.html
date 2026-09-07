@@ -1,0 +1,9 @@
+{# Overrides Flask-Admin's own admin/master.html (the app's template folder
+   takes precedence over the blueprint's) purely to repoint the navbar brand.
+   Flask-Admin links it at admin_view.admin.url, i.e. back to /admin/; from
+   the admin panel the more useful destination is the front end. #}
+{% extends admin_base_template %}
+
+{% block brand %}
+    <a class="navbar-brand" href="{{ url_for('routes.index') }}">{{ admin_view.admin.name }}</a>
+{% endblock %}
