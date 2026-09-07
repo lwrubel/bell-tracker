@@ -1,7 +1,7 @@
 from conftest import RINGER_PASSWORD, login
 
 from app import color, reports
-from app.models import Entry, EntryInstrument
+from app.models import Entry, EntryInstrument, Piece
 
 
 def _entry_url(concert, piece):
@@ -41,6 +41,63 @@ def test_other_label_survives_round_trip():
     label = color.OTHER_PREFIX + color.sanitize_label("soft bass")
     encoded = color.format_color_counts([(label, 3)])
     assert color.parse_color_counts(encoded) == [("Other: soft bass", 3)]
+
+
+# --- enabled by default on new pieces ------------------------------------
+
+
+def test_new_piece_gets_color_types_automatically(
+    db, concert, mallet_instrument_type
+):
+    p = Piece(concert_id=concert.id, title="Fanfare", program_order=7)
+    db.session.add(p)
+    db.session.commit()
+
+    assert p.instrument_types == [mallet_instrument_type]
+
+
+def test_piece_added_through_a_concert_gets_color_types(
+    db, concert, mallet_instrument_type
+):
+    # The Concert admin's inline form appends to concert.pieces rather than
+    # calling session.add, so cover that path too.
+    p = Piece(title="Prelude", program_order=8)
+    concert.pieces.append(p)
+    db.session.commit()
+
+    assert p.instrument_types == [mallet_instrument_type]
+
+
+def test_default_does_not_duplicate_an_explicit_selection(
+    db, concert, mallet_instrument_type
+):
+    p = Piece(concert_id=concert.id, title="Chorale", program_order=9)
+    p.instrument_types.append(mallet_instrument_type)
+    db.session.add(p)
+    db.session.commit()
+
+    assert p.instrument_types == [mallet_instrument_type]
+
+
+def test_pitch_types_are_not_enabled_by_default(db, concert, instrument_type):
+    p = Piece(concert_id=concert.id, title="Interlude", program_order=10)
+    db.session.add(p)
+    db.session.commit()
+
+    assert p.instrument_types == []
+
+
+def test_admin_can_remove_mallets_from_a_piece(db, concert, mallet_instrument_type):
+    p = Piece(concert_id=concert.id, title="Aria", program_order=11)
+    db.session.add(p)
+    db.session.commit()
+    assert p.instrument_types == [mallet_instrument_type]
+
+    p.instrument_types.remove(mallet_instrument_type)
+    db.session.commit()
+    db.session.expire(p)
+
+    assert p.instrument_types == []
 
 
 # --- entry form --------------------------------------------------------

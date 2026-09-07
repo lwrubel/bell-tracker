@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import event
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import color, db
@@ -104,6 +105,28 @@ class InstrumentType(db.Model):
 
     def __repr__(self):
         return f"<InstrumentType {self.name}>"
+
+
+@event.listens_for(db.session, "before_flush")
+def _enable_color_types_on_new_pieces(session, flush_context, instances):
+    """Enable every color-mode instrument type (mallets) on new pieces.
+
+    Pieces get created from two different admin forms - the Piece view and
+    the inline form under a Concert - so the default lives here rather
+    than in either one. It only fires for pieces being inserted, so an
+    admin can still remove the type from a piece that has no mallets.
+    """
+    new_pieces = [obj for obj in session.new if isinstance(obj, Piece)]
+    if not new_pieces:
+        return
+    with session.no_autoflush:
+        color_types = (
+            session.query(InstrumentType).filter_by(selection_mode="color").all()
+        )
+        for piece in new_pieces:
+            for instrument_type in color_types:
+                if instrument_type not in piece.instrument_types:
+                    piece.instrument_types.append(instrument_type)
 
 
 class Case(db.Model):

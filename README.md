@@ -80,6 +80,13 @@ Per-piece mallet totals (summed across every ringer assigned to the piece)
 appear on the ringer's concert-detail and piece-entry pages and in the
 **Equipment Table** report ("Mallets Needed Per Piece").
 
+**Color-mode types are enabled on every new piece automatically.** Pieces get
+created from two different admin forms (the Piece view and the inline form
+under a Concert), so the default lives in a `before_flush` hook in
+`app/models.py` rather than in either form. It only applies to pieces being
+created — you can still uncheck the type on a piece that has no mallets, and
+it won't come back.
+
 ## Deploying to DigitalOcean
 
 This repo includes a `Dockerfile` and `.do/app.yaml` for [App Platform](https://docs.digitalocean.com/products/app-platform/).
