@@ -2,7 +2,7 @@ import pytest
 from conftest import RINGER_PASSWORD, login
 
 from app import positions, reports
-from app.models import Entry, EntryInstrument, Piece
+from app.models import Entry, EntryInstrument, InstrumentType, Piece
 
 
 @pytest.fixture()
@@ -137,15 +137,12 @@ def test_bass_bells_is_enabled_on_a_piece_added_through_a_concert(
 # --- ordering ------------------------------------------------------------
 
 
-def test_bass_bells_is_listed_before_the_general_types(
+def test_entry_form_lists_types_in_display_order(
     client, db, ringer, concert, bass_piece, bass_instrument_type, instrument_type
 ):
-    """The type a ringer only sees because of their position goes first.
-
-    bass_piece attaches Chimes explicitly and picks up Bass Bells from
-    enabled_by_default afterwards, so the piece lists them in that order -
-    the form has to put Bass Bells on top regardless.
-    """
+    """bass_piece attaches Chimes explicitly and picks up Bass Bells from
+    enabled_by_default afterwards, so the join lists them in that order -
+    display_order (10 vs 20) has to win."""
     response = _open_entry_as(client, db, ringer, concert, bass_piece, "LB1")
     body = response.get_data(as_text=True)
 
@@ -154,28 +151,42 @@ def test_bass_bells_is_listed_before_the_general_types(
     )
 
 
-def test_ordering_puts_position_specific_types_first(
+def test_visible_types_follow_display_order_not_insertion_order(
     db, ringer, bass_piece, bass_instrument_type, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="LB1")
     db.session.add(entry)
     db.session.commit()
 
-    assert entry.visible_instrument_types()[0] is bass_instrument_type
+    assert entry.visible_instrument_types() == [bass_instrument_type, instrument_type]
 
 
-def test_ordering_leaves_the_general_types_alone(
-    db, ringer, bass_piece, bass_instrument_type, instrument_type
+def test_unranked_types_sort_to_the_end(
+    db, ringer, bass_piece, instrument_type, mallet_instrument_type
 ):
-    """A ringer who can't see bass bells gets the piece's own order."""
+    """Mallets leaves display_order at its default, so it lands behind the
+    ranked bells however the piece was assembled."""
+    bass_piece.instrument_types.append(mallet_instrument_type)
     entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="P1")
     db.session.add(entry)
     db.session.commit()
 
-    visible = entry.visible_instrument_types()
+    assert entry.visible_instrument_types()[-1] is mallet_instrument_type
 
-    assert bass_instrument_type not in visible
-    assert visible == [t for t in bass_piece.instrument_types if t in visible]
+
+def test_display_order_beats_alphabetical(db, ringer, concert, instrument_type):
+    """Guards the ranks against a tiebreak that would pass by accident."""
+    late = InstrumentType(name="Aaa Bells", display_order=90)
+    piece = Piece(concert_id=concert.id, title="Ordered", program_order=9)
+    db.session.add(late)
+    piece.instrument_types.append(late)
+    piece.instrument_types.append(instrument_type)
+    db.session.add(piece)
+    entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
+    db.session.add(entry)
+    db.session.commit()
+
+    assert entry.visible_instrument_types() == [instrument_type, late]
 
 
 # --- supporting pieces ---------------------------------------------------

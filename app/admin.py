@@ -64,7 +64,9 @@ class PieceAdminView(SecureModelView):
 
 
 class InstrumentTypeAdminView(SecureModelView):
+    column_default_sort = ("display_order", False)
     column_list = (
+        "display_order",
         "name",
         "selection_mode",
         "note_range_low",
@@ -73,6 +75,7 @@ class InstrumentTypeAdminView(SecureModelView):
         "enabled_by_default",
     )
     form_columns = (
+        "display_order",
         "name",
         "selection_mode",
         "note_range_low",

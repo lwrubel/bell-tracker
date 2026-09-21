@@ -11,6 +11,11 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+# Instrument types sort by display_order; this default parks anything
+# unranked at the end, behind the bells.
+DEFAULT_DISPLAY_ORDER = 100
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
@@ -74,7 +79,10 @@ class Piece(db.Model):
 
     concert = db.relationship("Concert", back_populates="pieces")
     instrument_types = db.relationship(
-        "InstrumentType", secondary=piece_instrument_types, back_populates="pieces"
+        "InstrumentType",
+        secondary=piece_instrument_types,
+        back_populates="pieces",
+        order_by="(InstrumentType.display_order, InstrumentType.name)",
     )
     entries = db.relationship(
         "Entry", back_populates="piece", cascade="all, delete-orphan"
@@ -100,6 +108,11 @@ class InstrumentType(db.Model):
     position_prefix = db.Column(db.String(10), nullable=True)
     # Attach this type to every newly created piece.
     enabled_by_default = db.Column(db.Boolean, nullable=False, default=False)
+    # Where this type sits on a ringer's equipment form, low to high. The
+    # bells are numbered in tens so an admin can slot something between two
+    # of them; anything left at the default sorts to the end, which is
+    # where mallets and any newly added type belong.
+    display_order = db.Column(db.Integer, nullable=False, default=DEFAULT_DISPLAY_ORDER)
 
     pieces = db.relationship(
         "Piece", secondary=piece_instrument_types, back_populates="instrument_types"
@@ -183,18 +196,14 @@ class Entry(db.Model):
         on the piece. Presentation only - reports still count a hidden
         type's selections.
 
-        Position-specific types come first: a type a ringer only sees
-        because of the position they're ringing is the one they most need
-        to fill in, so bass bells sits above the general types rather than
-        wherever the piece happens to list it. The sort is stable, so the
-        rest keep their existing relative order.
+        Order comes from InstrumentType.display_order via the piece's
+        relationship, so filtering here preserves it.
         """
-        visible = [
+        return [
             t
             for t in self.piece.instrument_types
             if not t.position_prefix or self.position.startswith(t.position_prefix)
         ]
-        return sorted(visible, key=lambda t: not t.position_prefix)
 
     def __repr__(self):
         return f"<Entry user={self.user_id} piece={self.piece_id} position={self.position}>"

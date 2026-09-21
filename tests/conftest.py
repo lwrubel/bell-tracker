@@ -87,7 +87,9 @@ def other_ringer(db):
 
 @pytest.fixture()
 def instrument_type(db):
-    it = InstrumentType(name="Chimes", note_range_low="C4", note_range_high="C6")
+    it = InstrumentType(
+        name="Chimes", note_range_low="C4", note_range_high="C6", display_order=20
+    )
     db.session.add(it)
     db.session.commit()
     return it
@@ -109,6 +111,7 @@ def bass_instrument_type(db):
         note_range_high="C4",
         position_prefix="LB",
         enabled_by_default=True,
+        display_order=10,
     )
     db.session.add(it)
     db.session.commit()
