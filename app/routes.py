@@ -57,7 +57,6 @@ def concert_detail(concert_id):
         pieces=pieces,
         entries_by_piece=entries_by_piece,
         float_position=FLOAT_POSITION,
-        mallet_requirements_by_piece=reports.mallet_requirements(concert),
     )
 
 
@@ -131,7 +130,6 @@ def piece_entry(concert_id, piece_id):
         flash("Saved.", "success")
         return redirect(url_for("routes.concert_detail", concert_id=concert_id))
 
-    mallet_totals = reports.mallet_requirements(concert).get(piece.id)
     return render_template(
         "piece_entry.html",
         concert=concert,
@@ -139,7 +137,6 @@ def piece_entry(concert_id, piece_id):
         entry=entry,
         form=form,
         instrument_types=visible_types,
-        mallet_totals=mallet_totals,
     )
 
 

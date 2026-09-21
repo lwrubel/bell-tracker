@@ -288,3 +288,32 @@ def test_pitch_mode_entries_are_unchanged(
 
     db.session.refresh(entry)
     assert entry.instrument_selections[0].notes == "C4,E4"
+
+
+def test_ringer_views_do_not_show_other_ringers_mallets(
+    client, db, ringer, other_ringer, concert, mallet_piece, mallet_instrument_type
+):
+    """Mallets are a per-position choice, so a ringer's own pages must not
+    surface the piece-wide total across everyone on the piece."""
+    _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
+    entry2 = Entry(user_id=other_ringer.id, piece_id=mallet_piece.id, position="P2")
+    db.session.add(entry2)
+    db.session.commit()
+    db.session.add(
+        EntryInstrument(
+            entry_id=entry2.id,
+            instrument_type_id=mallet_instrument_type.id,
+            notes="Red yarn:7",
+        )
+    )
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+
+    program = client.get(f"/concerts/{concert.id}").get_data(as_text=True)
+    assert "Red yarn" not in program
+    assert "&times;2" not in program
+
+    form = client.get(_entry_url(concert, mallet_piece)).get_data(as_text=True)
+    assert "Red yarn &times;7" not in form
+    assert "all ringers" not in form

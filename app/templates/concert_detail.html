@@ -17,17 +17,9 @@
   <tbody>
     {% for piece in pieces %}
       {% set entry = entries_by_piece[piece.id] %}
-      {% set mallet_needs = mallet_requirements_by_piece.get(piece.id) %}
       <tr>
         <td>{{ piece.program_order }}</td>
-        <td>
-          {{ piece.title }}
-          {% if mallet_needs %}
-            <div class="small text-muted">
-              Mallets: {% for label, count in mallet_needs.items() %}{{ label }} &times;{{ count }}{{ ", " if not loop.last }}{% endfor %}
-            </div>
-          {% endif %}
-        </td>
+        <td>{{ piece.title }}</td>
         <td>{{ entry.position }}</td>
         <td>
           {% if entry.position != float_position %}
