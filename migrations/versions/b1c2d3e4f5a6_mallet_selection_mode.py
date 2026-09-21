@@ -36,13 +36,17 @@ def upgrade():
 
 def downgrade():
     # Color-mode rows leave the note range null, and a later revision keeps
-    # any that a ringer has signed up on - so fill those in with the full
-    # chromatic range before putting NOT NULL back, or the batch rebuild
+    # any that a ringer has signed up on - so fill those in with the widest
+    # selectable range before putting NOT NULL back, or the batch rebuild
     # fails with an IntegrityError.
+    #
+    # These literals mirror LOWEST_PITCH/HIGHEST_PITCH in app/pitch.py. They
+    # are spelled out rather than imported: a migration has to keep running
+    # against the schema of its own era, whatever the app later becomes.
     bind = op.get_bind()
     bind.execute(
         sa.text(
-            "UPDATE instrument_types SET note_range_low = 'C1' "
+            "UPDATE instrument_types SET note_range_low = 'F2' "
             "WHERE note_range_low IS NULL"
         )
     )
