@@ -182,12 +182,19 @@ class Entry(db.Model):
         to positions starting with it; everything else is shown to everyone
         on the piece. Presentation only - reports still count a hidden
         type's selections.
+
+        Position-specific types come first: a type a ringer only sees
+        because of the position they're ringing is the one they most need
+        to fill in, so bass bells sits above the general types rather than
+        wherever the piece happens to list it. The sort is stable, so the
+        rest keep their existing relative order.
         """
-        return [
+        visible = [
             t
             for t in self.piece.instrument_types
             if not t.position_prefix or self.position.startswith(t.position_prefix)
         ]
+        return sorted(visible, key=lambda t: not t.position_prefix)
 
     def __repr__(self):
         return f"<Entry user={self.user_id} piece={self.piece_id} position={self.position}>"

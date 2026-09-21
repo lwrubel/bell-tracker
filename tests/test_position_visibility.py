@@ -134,6 +134,50 @@ def test_bass_bells_is_enabled_on_a_piece_added_through_a_concert(
     assert p.instrument_types == [bass_instrument_type]
 
 
+# --- ordering ------------------------------------------------------------
+
+
+def test_bass_bells_is_listed_before_the_general_types(
+    client, db, ringer, concert, bass_piece, bass_instrument_type, instrument_type
+):
+    """The type a ringer only sees because of their position goes first.
+
+    bass_piece attaches Chimes explicitly and picks up Bass Bells from
+    enabled_by_default afterwards, so the piece lists them in that order -
+    the form has to put Bass Bells on top regardless.
+    """
+    response = _open_entry_as(client, db, ringer, concert, bass_piece, "LB1")
+    body = response.get_data(as_text=True)
+
+    assert body.index(f"instrument_{bass_instrument_type.id}") < body.index(
+        f"instrument_{instrument_type.id}"
+    )
+
+
+def test_ordering_puts_position_specific_types_first(
+    db, ringer, bass_piece, bass_instrument_type, instrument_type
+):
+    entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="LB1")
+    db.session.add(entry)
+    db.session.commit()
+
+    assert entry.visible_instrument_types()[0] is bass_instrument_type
+
+
+def test_ordering_leaves_the_general_types_alone(
+    db, ringer, bass_piece, bass_instrument_type, instrument_type
+):
+    """A ringer who can't see bass bells gets the piece's own order."""
+    entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="P1")
+    db.session.add(entry)
+    db.session.commit()
+
+    visible = entry.visible_instrument_types()
+
+    assert bass_instrument_type not in visible
+    assert visible == [t for t in bass_piece.instrument_types if t in visible]
+
+
 # --- supporting pieces ---------------------------------------------------
 
 
