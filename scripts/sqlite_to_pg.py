@@ -74,8 +74,9 @@ def main():
     if not os.path.exists(args.sqlite_path):
         sys.exit(f"No such SQLite file: {args.sqlite_path}")
 
-    # create_app() populates db.metadata with every model's table.
-    create_app()
+    # create_app() populates db.metadata with every model's table. Pass the
+    # target explicitly: there's no DATABASE_URL fallback to lean on.
+    create_app({"SQLALCHEMY_DATABASE_URI": args.database_url})
     metadata = db.metadata
 
     source_engine = create_engine(f"sqlite:///{os.path.abspath(args.sqlite_path)}")

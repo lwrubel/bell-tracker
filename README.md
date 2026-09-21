@@ -165,9 +165,12 @@ the App Platform console.
 ## Environment variables
 
 - `SECRET_KEY` - Flask session secret (set a real value in production)
-- `DATABASE_URL` - Postgres connection string. Falls back to a local SQLite
-  file if unset, which is really only useful for a bare `flask` invocation
-  outside Docker. A bare `postgres://` or `postgresql://` URL (the form
-  DigitalOcean hands out) is rewritten to `postgresql+psycopg://` in
-  `app/__init__.py`, since SQLAlchemy would otherwise reach for psycopg2.
+- `DATABASE_URL` - Postgres connection string. **Required** — there is no
+  fallback, so a `flask` command with it unset fails immediately instead of
+  quietly operating on a stray local file. Compose sets it for the app
+  container, so run one-off commands there:
+  `docker compose exec web flask --app wsgi <command>`. A bare `postgres://`
+  or `postgresql://` URL (the form DigitalOcean hands out) is rewritten to
+  `postgresql+psycopg://` in `app/__init__.py`, since SQLAlchemy would
+  otherwise reach for psycopg2.
 - `TEST_DATABASE_URL` - overrides the database the test suite uses
