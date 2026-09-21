@@ -38,7 +38,7 @@ def upgrade():
                 'enabled_by_default',
                 sa.Boolean(),
                 nullable=False,
-                server_default='0',
+                server_default=sa.text('false'),
             )
         )
 
@@ -48,7 +48,7 @@ def upgrade():
     # pieces by virtue of their mode; now it's this flag that does it.
     bind.execute(
         sa.text(
-            "UPDATE instrument_types SET enabled_by_default = 1 "
+            "UPDATE instrument_types SET enabled_by_default = true "
             "WHERE selection_mode = 'color'"
         )
     )
@@ -56,7 +56,7 @@ def upgrade():
     bind.execute(
         sa.text(
             "UPDATE instrument_types "
-            "SET position_prefix = 'LB', enabled_by_default = 1 "
+            "SET position_prefix = 'LB', enabled_by_default = true "
             "WHERE name = 'Bass Bells'"
         )
     )
@@ -68,7 +68,7 @@ def upgrade():
             SELECT p.id, it.id
             FROM pieces p
             CROSS JOIN instrument_types it
-            WHERE it.enabled_by_default = 1
+            WHERE it.enabled_by_default = true
               AND NOT EXISTS (
                   SELECT 1 FROM piece_instrument_types x
                   WHERE x.piece_id = p.id AND x.instrument_type_id = it.id

@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: bell
+      POSTGRES_PASSWORD: bell
+      POSTGRES_DB: bell_tracker
+    # Published so `uv run pytest` and psql can reach it from the host.
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bell -d bell_tracker"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      target: dev
+    command: >
+      sh -c "flask --app wsgi db upgrade &&
+             flask --app wsgi run --debug --host 0.0.0.0 --port 8080"
+    environment:
+      DATABASE_URL: postgresql+psycopg://bell:bell@db:5432/bell_tracker
+      SECRET_KEY: dev
+    # Source is mounted, not baked, so edits hot-reload without a rebuild.
+    volumes:
+      - ./:/app
+    ports:
+      - "5000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

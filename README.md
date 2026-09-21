@@ -1,32 +1,60 @@
 # bell-tracker
 
-Flask + SQLite app with a Flask-Admin panel.
+Flask + Postgres app with a Flask-Admin panel, running in Docker.
 
 ## Local development
 
 ```sh
-uv sync
-uv run flask --app wsgi run --debug
+docker compose up
 ```
 
 Visit http://127.0.0.1:5000 for the app and http://127.0.0.1:5000/admin/ for the admin panel.
 
-The SQLite file is created automatically at `instance/app.db` on first run.
+That starts Postgres and the app, applies any pending migrations, and serves
+with Flask's reloader. The source directory is mounted into the container, so
+edits take effect without a rebuild — rebuild (`docker compose build web`) only
+when dependencies change.
+
+The database lives in a named Docker volume (`pgdata`), so it survives
+`docker compose down`. Only `docker compose down -v` destroys it. Postgres is
+published on host port 5432, so nothing else can be bound to that port while
+the stack is up.
 
 There's no self-signup — bootstrap the first admin with:
 
 ```sh
-uv run flask --app wsgi create-admin
+docker compose exec web flask --app wsgi create-admin
 ```
 
 ## Tests
 
 ```sh
+docker compose up -d db
+uv sync
 uv run pytest
 ```
 
-Tests run against a throwaway on-disk SQLite database created fresh per
-test (see `tests/conftest.py`) — they never touch `instance/app.db`.
+Tests run against Postgres — the same engine as production, so the suite
+catches dialect problems that SQLite would have hidden. They use a separate
+`bell_tracker_test` database (created by `docker/initdb/01-test-db.sql` when
+the volume is first initialized) and rebuild the schema per test, so they
+never touch your development data. Override the connection with
+`TEST_DATABASE_URL` if needed.
+
+Because they share one database, tests can't run in parallel.
+
+## Importing an old SQLite database
+
+If you have a pre-Postgres `instance/app.db`, copy it across once:
+
+```sh
+docker compose up -d db
+docker compose run --rm web flask --app wsgi db upgrade
+uv run python scripts/sqlite_to_pg.py instance/app.db
+```
+
+This **replaces** everything in the target database. It preserves row ids and
+realigns Postgres' sequences afterward, so admin-created rows don't collide.
 
 ## Assigning ringers to pieces and positions (admin)
 
@@ -107,18 +135,39 @@ they save, and still counts in the reports.
 
 ## Deploying to DigitalOcean
 
-This repo includes a `Dockerfile` and `.do/app.yaml` for [App Platform](https://docs.digitalocean.com/products/app-platform/).
+`.do/app.yaml` describes an [App Platform](https://docs.digitalocean.com/products/app-platform/)
+app: one web service built from the `prod` stage of `Dockerfile`, plus a
+Managed Postgres database. The database is a separate managed service, so
+App Platform's ephemeral container filesystem no longer matters.
+
+Before the first deploy, set `github.repo` in `.do/app.yaml` to your
+repository. Then:
 
 ```sh
 doctl apps create --spec .do/app.yaml
+doctl apps logs <app-id> --type deploy
 ```
 
-**SQLite persistence caveat:** App Platform's filesystem is ephemeral — anything written to disk (including the SQLite file) is lost on every redeploy or restart. This scaffold is fine for a prototype or low-stakes internal tool, but for anything you need to keep:
+With `deploy_on_push: true`, later deploys happen on push to `main`.
 
-- Switch to DigitalOcean's Managed Postgres (change `DATABASE_URL` — SQLAlchemy makes this a one-line swap), or
-- Deploy to a Droplet instead of App Platform, where the SQLite file lives on a real persistent disk.
+DigitalOcean substitutes the real connection string into `DATABASE_URL` via
+`${db.DATABASE_URL}`, so there is no database credential to manage by hand.
+`SECRET_KEY` is the one secret you set yourself, in the App Platform UI or
+with `doctl`.
+
+Migrations run from the container's `CMD` on every boot, which is correct at
+`instance_count: 1`. If you ever scale past one instance, move `db upgrade`
+into a `PRE_DEPLOY` job so instances don't race each other.
+
+Production starts empty — bootstrap the first admin with `create-admin` from
+the App Platform console.
 
 ## Environment variables
 
 - `SECRET_KEY` - Flask session secret (set a real value in production)
-- `DATABASE_URL` - defaults to the local SQLite file if unset
+- `DATABASE_URL` - Postgres connection string. Falls back to a local SQLite
+  file if unset, which is really only useful for a bare `flask` invocation
+  outside Docker. A bare `postgres://` or `postgresql://` URL (the form
+  DigitalOcean hands out) is rewritten to `postgresql+psycopg://` in
+  `app/__init__.py`, since SQLAlchemy would otherwise reach for psycopg2.
+- `TEST_DATABASE_URL` - overrides the database the test suite uses

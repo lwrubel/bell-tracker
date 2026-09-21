@@ -1,4 +1,15 @@
 name: bell-tracker
+
+databases:
+  # DigitalOcean Managed Postgres. The database lives outside the container,
+  # so redeploys and restarts no longer wipe it.
+  # `production: false` provisions the cheaper shared dev database; set it to
+  # true (and add `size`/`num_nodes`) for a dedicated cluster.
+  - name: db
+    engine: PG
+    version: "17"
+    production: false
+
 services:
   - name: web
     dockerfile_path: Dockerfile
@@ -6,10 +17,17 @@ services:
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs
+    github:
+      repo: REPLACE_ME/bell-tracker
+      branch: main
+      deploy_on_push: true
     envs:
       - key: SECRET_KEY
         scope: RUN_TIME
         type: SECRET
-    # NOTE: no DATABASE_URL is set here, so the app falls back to the default
-    # SQLite file under instance/. On App Platform this filesystem is ephemeral -
-    # data is wiped on every redeploy/restart. See README for options.
+      # DO substitutes the managed cluster's real connection string, which
+      # already carries ?sslmode=require. app/__init__.py rewrites the scheme
+      # to postgresql+psycopg:// for SQLAlchemy.
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${db.DATABASE_URL}

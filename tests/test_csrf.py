@@ -15,16 +15,16 @@ from app.models import User
 
 
 @pytest.fixture()
-def csrf_app(tmp_path):
-    db_path = tmp_path / "csrf-test.db"
+def csrf_app(test_database_url):
     application = create_app(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SQLALCHEMY_DATABASE_URI": test_database_url,
             "SECRET_KEY": "test-secret",
         }
     )
     with application.app_context():
+        _db.drop_all()
         _db.create_all()
         user = User(email="admin@example.com", name="Admin", is_admin=True)
         user.set_password("adminpass123")

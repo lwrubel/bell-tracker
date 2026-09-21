@@ -1,4 +1,5 @@
 import datetime
+import os
 
 import pytest
 
@@ -9,24 +10,38 @@ from app.models import Concert, InstrumentType, Piece, User
 RINGER_PASSWORD = "ringerpass123"
 ADMIN_PASSWORD = "adminPassword456"
 
+# The bell_tracker_test database created by docker/initdb/01-test-db.sql.
+# Start it with `docker compose up -d db`.
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+psycopg://bell:bell@localhost:5432/bell_tracker_test",
+)
+
 
 @pytest.fixture()
-def app(tmp_path):
-    """A Flask app configured against a throwaway on-disk SQLite file.
+def test_database_url():
+    return TEST_DATABASE_URL
 
-    (Not :memory: - Flask-SQLAlchemy checks out a fresh connection per
-    request, and separate connections to :memory: don't share a database.)
+
+@pytest.fixture()
+def app():
+    """A Flask app on the Postgres test database, schema rebuilt per test.
+
+    Postgres rather than SQLite so the suite exercises the dialect we
+    actually deploy on. Every test drops and recreates the schema, so they
+    share the database but never each other's rows - which also means they
+    can't run in parallel.
     """
-    db_path = tmp_path / "test.db"
     application = create_app(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SQLALCHEMY_DATABASE_URI": TEST_DATABASE_URL,
             "WTF_CSRF_ENABLED": False,
             "SECRET_KEY": "test-secret",
         }
     )
     with application.app_context():
+        _db.drop_all()
         _db.create_all()
         yield application
         _db.session.remove()
