@@ -59,12 +59,12 @@ class ConcertAdminView(SecureModelView):
     # Flask-Admin's inline-form machinery reads it to tell new rows from
     # existing ones when saving. Omitting it raises
     # AttributeError: 'PieceForm' object has no attribute 'id'.
-    inline_models = [(Piece, {"form_columns": ["id", "title", "program_order"]})]
+    inline_models = [(Piece, {"form_columns": ["id", "title", "program_order", "special"]})]
 
 
 class PieceAdminView(SecureModelView):
-    column_list = ("concert", "title", "program_order", "instrument_types")
-    form_columns = ("concert", "title", "program_order", "instrument_types")
+    column_list = ("concert", "title", "program_order", "special", "instrument_types")
+    form_columns = ("concert", "title", "program_order", "special", "instrument_types")
 
 
 class InstrumentTypeAdminView(SecureModelView):

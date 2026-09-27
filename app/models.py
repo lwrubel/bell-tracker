@@ -81,6 +81,9 @@ class Piece(db.Model):
     concert_id = db.Column(db.Integer, db.ForeignKey("concerts.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     program_order = db.Column(db.Integer, nullable=False)
+    special = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=sa.false()
+    )
 
     concert = db.relationship("Concert", back_populates="pieces")
     instrument_types = db.relationship(

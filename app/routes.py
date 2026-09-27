@@ -183,13 +183,22 @@ def _selected_notes_value(form, instrument_type):
     return ",".join(field.data or [])
 
 
+def _include_special():
+    """Reports include special pieces unless the admin asks to leave them out."""
+    return request.args.get("special") != "exclude"
+
+
 @bp.route("/concerts/<int:concert_id>/reports/packing-list")
 @admin_required
 def report_packing_list(concert_id):
     concert = Concert.query.get_or_404(concert_id)
-    cases_by_type = reports.packing_list(concert)
+    include_special = _include_special()
     return render_template(
-        "packing_list.html", concert=concert, cases_by_type=cases_by_type
+        "packing_list.html",
+        concert=concert,
+        include_special=include_special,
+        special_pieces=[p for p in concert.pieces if p.special],
+        cases_by_type=reports.packing_list(concert, include_special),
     )
 
 
@@ -197,14 +206,19 @@ def report_packing_list(concert_id):
 @admin_required
 def report_equipment_table(concert_id):
     concert = Concert.query.get_or_404(concert_id)
+    include_special = _include_special()
     notes_by_type, mallet_counts_by_type, misc_entries = reports.equipment_table(
-        concert
+        concert, include_special
     )
     return render_template(
         "equipment_table.html",
         concert=concert,
+        include_special=include_special,
+        special_pieces=[p for p in concert.pieces if p.special],
         notes_by_type=notes_by_type,
         mallet_counts_by_type=mallet_counts_by_type,
-        mallet_requirements_by_piece=reports.mallet_requirements(concert),
+        mallet_requirements_by_piece=reports.mallet_requirements(
+            concert, include_special
+        ),
         misc_entries=misc_entries,
     )

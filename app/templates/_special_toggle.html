@@ -1,0 +1,14 @@
+{# Include/exclude switch for pieces an admin marked special, shared by the
+   concert reports. Hidden when the concert has no special pieces. #}
+{% macro special_toggle(report_url, include_special, special_pieces) %}
+{% if special_pieces %}
+  <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Special pieces">
+    <a class="btn btn-outline-secondary{% if include_special %} active{% endif %}" href="{{ report_url }}"{% if include_special %} aria-current="true"{% endif %}>Include special pieces</a>
+    <a class="btn btn-outline-secondary{% if not include_special %} active{% endif %}" href="{{ report_url }}?special=exclude"{% if not include_special %} aria-current="true"{% endif %}>Exclude special pieces</a>
+  </div>
+  <p class="text-muted small">
+    {% if include_special %}Includes{% else %}Leaves out{% endif %} special pieces:
+    {{ special_pieces | map(attribute="title") | join(", ") }}
+  </p>
+{% endif %}
+{% endmacro %}

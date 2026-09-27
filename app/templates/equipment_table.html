@@ -1,8 +1,11 @@
 {% extends "base.html" %}
+{% from "_special_toggle.html" import special_toggle %}
 {% block title %}Equipment Table - {{ concert.name }}{% endblock %}
 {% block content %}
 <h1>Equipment Table</h1>
 <p class="text-muted">{{ concert.name }}</p>
+
+{{ special_toggle(url_for('routes.report_equipment_table', concert_id=concert.id), include_special, special_pieces) }}
 
 {% if notes_by_type %}
   {% for instrument_type, notes in notes_by_type.items() %}

@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models import Entry, EntryInstrument, User
+from conftest import ADMIN_PASSWORD, login
 
 
 def test_password_is_hashed_not_stored_plaintext(db):
@@ -50,3 +51,22 @@ def test_deleting_piece_cascades_to_its_entries(db, ringer, piece):
     db.session.commit()
 
     assert db.session.get(Entry, entry_id) is None
+
+
+def test_piece_is_not_special_by_default(db, piece):
+    assert piece.special is False
+
+
+def test_admin_can_mark_piece_special(client, db, admin_user, concert, piece):
+    login(client, admin_user, ADMIN_PASSWORD)
+    client.post(
+        f"/admin/piece/edit/?id={piece.id}",
+        data={
+            "concert": concert.id,
+            "title": piece.title,
+            "program_order": piece.program_order,
+            "special": "y",
+        },
+    )
+    db.session.refresh(piece)
+    assert piece.special is True
