@@ -1,11 +1,11 @@
-from flask import redirect, request, url_for
-from flask_admin import Admin, AdminIndexView
+from flask import flash, redirect, request, url_for
+from flask_admin import Admin, AdminIndexView, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.theme import Bootstrap4Theme
 from flask_login import current_user
 from wtforms import PasswordField, SelectField
 
-from app import color, db, pitch
+from app import color, db, pitch, roster_import
 from app.models import Case, Concert, Entry, InstrumentType, Piece, User
 from app.positions import POSITION_CODES, position_label, position_prefixes
 
@@ -37,12 +37,22 @@ class SecureAdminIndexView(AdminAccessMixin, AdminIndexView):
 
 
 class UserAdminView(SecureModelView):
-    column_list = ("email", "name", "is_admin")
-    form_columns = ("email", "name", "is_admin", "password")
+    column_list = ("email", "name", "first_name", "is_admin")
+    form_columns = ("email", "name", "first_name", "is_admin", "password")
     form_extra_fields = {"password": PasswordField("Password")}
+    form_args = {
+        "first_name": {
+            "description": "The name used for this ringer in roster spreadsheets. "
+            "Import positions matches on it, so each ringer's should be unique. "
+            "Leave blank to use the first word of Name."
+        }
+    }
 
     def on_model_change(self, form, model, is_created):
         model.email = model.email.strip().lower()
+        model.first_name = " ".join((model.first_name or "").split()) or (
+            model.name.split() or [""]
+        )[0]
         if form.password.data:
             model.set_password(form.password.data)
             # A password an admin chose is a temporary one - unless the admin
@@ -181,6 +191,73 @@ class EntryAdminView(SecureModelView):
     form_args = {"position": {"choices": POSITION_CHOICES}}
 
 
+# A roster sheet is a few KB; anything this big is the wrong file.
+MAX_ROSTER_BYTES = 1024 * 1024
+
+
+class RosterImportView(AdminAccessMixin, BaseView):
+    """Upload a roster CSV, preview the assignments it makes, then confirm.
+
+    The confirm step posts the CSV text back and re-plans it, so nothing is
+    held server-side between the two requests and the preview can't go
+    stale against the database.
+    """
+
+    @expose("/", methods=["GET", "POST"])
+    def index(self):
+        concerts = Concert.query.order_by(Concert.id.desc()).all()
+        if request.method == "GET":
+            return self.render("admin/roster_import.html", concerts=concerts)
+
+        concert = db.session.get(Concert, request.form.get("concert_id", type=int) or 0)
+        if concert is None:
+            flash("Choose a concert.", "danger")
+            return redirect(url_for(".index"))
+
+        if "confirm" in request.form:
+            csv_text = request.form.get("csv_text", "")
+        else:
+            csv_text, error = _read_upload(request.files.get("file"))
+            if error:
+                flash(error, "danger")
+                return redirect(url_for(".index"))
+
+        plan = roster_import.plan_import(concert, csv_text)
+        if "confirm" in request.form and plan.can_apply:
+            roster_import.apply_import(concert, plan)
+            flash(
+                f"Imported positions into {concert.name}: "
+                f"{len(plan.new_piece_titles)} pieces created, "
+                f"{plan.count(roster_import.ADD)} assignments added, "
+                f"{plan.count(roster_import.UPDATE)} changed.",
+                "success",
+            )
+            return redirect(url_for(".index"))
+
+        return self.render(
+            "admin/roster_import.html",
+            concerts=concerts,
+            concert=concert,
+            plan=plan,
+            csv_text=csv_text,
+            actions=roster_import,
+        )
+
+
+def _read_upload(file):
+    """Return (text, error) for an uploaded CSV."""
+    if file is None or not file.filename:
+        return None, "Choose a CSV file to upload."
+    data = file.read(MAX_ROSTER_BYTES + 1)
+    if len(data) > MAX_ROSTER_BYTES:
+        return None, "That file is too large to be a roster sheet."
+    try:
+        # utf-8-sig drops the byte-order mark Excel puts on CSV exports.
+        return data.decode("utf-8-sig"), None
+    except UnicodeDecodeError:
+        return None, "Couldn't read that file. Save it as CSV (UTF-8) and try again."
+
+
 def init_admin(app):
     admin = Admin(
         app,
@@ -194,4 +271,7 @@ def init_admin(app):
     admin.add_view(InstrumentTypeAdminView(InstrumentType, db.session))
     admin.add_view(CaseAdminView(Case, db.session))
     admin.add_view(EntryAdminView(Entry, db.session))
+    admin.add_view(
+        RosterImportView(name="Import positions", endpoint="roster_import")
+    )
     return admin

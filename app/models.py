@@ -17,12 +17,27 @@ def utcnow():
 DEFAULT_DISPLAY_ORDER = 100
 
 
+def _first_word_of_name(context):
+    """Default first_name for users created without one (the CLI, tests).
+
+    Flask-Admin also calls column defaults with no context to prefill its
+    create form; there's no name yet then, so the field starts empty.
+    """
+    if context is None:
+        return ""
+    parts = (context.get_current_parameters().get("name") or "").split()
+    return parts[0] if parts else ""
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     name = db.Column(db.String(120), nullable=False)
+    # What the roster spreadsheets call this ringer; the position importer
+    # matches on it, so it should be unique among ringers.
+    first_name = db.Column(db.String(80), nullable=False, default=_first_word_of_name)
     password_hash = db.Column(db.String(255), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
     # Set when an admin hands out a password; the user is held on the

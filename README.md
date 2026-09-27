@@ -115,6 +115,32 @@ A few things worth knowing:
   up on the Entry list/detail view, but read-only — those are filled in by
   the ringer from the front end, not set by the admin here.
 
+### Importing positions from a spreadsheet
+
+For a whole concert at once, use `/admin/` → **Import positions**. Pick the
+concert and upload the roster sheet saved as CSV:
+
+- The first row lists the pieces. Its first cell is just a label and is
+  ignored.
+- Each following row starts with a position (`P1`–`P11`, `LB1`–`LB3`,
+  `Float`, `Other`). Under each piece is the **first name** of the ringer at
+  that position. `-` or a blank cell means nobody, and several names can
+  share a cell separated by commas (e.g. `"Cam, Matt"` under Float).
+
+Names match each user's **First name** field, ignoring case. Admins set it
+on the User form; it defaults to the first word of Name. Keep first names
+unique among ringers: if two users share one, give one of them a distinct
+value (e.g. `Sam B`) and use that in the sheet. The page
+shows a preview before anything is saved: the pieces it will create and the
+assignments it will add or change. Any problem, such as an unknown position
+or a name matching no user or more than one, blocks the whole import until
+the sheet is fixed.
+
+Importing only adds and updates. Pieces not already in the concert are
+created at the end of the program with the default instrument types.
+Assignments missing from the sheet are **not** removed, and ringers keep any
+equipment they've saved. Delete stale assignments in the **Entry** list.
+
 ## Instrument types: pitch vs. color (mallets)
 
 Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode**:

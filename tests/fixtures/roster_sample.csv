@@ -1,0 +1,17 @@
+Position / Bell,Aurora Fanfare,Brass Lanterns,Copper Canyon,Driftwood Waltz,Evening Tides,Falling Leaves Rag,"Stars, Stones and Rivers",Glacier Song,Harbor Lights,Iron Bridge Overture,Juniper Hymn,Kestrel Carol,Lantern Parade (Guest Choir)
+LB3,-,Clara,Nora,-,Nora,-,-,-,-,-,Clara,Clara,-
+LB2,Ben,Nora,Clara,Nora,Clara,Nora,Ben,Clara,Lena,Clara,Lena,Nora,Clara
+LB1,Alice,Ben,Greta,Clara,Alice,Alice,Greta,Greta,Alice,Nora,Ben,Lena,Nora
+P1,Nora,Milo,Milo,Alice,Hugo,Clara,Milo,Nora,Hugo,Milo,Nora,Milo,Greta
+P2,Oscar,Hugo,Ben,Milo,Ben,Hugo,Clara,Milo,Clara,Ben,Hugo,Dmitri,Milo
+P3,Dmitri,Greta,Dmitri,Hugo,Milo,Milo,Alice,Dmitri,Milo,Hugo,Dmitri,Ben,Esme
+P4,Iris,Alice,Hugo,Dmitri,Esme,Oscar,Oscar,Felix,Dmitri,Alice,Alice,Iris,Felix
+P5,Milo,Felix,Alice,Lena,Jonah,Esme,Dmitri,Esme,Jonah,Dmitri,Iris,Jonah,Hugo
+P6,Hugo,Jonah,Iris,Felix,Felix,Felix,Kofi,Hugo,Oscar,Felix,Jonah,Felix,Dmitri
+P7,Kofi,Dmitri,Felix,Iris,Oscar,Dmitri,Jonah,Kofi,Esme,Jonah,Greta,Alice,Jonah
+P8,Jonah,Kofi,Jonah,Esme,Kofi,Iris,Felix,Iris,Greta,Kofi,Kofi,Esme,Lena
+P9,Greta,Oscar,Oscar,Jonah,Iris,Ben,Iris,Oscar,Ben,Lena,Felix,Oscar,Oscar
+P10,Felix,Iris,Lena,Oscar,Lena,Kofi,Lena,Jonah,Kofi,Greta,Oscar,Kofi,Iris
+P11,Esme,Lena,Kofi,Greta,Greta,Lena,Esme,Ben,Iris,Esme,Esme,Greta,Kofi
+Other,Lena,-,Esme,-,-,-,-,Alice,-,-,-,-,Ben
+Float,Clara,Esme,-,"Ben, Kofi",Dmitri,"Greta, Jonah","Hugo, Nora",Lena,"Nora, Felix","Iris, Oscar",Milo,Hugo,Alice

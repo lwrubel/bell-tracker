@@ -1,0 +1,105 @@
+{% extends "admin/master.html" %}
+{% block body %}
+<h2>Import positions</h2>
+
+{% if not plan %}
+<p>
+  Upload a roster spreadsheet saved as CSV. The first row lists the pieces
+  (its first cell is ignored). Each row after that starts with a position
+  (P1&ndash;P11, LB1&ndash;LB3, Float, Other) followed by the ringer at
+  that position in each piece, written as their <strong>First name</strong>
+  from their user account. Use <code>-</code> or leave a
+  cell blank for nobody, and separate several names with commas.
+</p>
+<p class="text-muted">
+  You'll see a preview before anything is saved. Pieces not already in the
+  concert are created. Importing adds and updates assignments; it never
+  removes one, and saved equipment is kept.
+</p>
+
+<form method="post" enctype="multipart/form-data" style="max-width: 32rem;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-group">
+    <label for="concert_id">Concert</label>
+    <select class="form-control" id="concert_id" name="concert_id" required>
+      {% for c in concerts %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="file">CSV file</label>
+    <input class="form-control-file" type="file" id="file" name="file" accept=".csv,text/csv" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Preview import</button>
+</form>
+
+{% else %}
+<p class="text-muted">Preview for <strong>{{ concert.name }}</strong>. Nothing has been saved yet.</p>
+
+{% if plan.errors %}
+  <div class="alert alert-danger">
+    <p class="mb-2"><strong>This sheet can't be imported until these are fixed:</strong></p>
+    <ul class="mb-0">
+      {% for error in plan.errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% if plan.new_piece_titles %}
+  <h4>New pieces</h4>
+  <p class="text-muted">Added to the end of the program, in this order:</p>
+  <ul>
+    {% for title in plan.new_piece_titles %}<li>{{ title }}</li>{% endfor %}
+  </ul>
+{% endif %}
+
+{% set changes = plan.assignments | rejectattr("action", "equalto", actions.UNCHANGED) | list %}
+<h4>Assignments</h4>
+<p>
+  {{ plan.count(actions.ADD) }} to add &middot;
+  {{ plan.count(actions.UPDATE) }} to change &middot;
+  {{ plan.count(actions.UNCHANGED) }} already up to date
+</p>
+{% if changes %}
+  <table class="table table-sm">
+    <thead>
+      <tr><th>Piece</th><th>Ringer</th><th>Position</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for a in changes %}
+        <tr>
+          <td>{{ a.piece_title }}</td>
+          <td>{{ a.user.name }}</td>
+          <td>
+            {% if a.action == actions.UPDATE %}
+              <s class="text-muted">{{ position_label(a.old_position) }}</s> &rarr;
+            {% endif %}
+            {{ position_label(a.position) }}
+          </td>
+          <td>
+            {% if a.action == actions.ADD %}
+              <span class="badge badge-success">New</span>
+            {% else %}
+              <span class="badge badge-warning">Changed</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="concert_id" value="{{ concert.id }}">
+  <input type="hidden" name="csv_text" value="{{ csv_text }}">
+  {% if plan.can_apply %}
+    <button type="submit" name="confirm" value="1" class="btn btn-primary">Confirm import</button>
+  {% endif %}
+  <a class="btn btn-outline-secondary" href="{{ url_for('.index') }}">
+    {% if plan.can_apply %}Cancel{% else %}Upload a different file{% endif %}
+  </a>
+</form>
+{% endif %}
+{% endblock %}
