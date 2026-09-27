@@ -37,7 +37,7 @@ def index():
 @bp.route("/concerts")
 @login_required
 def concerts_index():
-    concerts = Concert.query.order_by(Concert.date.desc()).all()
+    concerts = Concert.query.order_by(Concert.id.desc()).all()
     return render_template("concerts.html", concerts=concerts)
 
 

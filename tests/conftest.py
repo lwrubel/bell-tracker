@@ -1,4 +1,3 @@
-import datetime
 import os
 
 import pytest
@@ -120,7 +119,7 @@ def bass_instrument_type(db):
 
 @pytest.fixture()
 def concert(db):
-    c = Concert(name="Spring Concert", date=datetime.date(2026, 5, 1))
+    c = Concert(name="Spring Concert")
     db.session.add(c)
     db.session.commit()
     return c

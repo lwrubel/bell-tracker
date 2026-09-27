@@ -2,7 +2,7 @@
 {% block title %}Packing List - {{ concert.name }}{% endblock %}
 {% block content %}
 <h1>Packing List</h1>
-<p class="text-muted">{{ concert.name }} &middot; {{ concert.date.strftime('%B %-d, %Y') }}</p>
+<p class="text-muted">{{ concert.name }}</p>
 
 {% if cases_by_type %}
   {% for instrument_type, cases in cases_by_type.items() %}

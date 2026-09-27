@@ -1,6 +1,6 @@
 from conftest import RINGER_PASSWORD, login
 
-from app.models import Entry, EntryInstrument, Piece
+from app.models import Concert, Entry, EntryInstrument, Piece
 
 
 def test_index_redirects_to_concerts(client, ringer):
@@ -15,6 +15,17 @@ def test_concerts_index_lists_concerts(client, ringer, concert):
     response = client.get("/concerts")
     assert response.status_code == 200
     assert concert.name.encode() in response.data
+
+
+def test_concerts_index_lists_newest_first(client, db, ringer, concert):
+    newer = Concert(name="Holiday Concert")
+    db.session.add(newer)
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get("/concerts").get_data(as_text=True)
+
+    assert body.index("Holiday Concert") < body.index("Spring Concert")
 
 
 def test_concert_detail_only_shows_pieces_ringer_is_assigned_to(
