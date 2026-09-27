@@ -41,6 +41,9 @@
 {% endblock %}
 {% block content %}
 {% set has_pitch_type = instrument_types | rejectattr("selection_mode", "equalto", "color") | list %}
+<p class="mb-2">
+  <a href="{{ url_for('routes.concert_detail', concert_id=concert.id) }}">&larr; Back to {{ concert.name }}</a>
+</p>
 <h1>{{ piece.title }}</h1>
 <p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ entry.position }}</strong></p>
 

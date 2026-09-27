@@ -2,6 +2,7 @@ from functools import wraps
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import selectinload
 
 from app import color, db, reports
 from app.forms import (
@@ -48,6 +49,7 @@ def concert_detail(concert_id):
         entry.piece_id: entry
         for entry in Entry.query.join(Piece)
         .filter(Piece.concert_id == concert_id, Entry.user_id == current_user.id)
+        .options(selectinload(Entry.instrument_selections))
         .all()
     }
     pieces = [p for p in concert.pieces if p.id in entries_by_piece]

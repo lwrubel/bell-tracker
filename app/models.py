@@ -194,6 +194,12 @@ class Entry(db.Model):
         "EntryInstrument", back_populates="entry", cascade="all, delete-orphan"
     )
 
+    def has_equipment(self):
+        """Whether the ringer has saved any equipment on this piece."""
+        return bool(self.instrument_selections) or bool(
+            self.misc_notes and self.misc_notes.strip()
+        )
+
     def visible_instrument_types(self):
         """Instrument types this ringer sees on their equipment form.
 

@@ -36,6 +36,16 @@ def test_entry_form_renders_pitch_checkboxes_for_enabled_instrument_types(
     assert b'value="C4"' in response.data
 
 
+def test_entry_form_links_back_to_concert(client, db, ringer, concert, piece):
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    response = client.get(_entry_url(concert, piece))
+
+    assert f'href="/concerts/{concert.id}"'.encode() in response.data
+
+
 def test_submitting_pitches_creates_entry_instrument(
     client, db, ringer, concert, piece, instrument_type
 ):
