@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}My equipment - {{ concert.name }} - bell-tracker{% endblock %}
+{% block content %}
+<p class="mb-2">
+  <a href="{{ url_for('routes.concert_detail', concert_id=concert.id) }}">&larr; Back to {{ concert.name }}</a>
+</p>
+<h1>My equipment</h1>
+<p class="text-muted">{{ concert.name }} &middot; {{ concert.date.strftime('%B %-d, %Y') }}</p>
+
+{% if entries %}
+  {% for entry in entries %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title mb-1">{{ entry.piece.program_order }}. {{ entry.piece.title }}</h5>
+        <p class="text-muted mb-2">Position: <strong>{{ entry.position }}</strong></p>
+        {% set selections = entry.sorted_instrument_selections() %}
+        {% set misc = (entry.misc_notes or "").strip() %}
+        {% if selections or misc %}
+          <dl class="row mb-0">
+            {% for sel in selections %}
+              <dt class="col-sm-3">{{ sel.instrument_type.name }}</dt>
+              <dd class="col-sm-9">
+                {% if sel.instrument_type.selection_mode == "color" %}
+                  {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                  {{ sel.note_list() | join(", ") }}
+                {% endif %}
+              </dd>
+            {% endfor %}
+            {% if misc %}
+              <dt class="col-sm-3">Miscellaneous</dt>
+              <dd class="col-sm-9" style="white-space: pre-line;">{{ misc }}</dd>
+            {% endif %}
+          </dl>
+        {% else %}
+          <p class="text-muted mb-0">No equipment selected.</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">You haven't been assigned to any pieces in this program yet.</p>
+{% endif %}
+{% endblock %}

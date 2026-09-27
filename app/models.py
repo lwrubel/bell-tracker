@@ -200,6 +200,13 @@ class Entry(db.Model):
             self.misc_notes and self.misc_notes.strip()
         )
 
+    def sorted_instrument_selections(self):
+        """Selections in the same order as the equipment form."""
+        return sorted(
+            self.instrument_selections,
+            key=lambda s: (s.instrument_type.display_order, s.instrument_type.name),
+        )
+
     def visible_instrument_types(self):
         """Instrument types this ringer sees on their equipment form.
 

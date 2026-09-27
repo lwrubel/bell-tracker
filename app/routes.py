@@ -41,17 +41,26 @@ def concerts_index():
     return render_template("concerts.html", concerts=concerts)
 
 
+def _my_entries_by_piece(concert_id):
+    """The current user's entries in a concert, keyed by piece id."""
+    return {
+        entry.piece_id: entry
+        for entry in Entry.query.join(Piece)
+        .filter(Piece.concert_id == concert_id, Entry.user_id == current_user.id)
+        .options(
+            selectinload(Entry.instrument_selections).joinedload(
+                EntryInstrument.instrument_type
+            )
+        )
+        .all()
+    }
+
+
 @bp.route("/concerts/<int:concert_id>")
 @login_required
 def concert_detail(concert_id):
     concert = Concert.query.get_or_404(concert_id)
-    entries_by_piece = {
-        entry.piece_id: entry
-        for entry in Entry.query.join(Piece)
-        .filter(Piece.concert_id == concert_id, Entry.user_id == current_user.id)
-        .options(selectinload(Entry.instrument_selections))
-        .all()
-    }
+    entries_by_piece = _my_entries_by_piece(concert_id)
     pieces = [p for p in concert.pieces if p.id in entries_by_piece]
     return render_template(
         "concert_detail.html",
@@ -60,6 +69,17 @@ def concert_detail(concert_id):
         entries_by_piece=entries_by_piece,
         float_position=FLOAT_POSITION,
     )
+
+
+@bp.route("/concerts/<int:concert_id>/my-equipment")
+@login_required
+def my_equipment(concert_id):
+    concert = Concert.query.get_or_404(concert_id)
+    entries_by_piece = _my_entries_by_piece(concert_id)
+    entries = [
+        entries_by_piece[p.id] for p in concert.pieces if p.id in entries_by_piece
+    ]
+    return render_template("my_equipment.html", concert=concert, entries=entries)
 
 
 @bp.route(
