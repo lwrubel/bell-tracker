@@ -41,7 +41,7 @@ def test_lb_positions_see_bass_bells(
     assert b'value="C2"' in response.data
 
 
-@pytest.mark.parametrize("position", ["P1", "P11", "Aux"])
+@pytest.mark.parametrize("position", ["P1", "P11", "Other"])
 def test_non_lb_positions_do_not_see_bass_bells(
     client, db, ringer, concert, bass_piece, bass_instrument_type, position
 ):
@@ -193,7 +193,7 @@ def test_display_order_beats_alphabetical(db, ringer, concert, instrument_type):
 
 
 def test_position_prefixes_are_derived_from_the_position_codes():
-    assert positions.position_prefixes() == ["P", "LB", "Float", "Aux"]
+    assert positions.position_prefixes() == ["P", "LB", "Float", "Other"]
 
 
 def test_reports_still_count_a_hidden_types_selections(

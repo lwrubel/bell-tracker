@@ -20,7 +20,7 @@ def test_treble_positions_show_base_notes(code, label):
     assert position_label(code) == label
 
 
-@pytest.mark.parametrize("code", ["LB1", "LB2", "LB3", "Float", "Aux"])
+@pytest.mark.parametrize("code", ["LB1", "LB2", "LB3", "Float", "Other"])
 def test_positions_without_notes_show_bare_code(code):
     assert position_label(code) == code
 

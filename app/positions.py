@@ -1,11 +1,11 @@
 """Fixed ringing-position codes, admin-assigned per (user, piece)."""
 
-POSITION_CODES = [f"P{i}" for i in range(1, 12)] + ["LB1", "LB2", "LB3", "Float", "Aux"]
+POSITION_CODES = [f"P{i}" for i in range(1, 12)] + ["LB1", "LB2", "LB3", "Float", "Other"]
 
 FLOAT_POSITION = "Float"
 
 # The two base notes each treble position rings. Positions not listed here
-# (LB, Float, Aux) have no fixed notes and display as their bare code.
+# (LB, Float, Other) have no fixed notes and display as their bare code.
 POSITION_BASE_NOTES = {
     "P1": ("C4", "D4"),
     "P2": ("E4", "F4"),
@@ -28,7 +28,7 @@ def position_label(code):
 
 
 def position_prefixes():
-    """Distinct alphabetic prefixes of the position codes: P, LB, Float, Aux.
+    """Distinct alphabetic prefixes of the position codes: P, LB, Float, Other.
 
     Derived rather than hardcoded so an InstrumentType's position_prefix can
     only ever be set to something the codes above actually start with.
