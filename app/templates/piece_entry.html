@@ -12,6 +12,11 @@
     width: 5rem;
     margin-right: 0;
   }
+  .pitch-checkboxes .octave-divider {
+    flex-basis: 100%;
+    margin: 0.25rem 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
   .mallet-grid {
     display: flex;
     flex-wrap: wrap;
@@ -26,6 +31,11 @@
   }
   .mallet-grid .mallet-count {
     width: 4.5rem;
+  }
+  .instrument-section > summary {
+    cursor: pointer;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
   }
 </style>
 {% endblock %}
@@ -44,8 +54,8 @@
   {% endif %}
   {% for instrument_type in instrument_types %}
     {% if instrument_type.selection_mode == "color" %}
-      <fieldset class="form-group">
-        <legend class="col-form-label">{{ instrument_type.name }}</legend>
+      <details class="form-group instrument-section">
+        <summary>{{ instrument_type.name }}</summary>
         <div class="mallet-grid">
           {% for i in range(mallet_colors | length) %}
             {% set f = form["color_" ~ instrument_type.id ~ "_" ~ i] %}
@@ -61,20 +71,26 @@
           {{ other_count(type="number", min=0, class="form-control mallet-count") }}
           {{ other_label(class="form-control", placeholder="Other (describe)") }}
         </div>
-      </fieldset>
+      </details>
     {% else %}
       {% set field = form["instrument_" ~ instrument_type.id] %}
-      <div class="form-group">
-        {{ field.label }}
+      <details class="form-group instrument-section">
+        <summary>{{ field.label.text }}</summary>
         <div class="pitch-checkboxes">
+          {% set octave = namespace(prev=none) %}
           {% for subfield in field %}
+            {% set this_octave = subfield._value()[-1] %}
+            {% if octave.prev is not none and this_octave != octave.prev %}
+              <hr class="octave-divider">
+            {% endif %}
+            {% set octave.prev = this_octave %}
             <div class="form-check form-check-inline">
               {{ subfield(class="form-check-input", **{"data-flat": flat_name(subfield._value())}) }}
               {{ subfield.label(class="form-check-label") }}
             </div>
           {% endfor %}
         </div>
-      </div>
+      </details>
     {% endif %}
   {% endfor %}
   <div class="form-group">
