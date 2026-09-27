@@ -7,12 +7,12 @@ from wtforms import PasswordField, SelectField
 
 from app import color, db, pitch
 from app.models import Case, Concert, Entry, InstrumentType, Piece, User
-from app.positions import POSITION_CODES, position_prefixes
+from app.positions import POSITION_CODES, position_label, position_prefixes
 
 PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
 # Range is optional for color-mode instrument types, so offer a blank choice.
 OPTIONAL_PITCH_CHOICES = [("", "— none —")] + PITCH_CHOICES
-POSITION_CHOICES = [(c, c) for c in POSITION_CODES]
+POSITION_CHOICES = [(c, position_label(c)) for c in POSITION_CODES]
 SELECTION_MODE_CHOICES = [("pitch", "pitch"), ("color", "color")]
 # Picking from the real prefixes means a typo can't silently disable the rule.
 POSITION_PREFIX_CHOICES = [("", "— any position —")] + [
@@ -171,7 +171,10 @@ class EntryAdminView(SecureModelView):
         "misc_notes",
         "instrument_selections",
     )
-    column_formatters = {"instrument_selections": _format_instrument_selections}
+    column_formatters = {
+        "position": lambda view, context, model, name: position_label(model.position),
+        "instrument_selections": _format_instrument_selections,
+    }
     can_view_details = True
     form_columns = ("user", "piece", "position")
     form_overrides = {"position": SelectField}

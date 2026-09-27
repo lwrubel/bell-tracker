@@ -22,7 +22,7 @@
       <tr>
         <td>{{ piece.program_order }}</td>
         <td>{{ piece.title }}</td>
-        <td>{{ entry.position }}</td>
+        <td>{{ position_label(entry.position) }}</td>
         <td class="text-nowrap">
           {% if entry.position != float_position %}
             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.piece_entry', concert_id=concert.id, piece_id=piece.id) }}">Enter equipment</a>

@@ -78,6 +78,7 @@ def create_app(test_config=None):
     from app import color
     from app import models  # noqa: F401
     from app import pitch
+    from app import positions
     from app.admin import init_admin
     from app.auth import bp as auth_bp
     from app.cli import register_cli
@@ -89,6 +90,7 @@ def create_app(test_config=None):
     register_cli(app)
 
     app.jinja_env.globals["flat_name"] = pitch.flat_name
+    app.jinja_env.globals["position_label"] = positions.position_label
     app.jinja_env.globals["mallet_colors"] = color.MALLET_COLORS
 
     return app

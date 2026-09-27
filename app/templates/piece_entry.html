@@ -45,7 +45,7 @@
   <a href="{{ url_for('routes.concert_detail', concert_id=concert.id) }}">&larr; Back to {{ concert.name }}</a>
 </p>
 <h1>{{ piece.title }}</h1>
-<p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ entry.position }}</strong></p>
+<p class="text-muted">{{ concert.name }} &middot; Position: <strong>{{ position_label(entry.position) }}</strong></p>
 
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
