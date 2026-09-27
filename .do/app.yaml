@@ -31,3 +31,24 @@ services:
       - key: DATABASE_URL
         scope: RUN_TIME
         value: ${db.DATABASE_URL}
+      # SMTP for password-reset emails. DigitalOcean may block port 587;
+      # if sends time out, use your provider's port 2525 or 465 (with
+      # MAIL_USE_SSL=true for 465).
+      - key: MAIL_SERVER
+        scope: RUN_TIME
+        value: REPLACE_ME
+      - key: MAIL_PORT
+        scope: RUN_TIME
+        value: "587"
+      - key: MAIL_USE_SSL
+        scope: RUN_TIME
+        value: "false"
+      - key: MAIL_USERNAME
+        scope: RUN_TIME
+        value: REPLACE_ME
+      - key: MAIL_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: MAIL_DEFAULT_SENDER
+        scope: RUN_TIME
+        value: REPLACE_ME

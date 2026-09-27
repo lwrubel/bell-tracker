@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+import sqlalchemy as sa
 from sqlalchemy import event
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -24,6 +25,11 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    # Set when an admin hands out a password; the user is held on the
+    # change-password page until they pick their own.
+    must_change_password = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=sa.false()
+    )
     created_at = db.Column(db.DateTime, default=utcnow)
 
     entries = db.relationship("Entry", back_populates="user")

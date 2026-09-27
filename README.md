@@ -26,6 +26,31 @@ There's no self-signup — bootstrap the first admin with:
 docker compose exec web flask --app wsgi create-admin
 ```
 
+## User accounts and passwords
+
+Admins create users at `/admin/` → **User** with a temporary password. Any
+password an admin sets (on create or edit, except on their own account)
+marks the user as needing a change: at their next login they're held on
+`/change-password` until they choose their own. Anyone logged in can change
+their password from the **Change password** link in the nav.
+
+The login page's **Forgot my password?** link emails a reset link that
+expires after an hour and works only once.
+
+Email goes out over SMTP, configured with environment variables:
+
+| Variable | Meaning |
+| --- | --- |
+| `MAIL_SERVER` | SMTP host. Unset → emails are written to the app log instead of sent. |
+| `MAIL_PORT` | Default `587` (STARTTLS). |
+| `MAIL_USE_SSL` | `true` for implicit TLS, usually port `465`. |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | SMTP credentials. |
+| `MAIL_DEFAULT_SENDER` | The From address. Falls back to `MAIL_USERNAME`. |
+
+Locally `MAIL_SERVER` is unset, so copy reset links from
+`docker compose logs web`. DigitalOcean may block outbound port 587. If sends
+time out there, use your provider's port 2525, or 465 with `MAIL_USE_SSL=true`.
+
 ## Tests
 
 ```sh

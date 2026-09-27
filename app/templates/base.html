@@ -19,6 +19,7 @@
           {% if current_user.is_admin %}
             <a class="btn btn-outline-secondary btn-sm" href="/admin/">Admin</a>
           {% endif %}
+          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.change_password') }}">Change password</a>
           <form method="post" action="{{ url_for('auth.logout') }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>

@@ -17,5 +17,6 @@
     {{ form.remember_me.label(class="form-check-label") }}
   </div>
   {{ form.submit(class="btn btn-primary") }}
+  <a class="ml-2" href="{{ url_for('auth.forgot_password') }}">Forgot my password?</a>
 </form>
 {% endblock %}

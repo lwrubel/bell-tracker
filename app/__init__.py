@@ -5,6 +5,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -50,10 +51,23 @@ def create_app(test_config=None):
         # Managed Postgres drops idle connections; without pre-ping the first
         # request after a quiet spell dies on a stale one.
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True, "pool_recycle": 300},
+        # Outgoing mail (password resets). With no MAIL_SERVER, messages are
+        # written to the log instead - see app/email.py.
+        MAIL_SERVER=os.environ.get("MAIL_SERVER"),
+        MAIL_PORT=int(os.environ.get("MAIL_PORT", 587)),
+        MAIL_USERNAME=os.environ.get("MAIL_USERNAME"),
+        MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD"),
+        MAIL_USE_SSL=os.environ.get("MAIL_USE_SSL", "").lower()
+        in ("1", "true", "yes"),
+        MAIL_DEFAULT_SENDER=os.environ.get("MAIL_DEFAULT_SENDER"),
     )
 
     if test_config is not None:
         app.config.update(test_config)
+
+    # App Platform terminates TLS at its proxy; trust its forwarded scheme and
+    # host so emailed reset links come out as https://<real host>.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
     db.init_app(app)
     migrate.init_app(app, db)

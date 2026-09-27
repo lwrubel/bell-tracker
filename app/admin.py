@@ -45,6 +45,10 @@ class UserAdminView(SecureModelView):
         model.email = model.email.strip().lower()
         if form.password.data:
             model.set_password(form.password.data)
+            # A password an admin chose is a temporary one - unless the admin
+            # is setting their own.
+            if model.id is None or model.id != current_user.id:
+                model.must_change_password = True
         elif is_created:
             raise Exception("Password is required when creating a user.")
 

@@ -9,7 +9,14 @@ from wtforms import (
     TextAreaField,
     widgets,
 )
-from wtforms.validators import DataRequired, Email, NumberRange, Optional
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    EqualTo,
+    Length,
+    NumberRange,
+    Optional,
+)
 
 from app import color, pitch
 
@@ -19,6 +26,41 @@ class LoginForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     remember_me = BooleanField("Remember me")
     submit = SubmitField("Log in")
+
+
+MIN_PASSWORD_LENGTH = 8
+
+
+def _new_password_fields():
+    return (
+        PasswordField(
+            "New password",
+            validators=[DataRequired(), Length(min=MIN_PASSWORD_LENGTH)],
+        ),
+        PasswordField(
+            "Confirm new password",
+            validators=[
+                DataRequired(),
+                EqualTo("new_password", message="Passwords must match."),
+            ],
+        ),
+    )
+
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("Current password", validators=[DataRequired()])
+    new_password, confirm = _new_password_fields()
+    submit = SubmitField("Change password")
+
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    submit = SubmitField("Send reset link")
+
+
+class ResetPasswordForm(FlaskForm):
+    new_password, confirm = _new_password_fields()
+    submit = SubmitField("Reset password")
 
 
 class MultiCheckboxField(SelectMultipleField):
