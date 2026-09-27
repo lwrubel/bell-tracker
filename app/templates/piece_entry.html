@@ -95,7 +95,8 @@
   {% endfor %}
   <div class="form-group">
     {{ form.misc_notes.label }}
-    {{ form.misc_notes(class="form-control", rows=3) }}
+    {{ form.misc_notes(class="form-control", rows=3, **{"aria-describedby": "misc_notes_help"}) }}
+    <small id="misc_notes_help" class="form-text text-muted">{{ form.misc_notes.description }}</small>
   </div>
   {{ form.submit(class="btn btn-primary") }}
 </form>

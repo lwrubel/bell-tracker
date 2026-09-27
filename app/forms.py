@@ -132,7 +132,14 @@ def build_equipment_form(entry, formdata=None, **kwargs):
             _add_color_fields(attrs, instrument_type)
         else:
             _add_pitch_field(attrs, instrument_type)
-    attrs["misc_notes"] = TextAreaField("Miscellaneous", validators=[Optional()])
+    attrs["misc_notes"] = TextAreaField(
+        "Miscellaneous",
+        validators=[Optional()],
+        description=(
+            "Other equipment such as singing bell stick, bell tree, "
+            "or percussion instruments."
+        ),
+    )
     attrs["submit"] = SubmitField("Save")
 
     form_class = type("EquipmentForm", (FlaskForm,), attrs)
