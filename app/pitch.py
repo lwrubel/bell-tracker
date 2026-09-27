@@ -11,7 +11,7 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 # option for users who prefer flat notation.
 FLAT_NOTE_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
 
-LOWEST_PITCH = "F2"
+LOWEST_PITCH = "C2"
 HIGHEST_PITCH = "C9"
 
 

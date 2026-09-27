@@ -46,7 +46,7 @@ def downgrade():
     bind = op.get_bind()
     bind.execute(
         sa.text(
-            "UPDATE instrument_types SET note_range_low = 'F2' "
+            "UPDATE instrument_types SET note_range_low = 'C2' "
             "WHERE note_range_low IS NULL"
         )
     )

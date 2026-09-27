@@ -40,3 +40,8 @@ def test_flat_name_converts_sharps():
 def test_flat_name_leaves_naturals_unchanged():
     for natural in ["C4", "D4", "E4", "F4", "G4", "A4", "B4"]:
         assert pitch.flat_name(natural) == natural
+
+
+def test_lowest_selectable_pitch_is_c2():
+    # Bass bells go down to C2, so the admin note-range dropdowns must too.
+    assert pitch.all_pitches()[0] == "C2"
