@@ -40,6 +40,31 @@ def test_packing_list_includes_only_cases_overlapping_used_pitches(
     assert result == {instrument_type: [low_case]}
 
 
+def test_packing_list_includes_case_matched_only_by_second_range(
+    client, db, admin_user, ringer, concert, piece, instrument_type
+):
+    split_case = Case(
+        instrument_type_id=instrument_type.id,
+        case_number="C-SPLIT",
+        note_range_low="C4",
+        note_range_high="D4",
+        second_range_low="A5",
+        second_range_high="C6",
+    )
+    db.session.add(split_case)
+    db.session.commit()
+
+    _sign_up(db, ringer, piece, instrument_type, "B5")
+
+    assert reports.packing_list(concert) == {instrument_type: [split_case]}
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/concerts/{concert.id}/reports/packing-list").get_data(
+        as_text=True
+    )
+    assert "C-SPLIT (C4-D4, A5-C6)" in body
+
+
 def test_packing_list_empty_when_nothing_signed_up(concert):
     assert reports.packing_list(concert) == {}
 

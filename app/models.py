@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy import event
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import color, db
+from app import color, db, pitch
 
 
 def utcnow():
@@ -180,8 +180,27 @@ class Case(db.Model):
     case_number = db.Column(db.String(20), unique=True, nullable=False)
     note_range_low = db.Column(db.String(10), nullable=False)
     note_range_high = db.Column(db.String(10), nullable=False)
+    # Some cases hold a second, separate run of bells. Both are null for a
+    # single-range case and both are set when there's a second run.
+    second_range_low = db.Column(db.String(10), nullable=True)
+    second_range_high = db.Column(db.String(10), nullable=True)
 
     instrument_type = db.relationship("InstrumentType", back_populates="cases")
+
+    def ranges(self):
+        """`[(low, high), ...]` for each run of bells in the case."""
+        result = [(self.note_range_low, self.note_range_high)]
+        if self.second_range_low and self.second_range_high:
+            result.append((self.second_range_low, self.second_range_high))
+        return result
+
+    def covers(self, name):
+        """Whether pitch `name` falls in any of the case's ranges."""
+        return any(pitch.in_range(name, low, high) for low, high in self.ranges())
+
+    def range_label(self):
+        """Display form, e.g. "C4-D4" or "C4-D4, A5-C6"."""
+        return ", ".join(f"{low}-{high}" for low, high in self.ranges())
 
     def __repr__(self):
         return f"<Case {self.case_number}>"

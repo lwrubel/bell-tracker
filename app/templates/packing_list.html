@@ -12,7 +12,7 @@
     <h5>{{ instrument_type.name }}</h5>
     <ul>
       {% for case in cases %}
-        <li>{{ case.case_number }} ({{ case.note_range_low }}-{{ case.note_range_high }})</li>
+        <li>{{ case.case_number }} ({{ case.range_label() }})</li>
       {% endfor %}
     </ul>
   {% endfor %}

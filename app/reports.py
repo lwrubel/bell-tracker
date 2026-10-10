@@ -34,10 +34,7 @@ def packing_list(concert, include_special=True):
         needed_cases = [
             case
             for case in instrument_type.cases
-            if any(
-                pitch.in_range(p, case.note_range_low, case.note_range_high)
-                for p in used_pitches
-            )
+            if any(case.covers(p) for p in used_pitches)
         ]
         if needed_cases:
             result[instrument_type] = sorted(needed_cases, key=lambda c: c.case_number)

@@ -130,26 +130,49 @@ class InstrumentTypeAdminView(SecureModelView):
 
 
 class CaseAdminView(SecureModelView):
-    column_list = ("case_number", "instrument_type", "note_range_low", "note_range_high")
-    form_columns = ("case_number", "instrument_type", "note_range_low", "note_range_high")
-    form_overrides = {"note_range_low": SelectField, "note_range_high": SelectField}
+    column_list = (
+        "case_number",
+        "instrument_type",
+        "note_range_low",
+        "note_range_high",
+        "second_range_low",
+        "second_range_high",
+    )
+    form_columns = column_list
+    form_overrides = {
+        "note_range_low": SelectField,
+        "note_range_high": SelectField,
+        "second_range_low": SelectField,
+        "second_range_high": SelectField,
+    }
     form_args = {
         "note_range_low": {"choices": PITCH_CHOICES},
         "note_range_high": {"choices": PITCH_CHOICES},
+        # Most cases hold a single run of bells, so the second is optional.
+        "second_range_low": {"choices": OPTIONAL_PITCH_CHOICES},
+        "second_range_high": {"choices": OPTIONAL_PITCH_CHOICES},
     }
 
     def on_model_change(self, form, model, is_created):
         if model.instrument_type.selection_mode == "color":
             raise Exception("Cases only apply to pitch-based instrument types.")
+        # "" from the blank choice means "no second range".
+        model.second_range_low = model.second_range_low or None
+        model.second_range_high = model.second_range_high or None
+        if bool(model.second_range_low) != bool(model.second_range_high):
+            raise Exception("A second range needs both a low and a high note.")
         type_low = model.instrument_type.note_range_low
         type_high = model.instrument_type.note_range_high
-        if not pitch.in_range(model.note_range_low, type_low, type_high) or not pitch.in_range(
-            model.note_range_high, type_low, type_high
-        ):
-            raise Exception(
-                f"Case range must fall within {model.instrument_type.name}'s "
-                f"range ({type_low}-{type_high})."
-            )
+        for low, high in model.ranges():
+            if pitch.pitch_index(low) > pitch.pitch_index(high):
+                raise Exception("Low note must not be above the high note.")
+            if not pitch.in_range(low, type_low, type_high) or not pitch.in_range(
+                high, type_low, type_high
+            ):
+                raise Exception(
+                    f"Case range must fall within {model.instrument_type.name}'s "
+                    f"range ({type_low}-{type_high})."
+                )
 
 
 def _format_instrument_selections(view, context, model, name):
