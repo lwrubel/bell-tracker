@@ -1,5 +1,12 @@
 name: bell-tracker
 
+# Added in the control panel first; listed here so applying this spec keeps
+# it. DNS stays at Hover: the root A records point at the IPs App Platform
+# shows under Settings -> Domains.
+domains:
+  - domain: belltracker.org
+    type: PRIMARY
+
 databases:
   # DigitalOcean Managed Postgres. The database lives outside the container,
   # so redeploys and restarts no longer wipe it.
@@ -53,4 +60,4 @@ services:
       # Must be a verified sender signature or domain in Postmark.
       - key: MAIL_DEFAULT_SENDER
         scope: RUN_TIME
-        value: REPLACE_ME
+        value: noreply@belltracker.org
