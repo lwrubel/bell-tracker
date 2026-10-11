@@ -89,6 +89,42 @@ def equipment_pull_list(program, include_special=True):
     return result
 
 
+# Positions starting with this ring the bass bells.
+BASS_POSITION_PREFIX = "LB"
+
+
+def bass_bells(program, include_special=True):
+    """Return [(program_piece, [(entry, bells), ...]), ...]: every piece in
+    program order, each LB entry on it by position, and the bells that
+    position signed up for as [(instrument_type, [pitch, ...]), ...], types
+    in display order and pitches low to high. A piece with no LB positions
+    has an empty list.
+    """
+    result = []
+    for program_piece in program.program_pieces:
+        piece = program_piece.piece
+        if not include_special and piece.special:
+            continue
+        entries = sorted(
+            (e for e in piece.entries if e.position.startswith(BASS_POSITION_PREFIX)),
+            key=lambda e: e.position,
+        )
+        positions = []
+        for entry in entries:
+            bells = [
+                (
+                    selection.instrument_type,
+                    sorted(selection.note_list(), key=pitch.pitch_index),
+                )
+                for selection in entry.sorted_instrument_selections()
+                if selection.instrument_type.selection_mode != "color"
+                and selection.note_list()
+            ]
+            positions.append((entry, bells))
+        result.append((program_piece, positions))
+    return result
+
+
 def equipment_table(program, include_special=True):
     """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
     equipment out for this program. With include_special=False, pieces the

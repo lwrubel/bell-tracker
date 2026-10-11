@@ -100,8 +100,12 @@ Ringers' equipment is stored per piece, so it's entered once and shows up in
 every program that plays the piece. The home page shows the active cycle with
 an **Edit my equipment** button, and lists its programs. Each program has a
 printable **View my equipment** page with the ringer's own equipment in program
-order. Admins also get each program's **Cases used list** and **Equipment
-table** there.
+order. Admins and managers also get each program's reports there: **Equipment
+table**, **Pull list**, **Bass bells** and **Cases used list**.
+
+To make someone a manager, tick **Is Manager** on their user in `/admin/` →
+**User**. Managers can see every program's reports but can't open the admin
+panel.
 
 ## Assigning ringers to pieces and positions (admin)
 

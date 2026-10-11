@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_special_toggle.html" import special_toggle %}
+{% block title %}Bass Bells - {{ program.name }}{% endblock %}
+{% block content %}
+<button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
+<h1>Bass Bells</h1>
+<p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
+
+{{ special_toggle(url_for('routes.report_bass_bells', program_id=program.id), include_special, special_pieces) }}
+
+{% if pieces %}
+  {% for program_piece, positions in pieces %}
+    <h5>{{ program_piece.position }}. {{ program_piece.piece.title }}</h5>
+    {% if positions %}
+      <ul>
+        {% for entry, bells in positions %}
+          <li>
+            <strong>{{ entry.position }}</strong> ({{ entry.user.name }}):
+            {% if bells %}
+              {% for instrument_type, pitches in bells %}
+                {% if bells | length > 1 %}{{ instrument_type.name }}: {% endif %}{{ pitches | join(", ") }}{% if not loop.last %}; {% endif %}
+              {% endfor %}
+            {% else %}
+              <span class="text-muted">no bells signed up</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No LB positions.</p>
+    {% endif %}
+  {% endfor %}
+{% else %}
+  <p class="text-muted">This program has no pieces yet.</p>
+{% endif %}
+{% endblock %}

@@ -46,15 +46,26 @@ class SecureAdminIndexView(AdminAccessMixin, AdminIndexView):
 
 
 class UserAdminView(SecureModelView):
-    column_list = ("email", "name", "first_name", "is_admin")
-    form_columns = ("email", "name", "first_name", "is_admin", "password")
+    column_list = ("email", "name", "first_name", "is_admin", "is_manager")
+    form_columns = (
+        "email",
+        "name",
+        "first_name",
+        "is_admin",
+        "is_manager",
+        "password",
+    )
     form_extra_fields = {"password": PasswordField("Password")}
     form_args = {
         "first_name": {
             "description": "The name used for this ringer in roster spreadsheets. "
             "Import positions matches on it, so each ringer's should be unique. "
             "Leave blank to use the first word of Name."
-        }
+        },
+        "is_manager": {
+            "description": "Managers see every program's reports on the home "
+            "page, but not the admin panel."
+        },
     }
 
     def on_model_change(self, form, model, is_created):

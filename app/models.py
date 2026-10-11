@@ -40,6 +40,10 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(80), nullable=False, default=_first_word_of_name)
     password_hash = db.Column(db.String(255), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    # Managers see every program's reports but not the admin panel.
+    is_manager = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=sa.false()
+    )
     # Set when an admin hands out a password; the user is held on the
     # change-password page until they pick their own.
     must_change_password = db.Column(
@@ -48,6 +52,10 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
     entries = db.relationship("Entry", back_populates="user")
+
+    @property
+    def can_view_reports(self):
+        return self.is_admin or self.is_manager
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

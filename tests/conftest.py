@@ -76,6 +76,15 @@ def ringer(db):
 
 
 @pytest.fixture()
+def manager(db):
+    user = User(email="manager@example.com", name="Manager", is_manager=True)
+    user.set_password(RINGER_PASSWORD)
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+@pytest.fixture()
 def other_ringer(db):
     user = User(email="ringer2@example.com", name="Ringer Two", is_admin=False)
     user.set_password(RINGER_PASSWORD)

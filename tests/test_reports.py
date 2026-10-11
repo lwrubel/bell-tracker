@@ -327,3 +327,85 @@ def test_equipment_pull_list_page(client, db, admin_user, program, piece, instru
     assert "Not in any case: A6" in body
     home = client.get("/").get_data(as_text=True)
     assert f"/programs/{program.id}/reports/equipment-pull-list" in home
+
+
+# --- bass bells -----------------------------------------------------------
+
+
+def _assign(db, user, piece, position, *selections):
+    entry = Entry(user_id=user.id, piece_id=piece.id, position=position)
+    db.session.add(entry)
+    db.session.commit()
+    for instrument_type, notes in selections:
+        db.session.add(
+            EntryInstrument(
+                entry_id=entry.id, instrument_type_id=instrument_type.id, notes=notes
+            )
+        )
+    db.session.commit()
+    return entry
+
+
+def test_bass_bells_lists_each_pieces_lb_positions_and_their_bells(
+    db, ringer, other_ringer, program, piece, instrument_type, bass_instrument_type
+):
+    later = add_piece(db, program, "Later Piece", 2)
+    db.session.commit()
+    lb2 = _assign(db, ringer, piece, "LB2", (bass_instrument_type, "E3,C3"))
+    lb1 = _assign(
+        db,
+        other_ringer,
+        piece,
+        "LB1",
+        (bass_instrument_type, "G2"),
+        (instrument_type, "C4"),
+    )
+    _assign(db, ringer, later, "P1", (instrument_type, "C4"))
+
+    result = reports.bass_bells(program)
+
+    assert [(pp.piece, positions) for pp, positions in result] == [
+        (
+            piece,
+            [
+                (lb1, [(bass_instrument_type, ["G2"]), (instrument_type, ["C4"])]),
+                (lb2, [(bass_instrument_type, ["C3", "E3"])]),
+            ],
+        ),
+        (later, []),
+    ]
+
+
+def test_bass_bells_can_leave_out_special_pieces(db, ringer, program, piece):
+    add_piece(db, program, "Special", 2, special=True)
+    db.session.commit()
+
+    result = reports.bass_bells(program, include_special=False)
+
+    assert [pp.piece for pp, _ in result] == [piece]
+
+
+def test_bass_bells_route_is_admin_only(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    url = f"/programs/{program.id}/reports/bass-bells"
+    assert client.get(url).status_code == 403
+
+
+def test_bass_bells_page(client, db, admin_user, ringer, program, piece, bass_instrument_type):
+    _assign(db, ringer, piece, "LB1", (bass_instrument_type, "D3,C3"))
+    add_piece(db, program, "No Bass", 2)
+    db.session.commit()
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/bass-bells").get_data(
+        as_text=True
+    )
+
+    assert "<h1>Bass Bells</h1>" in body
+    assert "1. Ode to Joy" in body
+    assert "<strong>LB1</strong> (Ringer One):" in body
+    assert "C3, D3" in body
+    assert "2. No Bass" in body
+    assert "No LB positions." in body
+    home = client.get("/").get_data(as_text=True)
+    assert f"/programs/{program.id}/reports/bass-bells" in home

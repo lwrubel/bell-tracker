@@ -18,11 +18,13 @@ from app.positions import FLOAT_POSITION
 bp = Blueprint("routes", __name__)
 
 
-def admin_required(view):
+def reports_required(view):
+    """Admins and managers only."""
+
     @wraps(view)
     @login_required
     def wrapped(*args, **kwargs):
-        if not current_user.is_admin:
+        if not current_user.can_view_reports:
             abort(403)
         return view(*args, **kwargs)
 
@@ -186,7 +188,7 @@ def _include_special():
 
 
 @bp.route("/programs/<int:program_id>/reports/cases-list")
-@admin_required
+@reports_required
 def report_cases_list(program_id):
     program = Program.query.get_or_404(program_id)
     include_special = _include_special()
@@ -200,7 +202,7 @@ def report_cases_list(program_id):
 
 
 @bp.route("/programs/<int:program_id>/reports/equipment-pull-list")
-@admin_required
+@reports_required
 def report_equipment_pull_list(program_id):
     program = Program.query.get_or_404(program_id)
     include_special = _include_special()
@@ -213,8 +215,22 @@ def report_equipment_pull_list(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/reports/bass-bells")
+@reports_required
+def report_bass_bells(program_id):
+    program = Program.query.get_or_404(program_id)
+    include_special = _include_special()
+    return render_template(
+        "bass_bells.html",
+        program=program,
+        include_special=include_special,
+        special_pieces=[p for p in program.pieces if p.special],
+        pieces=reports.bass_bells(program, include_special),
+    )
+
+
 @bp.route("/programs/<int:program_id>/reports/equipment-table")
-@admin_required
+@reports_required
 def report_equipment_table(program_id):
     program = Program.query.get_or_404(program_id)
     include_special = _include_special()
