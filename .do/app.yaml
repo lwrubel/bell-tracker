@@ -31,24 +31,26 @@ services:
       - key: DATABASE_URL
         scope: RUN_TIME
         value: ${db.DATABASE_URL}
-      # SMTP for password-reset emails. DigitalOcean may block port 587;
-      # if sends time out, use your provider's port 2525 or 465 (with
-      # MAIL_USE_SSL=true for 465).
+      # SMTP for password-reset emails, sent through Postmark. Port 2525
+      # (STARTTLS) sidesteps DigitalOcean's possible block on 587.
       - key: MAIL_SERVER
         scope: RUN_TIME
-        value: REPLACE_ME
+        value: smtp.postmarkapp.com
       - key: MAIL_PORT
         scope: RUN_TIME
-        value: "587"
+        value: "2525"
       - key: MAIL_USE_SSL
         scope: RUN_TIME
         value: "false"
+      # Postmark's Server API Token is both the SMTP username and password,
+      # so the username is a secret too.
       - key: MAIL_USERNAME
         scope: RUN_TIME
-        value: REPLACE_ME
+        type: SECRET
       - key: MAIL_PASSWORD
         scope: RUN_TIME
         type: SECRET
+      # Must be a verified sender signature or domain in Postmark.
       - key: MAIL_DEFAULT_SENDER
         scope: RUN_TIME
         value: REPLACE_ME
