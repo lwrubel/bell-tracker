@@ -75,6 +75,19 @@
           {{ other_label(class="form-control", placeholder="Other (describe)") }}
         </div>
       </details>
+    {% elif instrument_type.selection_mode == "options" %}
+      {% set field = form["instrument_" ~ instrument_type.id] %}
+      <details class="form-group instrument-section">
+        <summary>{{ field.label.text }}</summary>
+        {% for subfield in field %}
+          <div class="form-check form-check-inline">
+            {{ subfield(class="form-check-input") }}
+            {{ subfield.label(class="form-check-label") }}
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">None set up yet.</p>
+        {% endfor %}
+      </details>
     {% elif instrument_type.selection_mode == "checkbox" %}
       {% set field = form["instrument_" ~ instrument_type.id] %}
       <div class="form-group form-check">

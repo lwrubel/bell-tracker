@@ -123,13 +123,23 @@ def _add_checkbox_field(attrs, instrument_type):
     )
 
 
+def _add_options_field(attrs, instrument_type):
+    # Values are option ids, so an admin renaming an option doesn't orphan
+    # what ringers already picked.
+    choices = [(str(o.id), o.name) for o in instrument_type.options]
+    attrs[instrument_field_name(instrument_type.id)] = MultiCheckboxField(
+        instrument_type.label_on_form(), choices=choices, validators=[Optional()]
+    )
+
+
 def build_equipment_form(entry, formdata=None, **kwargs):
     """Build a form with one picker per instrument type this ringer sees on
     their piece, plus a misc_notes field.
 
     Pitch-mode types get a pitch checkbox field; color-mode types get one
     integer count field per mallet color plus an "Other" label + count;
-    checkbox-mode types get a single yes/no checkbox.
+    checkbox-mode types get a single yes/no checkbox; options-mode types get
+    a checkbox per option.
     The field set depends on the entry's visible instrument types, so the
     form class is constructed per request rather than being static.
     """
@@ -139,12 +149,14 @@ def build_equipment_form(entry, formdata=None, **kwargs):
             _add_color_fields(attrs, instrument_type)
         elif instrument_type.selection_mode == "checkbox":
             _add_checkbox_field(attrs, instrument_type)
+        elif instrument_type.selection_mode == "options":
+            _add_options_field(attrs, instrument_type)
         else:
             _add_pitch_field(attrs, instrument_type)
     attrs["misc_notes"] = TextAreaField(
         "Miscellaneous",
         validators=[Optional()],
-        description="Other equipment such as a bell tree or percussion instruments.",
+        description="Other equipment, such as a bell tree.",
     )
     attrs["submit"] = SubmitField("Save")
 

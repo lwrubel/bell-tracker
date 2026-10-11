@@ -1,0 +1,12 @@
+{# Checkbox- and options-mode types: singing bell sticks, as the most used
+   in any one piece, and every percussion option picked at least once. #}
+{% macro ticked_equipment(checkbox_counts, used_options) %}
+  {% for instrument_type, count in checkbox_counts.items() %}
+    <h5>{{ instrument_type.name }}</h5>
+    <p>{{ count }} <span class="text-muted">(the most used in any one piece)</span></p>
+  {% endfor %}
+  {% for instrument_type, options in used_options.items() %}
+    <h5>{{ instrument_type.name }}</h5>
+    <p>{{ options | join(", ") }}</p>
+  {% endfor %}
+{% endmacro %}

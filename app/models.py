@@ -232,6 +232,9 @@ class InstrumentType(db.Model):
     # the note range columns are unused and left null.
     # "checkbox": ringers tick whether they need one (singing bell sticks);
     # no note range either.
+    # "options": ringers tick any of the type's InstrumentOptions, which
+    # the admin manages (percussion: triangle, slap stick, ...). No note
+    # range either.
     selection_mode = db.Column(db.String(10), nullable=False, default="pitch")
     note_range_low = db.Column(db.String(10), nullable=True)
     note_range_high = db.Column(db.String(10), nullable=True)
@@ -256,12 +259,40 @@ class InstrumentType(db.Model):
     cases = db.relationship(
         "Case", back_populates="instrument_type", cascade="all, delete-orphan"
     )
+    options = db.relationship(
+        "InstrumentOption",
+        back_populates="instrument_type",
+        cascade="all, delete-orphan",
+        order_by="InstrumentOption.name",
+    )
 
     def label_on_form(self):
         return self.form_label or self.name
 
     def __repr__(self):
         return f"<InstrumentType {self.name}>"
+
+
+class InstrumentOption(db.Model):
+    """One thing a ringer can pick on an options-mode instrument type, such
+    as Triangle under Percussion."""
+
+    __tablename__ = "instrument_options"
+    __table_args__ = (db.UniqueConstraint("instrument_type_id", "name"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    instrument_type_id = db.Column(
+        db.Integer, db.ForeignKey("instrument_types.id"), nullable=False
+    )
+    name = db.Column(db.String(100), nullable=False)
+
+    instrument_type = db.relationship("InstrumentType", back_populates="options")
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"<InstrumentOption {self.name}>"
 
 
 @event.listens_for(db.session, "before_flush")
@@ -454,6 +485,14 @@ class EntryInstrument(db.Model):
     def color_counts(self):
         """`[(label, count), ...]` for a color-mode instrument type."""
         return color.parse_color_counts(self.notes)
+
+    def selected_options(self):
+        """The InstrumentOptions ticked on an options-mode instrument type,
+        in the type's order. Notes hold option ids, so renaming an option
+        carries over; one the admin has since deleted drops out.
+        """
+        ids = set(self.note_list())
+        return [o for o in self.instrument_type.options if str(o.id) in ids]
 
     def __repr__(self):
         return f"<EntryInstrument entry={self.entry_id} type={self.instrument_type_id}>"

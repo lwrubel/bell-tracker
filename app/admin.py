@@ -10,6 +10,7 @@ from app.models import (
     Case,
     Cycle,
     Entry,
+    InstrumentOption,
     InstrumentType,
     Piece,
     Program,
@@ -26,6 +27,7 @@ SELECTION_MODE_CHOICES = [
     ("pitch", "pitch"),
     ("color", "color"),
     ("checkbox", "checkbox"),
+    ("options", "options"),
 ]
 # Picking from the real prefixes means a typo can't silently disable the rule.
 POSITION_PREFIX_CHOICES = [("", "— any position —")] + [
@@ -176,6 +178,9 @@ class InstrumentTypeAdminView(SecureModelView):
             )
         },
     }
+    # What ringers can pick on an options-mode type (Percussion). See
+    # CycleAdminView for why "id" is listed.
+    inline_models = [(InstrumentOption, {"form_columns": ["id", "name"]})]
 
     def on_model_change(self, form, model, is_created):
         model.form_label = (model.form_label or "").strip() or None
@@ -241,6 +246,8 @@ def _format_instrument_selections(view, context, model, name):
             )
         elif instrument_type.selection_mode == "checkbox":
             body = "Yes"
+        elif instrument_type.selection_mode == "options":
+            body = ", ".join(o.name for o in sel.selected_options())
         else:
             body = sel.notes or ""
         parts.append(f"{instrument_type.name}: {body}")

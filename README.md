@@ -169,7 +169,7 @@ add them to programs from the **Program** admin.
 Assignments missing from the sheet are **not** removed, and ringers keep any
 equipment they've saved. Delete stale assignments in the **Entry** list.
 
-## Instrument types: pitch, color (mallets) and checkbox
+## Instrument types: pitch, color (mallets), checkbox and options
 
 Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode**:
 
@@ -191,6 +191,15 @@ appear on the ringer's cycle and piece-entry pages and in the
   the note ranges blank. A ticked box stores `yes` in `EntryInstrument.notes`.
   The **Equipment table** and **Pull list** reports show the most ringers who
   ticked it on any one piece in the program, which is how many to bring.
+
+- **`options`**: a checkbox per option, for **Percussion**. Leave the note
+  ranges blank and list the options (Triangle, Slap Stick, …) under
+  **Options** at the bottom of the Instrument Type form. Unlike Mallets and
+  Singing Bell Sticks it isn't enabled by default: add it to the pieces that
+  use it. A ringer's picks are stored as option ids in
+  `EntryInstrument.notes`, so renaming an option keeps them, and deleting one
+  drops it from everyone's picks. The **Equipment table** and **Pull list**
+  list every option picked at least once in the program.
 
 Any type can have a **Form label**: what ringers see on their equipment form
 in place of the name. Singing Bell Sticks uses it to read "Singing Bell

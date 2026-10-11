@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_special_toggle.html" import special_toggle %}
+{% from "_ticked_equipment.html" import ticked_equipment %}
 {% block title %}Equipment Pull List - {{ program.name }}{% endblock %}
 {% block content %}
 <button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
@@ -9,7 +10,7 @@
 
 {{ special_toggle(url_for('routes.report_equipment_pull_list', program_id=program.id), include_special, special_pieces) }}
 
-{% if bells_by_type or checkbox_counts %}
+{% if bells_by_type or checkbox_counts or used_options %}
   {% for instrument_type, (cases, uncovered) in bells_by_type.items() %}
     <h5>{{ instrument_type.name }}</h5>
     <ul>
@@ -21,10 +22,7 @@
       {% endif %}
     </ul>
   {% endfor %}
-  {% for instrument_type, count in checkbox_counts.items() %}
-    <h5>{{ instrument_type.name }}</h5>
-    <p>{{ count }} <span class="text-muted">(the most used in any one piece)</span></p>
-  {% endfor %}
+  {{ ticked_equipment(checkbox_counts, used_options) }}
 {% else %}
   <p class="text-muted">No equipment has been signed up for this program yet.</p>
 {% endif %}

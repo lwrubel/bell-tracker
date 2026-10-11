@@ -165,7 +165,8 @@ def piece_entry(piece_id):
 
 def _selected_notes_value(form, instrument_type):
     """The string to store in EntryInstrument.notes for one instrument type,
-    from the submitted form (pitch list, color:count pairs, or a tick)."""
+    from the submitted form (pitch list, color:count pairs, a tick, or
+    option ids)."""
     if instrument_type.selection_mode == "color":
         items = [
             (color_name, getattr(form, color_field_name(instrument_type.id, i)).data)
@@ -217,6 +218,7 @@ def report_equipment_pull_list(program_id):
         special_pieces=[p for p in program.pieces if p.special],
         bells_by_type=reports.equipment_pull_list(program, include_special),
         checkbox_counts=reports.checkbox_max_counts(program, include_special),
+        used_options=reports.used_options(program, include_special),
     )
 
 
@@ -250,6 +252,7 @@ def report_equipment_table(program_id):
         notes_by_type=notes_by_type,
         mallet_counts_by_type=mallet_counts_by_type,
         checkbox_counts=reports.checkbox_max_counts(program, include_special),
+        used_options=reports.used_options(program, include_special),
         mallet_requirements_by_piece=reports.mallet_requirements(
             program, include_special
         ),

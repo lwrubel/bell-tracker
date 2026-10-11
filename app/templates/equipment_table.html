@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_special_toggle.html" import special_toggle %}
+{% from "_ticked_equipment.html" import ticked_equipment %}
 {% block title %}Equipment Table - {{ program.name }}{% endblock %}
 {% block content %}
 <h1>Equipment Table</h1>
@@ -16,10 +17,7 @@
   <p class="text-muted">No notes have been signed up for this program yet.</p>
 {% endif %}
 
-{% for instrument_type, count in checkbox_counts.items() %}
-  <h5>{{ instrument_type.name }}</h5>
-  <p>{{ count }} <span class="text-muted">(the most used in any one piece)</span></p>
-{% endfor %}
+{{ ticked_equipment(checkbox_counts, used_options) }}
 
 <h2>Mallets Needed Per Piece</h2>
 {% set any_mallets = namespace(found=false) %}

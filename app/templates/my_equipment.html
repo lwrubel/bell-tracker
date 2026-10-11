@@ -27,6 +27,8 @@
                   {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
                 {% elif sel.instrument_type.selection_mode == "checkbox" %}
                   Yes
+                {% elif sel.instrument_type.selection_mode == "options" %}
+                  {{ sel.selected_options() | join(", ") }}
                 {% else %}
                   {{ sel.note_list() | join(", ") }}
                 {% endif %}

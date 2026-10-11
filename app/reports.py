@@ -142,6 +142,24 @@ def checkbox_max_counts(program, include_special=True):
     }
 
 
+def used_options(program, include_special=True):
+    """Return {instrument_type: [option, ...]} for options-mode types
+    (percussion): every option picked at least once in the program. Types
+    in display order, options in the type's order.
+    """
+    picked = defaultdict(set)
+    for entry_instrument in _entry_instruments_for_program(program, include_special):
+        instrument_type = entry_instrument.instrument_type
+        if instrument_type.selection_mode == "options":
+            picked[instrument_type].update(entry_instrument.selected_options())
+    result = {}
+    for instrument_type in sorted(picked, key=lambda t: (t.display_order, t.name)):
+        options = [o for o in instrument_type.options if o in picked[instrument_type]]
+        if options:
+            result[instrument_type] = options
+    return result
+
+
 def equipment_table(program, include_special=True):
     """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
     equipment out for this program. With include_special=False, pieces the
