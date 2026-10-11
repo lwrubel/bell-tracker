@@ -25,6 +25,8 @@
               <dd class="col-sm-9">
                 {% if sel.instrument_type.selection_mode == "color" %}
                   {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% elif sel.instrument_type.selection_mode == "checkbox" %}
+                  Yes
                 {% else %}
                   {{ sel.note_list() | join(", ") }}
                 {% endif %}

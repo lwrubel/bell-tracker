@@ -22,7 +22,11 @@ PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
 # Range is optional for color-mode instrument types, so offer a blank choice.
 OPTIONAL_PITCH_CHOICES = [("", "— none —")] + PITCH_CHOICES
 POSITION_CHOICES = [(c, position_label(c)) for c in POSITION_CODES]
-SELECTION_MODE_CHOICES = [("pitch", "pitch"), ("color", "color")]
+SELECTION_MODE_CHOICES = [
+    ("pitch", "pitch"),
+    ("color", "color"),
+    ("checkbox", "checkbox"),
+]
 # Picking from the real prefixes means a typo can't silently disable the rule.
 POSITION_PREFIX_CHOICES = [("", "— any position —")] + [
     (p, p) for p in position_prefixes()
@@ -170,8 +174,9 @@ class InstrumentTypeAdminView(SecureModelView):
         # "" from the blank choice means "no restriction", not a prefix.
         if not model.position_prefix:
             model.position_prefix = None
-        if model.selection_mode == "color":
-            # Color-mode types (mallets) pick from app/color.py, not pitches.
+        if model.selection_mode != "pitch":
+            # Color-mode types (mallets) pick from app/color.py and
+            # checkbox-mode types are a single tick, not pitches.
             model.note_range_low = None
             model.note_range_high = None
             return
@@ -226,6 +231,8 @@ def _format_instrument_selections(view, context, model, name):
             body = ", ".join(
                 f"{label} ×{count}" for label, count in sel.color_counts()
             )
+        elif instrument_type.selection_mode == "checkbox":
+            body = "Yes"
         else:
             body = sel.notes or ""
         parts.append(f"{instrument_type.name}: {body}")

@@ -23,8 +23,8 @@ def _used_pitches_by_type(program, include_special):
     this program."""
     used_pitches_by_type = defaultdict(set)
     for entry_instrument in _entry_instruments_for_program(program, include_special):
-        if entry_instrument.instrument_type.selection_mode == "color":
-            continue  # color-mode types have no pitch cases
+        if entry_instrument.instrument_type.selection_mode != "pitch":
+            continue  # only pitch-mode types have cases
         used_pitches_by_type[entry_instrument.instrument_type].update(
             entry_instrument.note_list()
         )
@@ -117,12 +117,29 @@ def bass_bells(program, include_special=True):
                     sorted(selection.note_list(), key=pitch.pitch_index),
                 )
                 for selection in entry.sorted_instrument_selections()
-                if selection.instrument_type.selection_mode != "color"
+                if selection.instrument_type.selection_mode == "pitch"
                 and selection.note_list()
             ]
             positions.append((entry, bells))
         result.append((program_piece, positions))
     return result
+
+
+def checkbox_max_counts(program, include_special=True):
+    """Return {instrument_type: count} for checkbox-mode types (singing bell
+    sticks): the most ringers who ticked it on any one piece in the program,
+    which is how many to bring. Types in display order; a type nobody ticked
+    is left out.
+    """
+    counts = defaultdict(lambda: defaultdict(int))
+    for entry_instrument in _entry_instruments_for_program(program, include_special):
+        instrument_type = entry_instrument.instrument_type
+        if instrument_type.selection_mode == "checkbox":
+            counts[instrument_type][entry_instrument.entry.piece_id] += 1
+    return {
+        instrument_type: max(counts[instrument_type].values())
+        for instrument_type in sorted(counts, key=lambda t: (t.display_order, t.name))
+    }
 
 
 def equipment_table(program, include_special=True):
@@ -141,7 +158,7 @@ def equipment_table(program, include_special=True):
         if instrument_type.selection_mode == "color":
             for label, count in entry_instrument.color_counts():
                 mallet_counts_by_type[instrument_type][label] += count
-        else:
+        elif instrument_type.selection_mode == "pitch":
             notes_by_type[instrument_type].update(entry_instrument.note_list())
 
     sorted_notes_by_type = {

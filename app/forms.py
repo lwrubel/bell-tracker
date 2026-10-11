@@ -117,12 +117,19 @@ def _add_color_fields(attrs, instrument_type):
     )
 
 
+def _add_checkbox_field(attrs, instrument_type):
+    attrs[instrument_field_name(instrument_type.id)] = BooleanField(
+        instrument_type.name
+    )
+
+
 def build_equipment_form(entry, formdata=None, **kwargs):
     """Build a form with one picker per instrument type this ringer sees on
     their piece, plus a misc_notes field.
 
     Pitch-mode types get a pitch checkbox field; color-mode types get one
-    integer count field per mallet color plus an "Other" label + count.
+    integer count field per mallet color plus an "Other" label + count;
+    checkbox-mode types get a single yes/no checkbox.
     The field set depends on the entry's visible instrument types, so the
     form class is constructed per request rather than being static.
     """
@@ -130,15 +137,14 @@ def build_equipment_form(entry, formdata=None, **kwargs):
     for instrument_type in entry.visible_instrument_types():
         if instrument_type.selection_mode == "color":
             _add_color_fields(attrs, instrument_type)
+        elif instrument_type.selection_mode == "checkbox":
+            _add_checkbox_field(attrs, instrument_type)
         else:
             _add_pitch_field(attrs, instrument_type)
     attrs["misc_notes"] = TextAreaField(
         "Miscellaneous",
         validators=[Optional()],
-        description=(
-            "Other equipment such as singing bell stick, bell tree, "
-            "or percussion instruments."
-        ),
+        description="Other equipment such as a bell tree or percussion instruments.",
     )
     attrs["submit"] = SubmitField("Save")
 

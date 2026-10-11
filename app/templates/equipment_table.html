@@ -16,6 +16,11 @@
   <p class="text-muted">No notes have been signed up for this program yet.</p>
 {% endif %}
 
+{% for instrument_type, count in checkbox_counts.items() %}
+  <h5>{{ instrument_type.name }}</h5>
+  <p>{{ count }} <span class="text-muted">(the most used in any one piece)</span></p>
+{% endfor %}
+
 <h2>Mallets Needed Per Piece</h2>
 {% set any_mallets = namespace(found=false) %}
 {% for piece in program.pieces %}

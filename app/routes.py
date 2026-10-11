@@ -12,7 +12,7 @@ from app.forms import (
     other_count_field_name,
     other_label_field_name,
 )
-from app.models import Cycle, Entry, EntryInstrument, Piece, Program
+from app.models import CHECKED_NOTES, Cycle, Entry, EntryInstrument, Piece, Program
 from app.positions import FLOAT_POSITION
 
 bp = Blueprint("routes", __name__)
@@ -119,6 +119,8 @@ def piece_entry(piece_id):
                 break
             initial[other_label_field_name(t.id)] = other_label
             initial[other_count_field_name(t.id)] = other_count
+        elif t.selection_mode == "checkbox":
+            initial[instrument_field_name(t.id)] = selection is not None
         else:
             initial[instrument_field_name(t.id)] = (
                 selection.note_list() if selection else []
@@ -163,7 +165,7 @@ def piece_entry(piece_id):
 
 def _selected_notes_value(form, instrument_type):
     """The string to store in EntryInstrument.notes for one instrument type,
-    from the submitted form (pitch list or color:count pairs)."""
+    from the submitted form (pitch list, color:count pairs, or a tick)."""
     if instrument_type.selection_mode == "color":
         items = [
             (color_name, getattr(form, color_field_name(instrument_type.id, i)).data)
@@ -179,6 +181,8 @@ def _selected_notes_value(form, instrument_type):
             )
         return color.format_color_counts(items)
     field = getattr(form, instrument_field_name(instrument_type.id))
+    if instrument_type.selection_mode == "checkbox":
+        return CHECKED_NOTES if field.data else ""
     return ",".join(field.data or [])
 
 
@@ -212,6 +216,7 @@ def report_equipment_pull_list(program_id):
         include_special=include_special,
         special_pieces=[p for p in program.pieces if p.special],
         bells_by_type=reports.equipment_pull_list(program, include_special),
+        checkbox_counts=reports.checkbox_max_counts(program, include_special),
     )
 
 
@@ -244,6 +249,7 @@ def report_equipment_table(program_id):
         special_pieces=[p for p in program.pieces if p.special],
         notes_by_type=notes_by_type,
         mallet_counts_by_type=mallet_counts_by_type,
+        checkbox_counts=reports.checkbox_max_counts(program, include_special),
         mallet_requirements_by_piece=reports.mallet_requirements(
             program, include_special
         ),

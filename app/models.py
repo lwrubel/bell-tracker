@@ -15,6 +15,9 @@ def utcnow():
 # Instrument types sort by display_order; this default parks anything
 # unranked at the end, behind the bells.
 DEFAULT_DISPLAY_ORDER = 100
+# What a ticked checkbox-mode selection stores in EntryInstrument.notes. An
+# unticked box stores no row at all.
+CHECKED_NOTES = "yes"
 
 
 def _first_word_of_name(context):
@@ -227,6 +230,8 @@ class InstrumentType(db.Model):
     # "pitch": ringers pick chromatic pitches from note_range_low..high.
     # "color": ringers pick counts of named mallet colors (app/color.py);
     # the note range columns are unused and left null.
+    # "checkbox": ringers tick whether they need one (singing bell sticks);
+    # no note range either.
     selection_mode = db.Column(db.String(10), nullable=False, default="pitch")
     note_range_low = db.Column(db.String(10), nullable=True)
     note_range_high = db.Column(db.String(10), nullable=True)
@@ -339,7 +344,7 @@ class Case(db.Model):
         Shared by the admin form and the seed loader (app/case_seed.py).
         """
         instrument_type = self.instrument_type
-        if instrument_type.selection_mode == "color":
+        if instrument_type.selection_mode != "pitch":
             return "Cases only apply to pitch-based instrument types."
         if bool(self.second_range_low) != bool(self.second_range_high):
             return "A second range needs both a low and a high note."

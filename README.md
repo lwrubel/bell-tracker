@@ -169,7 +169,7 @@ add them to programs from the **Program** admin.
 Assignments missing from the sheet are **not** removed, and ringers keep any
 equipment they've saved. Delete stale assignments in the **Entry** list.
 
-## Instrument types: pitch vs. color (mallets)
+## Instrument types: pitch, color (mallets) and checkbox
 
 Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode**:
 
@@ -186,6 +186,11 @@ Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode*
 Per-piece mallet totals (summed across every ringer assigned to the piece)
 appear on the ringer's cycle and piece-entry pages and in the
 **Equipment Table** report ("Mallets Needed Per Piece").
+
+- **`checkbox`**: a single yes/no tick, for **Singing Bell Sticks**. Leave
+  the note ranges blank. A ticked box stores `yes` in `EntryInstrument.notes`.
+  The **Equipment table** and **Pull list** reports show the most ringers who
+  ticked it on any one piece in the program, which is how many to bring.
 
 ### Where a type is enabled, and who sees it
 
