@@ -235,6 +235,10 @@ class InstrumentType(db.Model):
     selection_mode = db.Column(db.String(10), nullable=False, default="pitch")
     note_range_low = db.Column(db.String(10), nullable=True)
     note_range_high = db.Column(db.String(10), nullable=True)
+    # What the ringer's equipment form calls the type, when that should
+    # differ from its name ("Singing Bell Stick" for a single tick). Null
+    # means use the name.
+    form_label = db.Column(db.String(100), nullable=True)
     # When set, only ringers whose position starts with this string see the
     # type - "LB" for bass bells. Null means everyone on the piece sees it.
     position_prefix = db.Column(db.String(10), nullable=True)
@@ -252,6 +256,9 @@ class InstrumentType(db.Model):
     cases = db.relationship(
         "Case", back_populates="instrument_type", cascade="all, delete-orphan"
     )
+
+    def label_on_form(self):
+        return self.form_label or self.name
 
     def __repr__(self):
         return f"<InstrumentType {self.name}>"

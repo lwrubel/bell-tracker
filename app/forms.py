@@ -100,7 +100,7 @@ def _add_pitch_field(attrs, instrument_type):
         )
     ]
     attrs[instrument_field_name(instrument_type.id)] = MultiCheckboxField(
-        instrument_type.name, choices=choices, validators=[Optional()]
+        instrument_type.label_on_form(), choices=choices, validators=[Optional()]
     )
 
 
@@ -119,7 +119,7 @@ def _add_color_fields(attrs, instrument_type):
 
 def _add_checkbox_field(attrs, instrument_type):
     attrs[instrument_field_name(instrument_type.id)] = BooleanField(
-        instrument_type.name
+        instrument_type.label_on_form()
     )
 
 

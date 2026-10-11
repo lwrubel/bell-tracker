@@ -151,6 +151,7 @@ class InstrumentTypeAdminView(SecureModelView):
     form_columns = (
         "display_order",
         "name",
+        "form_label",
         "selection_mode",
         "note_range_low",
         "note_range_high",
@@ -168,9 +169,16 @@ class InstrumentTypeAdminView(SecureModelView):
         "note_range_low": {"choices": OPTIONAL_PITCH_CHOICES},
         "note_range_high": {"choices": OPTIONAL_PITCH_CHOICES},
         "position_prefix": {"choices": POSITION_PREFIX_CHOICES},
+        "form_label": {
+            "description": (
+                "What ringers see on their equipment form. Leave blank to use "
+                "the name."
+            )
+        },
     }
 
     def on_model_change(self, form, model, is_created):
+        model.form_label = (model.form_label or "").strip() or None
         # "" from the blank choice means "no restriction", not a prefix.
         if not model.position_prefix:
             model.position_prefix = None

@@ -58,7 +58,7 @@
   {% for instrument_type in instrument_types %}
     {% if instrument_type.selection_mode == "color" %}
       <details class="form-group instrument-section">
-        <summary>{{ instrument_type.name }}</summary>
+        <summary>{{ instrument_type.label_on_form() }}</summary>
         <div class="mallet-grid">
           {% for i in range(mallet_colors | length) %}
             {% set f = form["color_" ~ instrument_type.id ~ "_" ~ i] %}

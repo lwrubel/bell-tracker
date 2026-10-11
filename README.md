@@ -192,6 +192,10 @@ appear on the ringer's cycle and piece-entry pages and in the
   The **Equipment table** and **Pull list** reports show the most ringers who
   ticked it on any one piece in the program, which is how many to bring.
 
+Any type can have a **Form label**: what ringers see on their equipment form
+in place of the name. Singing Bell Sticks uses it to read "Singing Bell
+Stick". Leave it blank to show the name.
+
 ### Where a type is enabled, and who sees it
 
 Two more fields on an Instrument Type control this, independently of the

@@ -10,7 +10,10 @@ from app.models import CHECKED_NOTES, Entry, EntryInstrument, InstrumentType, Us
 @pytest.fixture()
 def stick_type(db):
     it = InstrumentType(
-        name="Singing Bell Sticks", selection_mode="checkbox", enabled_by_default=True
+        name="Singing Bell Sticks",
+        form_label="Singing Bell Stick",
+        selection_mode="checkbox",
+        enabled_by_default=True,
     )
     db.session.add(it)
     db.session.commit()
@@ -61,7 +64,11 @@ def test_form_shows_a_plain_checkbox(client, db, ringer, program, stick_type):
     body = client.get(_entry_url(piece)).get_data(as_text=True)
 
     assert re.search(rf'<input[^>]*id="{_field(stick_type)}"[^>]*type="checkbox"', body)
-    assert "<summary>Singing Bell Sticks</summary>" not in body
+    assert (
+        f'<label class="form-check-label" for="{_field(stick_type)}">Singing Bell Stick</label>'
+        in body
+    )
+    assert "Singing Bell Sticks" not in body
     assert "Show flats instead of sharps" not in body
 
 
@@ -158,3 +165,40 @@ def test_report_pages_show_the_count(
 
     assert "<h5>Singing Bell Sticks</h5>" in body
     assert "<p>2 <span" in body
+
+
+def test_form_uses_the_name_without_a_form_label(
+    client, db, ringer, program, stick_type
+):
+    stick_type.form_label = None
+    piece = add_piece(db, program, "Fanfare", 1)
+    db.session.commit()
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(_entry_url(piece)).get_data(as_text=True)
+
+    assert f'for="{_field(stick_type)}">Singing Bell Sticks</label>' in body
+
+
+def test_admin_sets_and_clears_the_form_label(client, db, admin_user, stick_type):
+    login(client, admin_user, ADMIN_PASSWORD)
+    data = {
+        "display_order": stick_type.display_order,
+        "name": stick_type.name,
+        "selection_mode": "checkbox",
+        "note_range_low": "",
+        "note_range_high": "",
+        "position_prefix": "",
+        "enabled_by_default": "y",
+    }
+    url = f"/admin/instrumenttype/edit/?id={stick_type.id}"
+
+    client.post(url, data={**data, "form_label": "One Stick"})
+    db.session.expire_all()
+    assert stick_type.form_label == "One Stick"
+
+    client.post(url, data={**data, "form_label": "  "})
+    db.session.expire_all()
+    assert stick_type.form_label is None
