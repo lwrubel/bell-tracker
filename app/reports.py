@@ -18,7 +18,7 @@ def _entry_instruments_for_program(program, include_special=True):
     return _program_piece_filter(query, program, include_special).all()
 
 
-def packing_list(program, include_special=True):
+def cases_list(program, include_special=True):
     """Return {instrument_type: [case, ...]} for cases whose note range
     overlaps a pitch actually used somewhere in this program."""
     used_pitches_by_type = defaultdict(set)

@@ -58,7 +58,7 @@ def test_home_without_an_active_cycle(client, db, ringer):
 
 
 def test_report_buttons_are_admin_only(client, admin_user, ringer, program):
-    report_url = f"/programs/{program.id}/reports/packing-list"
+    report_url = f"/programs/{program.id}/reports/cases-list"
 
     login(client, ringer, RINGER_PASSWORD)
     assert report_url not in client.get("/").get_data(as_text=True)

@@ -20,7 +20,7 @@
         <div class="mt-1">
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View equipment</a>
           {% if current_user.is_admin %}
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_packing_list', program_id=program.id) }}">Packing list</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases list</a>
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
           {% endif %}
         </div>

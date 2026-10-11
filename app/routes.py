@@ -185,17 +185,17 @@ def _include_special():
     return request.args.get("special") != "exclude"
 
 
-@bp.route("/programs/<int:program_id>/reports/packing-list")
+@bp.route("/programs/<int:program_id>/reports/cases-list")
 @admin_required
-def report_packing_list(program_id):
+def report_cases_list(program_id):
     program = Program.query.get_or_404(program_id)
     include_special = _include_special()
     return render_template(
-        "packing_list.html",
+        "cases_list.html",
         program=program,
         include_special=include_special,
         special_pieces=[p for p in program.pieces if p.special],
-        cases_by_type=reports.packing_list(program, include_special),
+        cases_by_type=reports.cases_list(program, include_special),
     )
 
 

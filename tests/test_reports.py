@@ -15,7 +15,7 @@ def _sign_up(db, user, piece, instrument_type, notes):
     return entry
 
 
-def test_packing_list_includes_only_cases_overlapping_used_pitches(
+def test_cases_list_includes_only_cases_overlapping_used_pitches(
     db, ringer, program, piece, instrument_type
 ):
     low_case = Case(
@@ -35,12 +35,12 @@ def test_packing_list_includes_only_cases_overlapping_used_pitches(
 
     _sign_up(db, ringer, piece, instrument_type, "C4")
 
-    result = reports.packing_list(program)
+    result = reports.cases_list(program)
 
     assert result == {instrument_type: [low_case]}
 
 
-def test_packing_list_includes_case_matched_only_by_second_range(
+def test_cases_list_includes_case_matched_only_by_second_range(
     client, db, admin_user, ringer, program, piece, instrument_type
 ):
     split_case = Case(
@@ -56,17 +56,17 @@ def test_packing_list_includes_case_matched_only_by_second_range(
 
     _sign_up(db, ringer, piece, instrument_type, "B5")
 
-    assert reports.packing_list(program) == {instrument_type: [split_case]}
+    assert reports.cases_list(program) == {instrument_type: [split_case]}
 
     login(client, admin_user, ADMIN_PASSWORD)
-    body = client.get(f"/programs/{program.id}/reports/packing-list").get_data(
+    body = client.get(f"/programs/{program.id}/reports/cases-list").get_data(
         as_text=True
     )
     assert "C-SPLIT (C4-D4, A5-C6)" in body
 
 
-def test_packing_list_empty_when_nothing_signed_up(program):
-    assert reports.packing_list(program) == {}
+def test_cases_list_empty_when_nothing_signed_up(program):
+    assert reports.cases_list(program) == {}
 
 
 def test_equipment_table_groups_and_sorts_pitches_per_type(
@@ -103,15 +103,15 @@ def test_equipment_table_misc_entries_only_include_nonblank_notes(
     assert misc_entries == [entry_with_misc]
 
 
-def test_packing_list_route_requires_admin(client, ringer, program):
+def test_cases_list_route_requires_admin(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(f"/programs/{program.id}/reports/packing-list")
+    response = client.get(f"/programs/{program.id}/reports/cases-list")
     assert response.status_code == 403
 
 
-def test_packing_list_route_accessible_to_admin(client, admin_user, program):
+def test_cases_list_route_accessible_to_admin(client, admin_user, program):
     login(client, admin_user, ADMIN_PASSWORD)
-    response = client.get(f"/programs/{program.id}/reports/packing-list")
+    response = client.get(f"/programs/{program.id}/reports/cases-list")
     assert response.status_code == 200
 
 
@@ -123,7 +123,7 @@ def test_equipment_table_route_requires_admin(client, ringer, program):
 
 def test_reports_redirect_anonymous_to_login(client, program):
     response = client.get(
-        f"/programs/{program.id}/reports/packing-list", follow_redirects=False
+        f"/programs/{program.id}/reports/cases-list", follow_redirects=False
     )
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
@@ -192,7 +192,7 @@ def test_equipment_table_hides_toggle_without_special_pieces(
     assert b"Exclude special pieces" not in response.data
 
 
-def test_packing_list_can_exclude_special_pieces(
+def test_cases_list_can_exclude_special_pieces(
     client, db, admin_user, ringer, other_ringer, program, piece, instrument_type
 ):
     low_case = Case(
@@ -213,13 +213,13 @@ def test_packing_list_can_exclude_special_pieces(
     _sign_up(db, ringer, piece, instrument_type, "C4")
     _sign_up(db, other_ringer, special, instrument_type, "G5")
 
-    assert reports.packing_list(program) == {instrument_type: [high_case, low_case]}
-    assert reports.packing_list(program, include_special=False) == {
+    assert reports.cases_list(program) == {instrument_type: [high_case, low_case]}
+    assert reports.cases_list(program, include_special=False) == {
         instrument_type: [low_case]
     }
 
     login(client, admin_user, ADMIN_PASSWORD)
-    url = f"/programs/{program.id}/reports/packing-list"
+    url = f"/programs/{program.id}/reports/cases-list"
     assert "C-HIGH" in client.get(url).get_data(as_text=True)
     excluded = client.get(url + "?special=exclude").get_data(as_text=True)
     assert "C-HIGH" not in excluded

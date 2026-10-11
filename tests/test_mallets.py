@@ -264,12 +264,12 @@ def test_equipment_table_returns_mallet_totals_by_type(
     assert mallet_counts_by_type == {mallet_instrument_type: {"Green yarn": 2}}
 
 
-def test_packing_list_ignores_color_mode_types(
+def test_cases_list_ignores_color_mode_types(
     db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
 
-    assert reports.packing_list(program) == {}
+    assert reports.cases_list(program) == {}
 
 
 def test_pitch_mode_entries_are_unchanged(
