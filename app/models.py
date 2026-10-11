@@ -59,21 +59,112 @@ class User(UserMixin, db.Model):
         return f"<User {self.email}>"
 
 
-class Concert(db.Model):
-    __tablename__ = "concerts"
+class Cycle(db.Model):
+    """A season's worth of rehearsal: a repertoire of pieces, played across
+    several programs. At most one cycle is active, and that's the one
+    ringers see when they log in."""
+
+    __tablename__ = "cycles"
+    __table_args__ = (
+        # Only one row may have active = true.
+        db.Index(
+            "uq_cycles_one_active",
+            "active",
+            unique=True,
+            postgresql_where=sa.text("active"),
+            sqlite_where=sa.text("active"),
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
+    active = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=sa.false()
+    )
 
+    programs = db.relationship(
+        "Program",
+        back_populates="cycle",
+        order_by="(Program.datetime, Program.id)",
+        cascade="all, delete-orphan",
+    )
     pieces = db.relationship(
         "Piece",
-        back_populates="concert",
-        order_by="Piece.program_order",
+        back_populates="cycle",
+        order_by="Piece.title",
         cascade="all, delete-orphan",
     )
 
+    @classmethod
+    def get_active(cls):
+        return cls.query.filter_by(active=True).first()
+
+    def __str__(self):
+        return self.name
+
     def __repr__(self):
-        return f"<Concert {self.name}>"
+        return f"<Cycle {self.name}>"
+
+
+class Program(db.Model):
+    """One performance in a cycle, playing some of the cycle's pieces in
+    its own order."""
+
+    __tablename__ = "programs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cycle_id = db.Column(db.Integer, db.ForeignKey("cycles.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    # Nullable because programs carried over from the old concerts table
+    # had no date.
+    datetime = db.Column(db.DateTime, nullable=True)
+
+    cycle = db.relationship("Cycle", back_populates="programs")
+    program_pieces = db.relationship(
+        "ProgramPiece",
+        back_populates="program",
+        order_by="ProgramPiece.position",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def pieces(self):
+        """The program's pieces in program order."""
+        return [pp.piece for pp in self.program_pieces]
+
+    def when_label(self):
+        """e.g. "Sat, May 9, 2026, 7:30 PM", or "" with no date set."""
+        dt = self.datetime
+        if dt is None:
+            return ""
+        hour = dt.hour % 12 or 12
+        return f"{dt:%a, %b} {dt.day}, {dt.year}, {hour}:{dt:%M %p}"
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"<Program {self.name}>"
+
+
+class ProgramPiece(db.Model):
+    """A piece's place in a program."""
+
+    __tablename__ = "program_pieces"
+    # No unique constraint on position, so an admin can swap two pieces'
+    # numbers in one save.
+    __table_args__ = (db.UniqueConstraint("program_id", "piece_id"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey("programs.id"), nullable=False)
+    piece_id = db.Column(db.Integer, db.ForeignKey("pieces.id"), nullable=False)
+    position = db.Column(db.Integer, nullable=False)
+
+    program = db.relationship("Program", back_populates="program_pieces")
+    piece = db.relationship("Piece", back_populates="program_pieces")
+
+    def __repr__(self):
+        return f"<ProgramPiece program={self.program_id} piece={self.piece_id} #{self.position}>"
 
 
 piece_instrument_types = db.Table(
@@ -90,17 +181,18 @@ piece_instrument_types = db.Table(
 
 class Piece(db.Model):
     __tablename__ = "pieces"
-    __table_args__ = (db.UniqueConstraint("concert_id", "program_order"),)
 
     id = db.Column(db.Integer, primary_key=True)
-    concert_id = db.Column(db.Integer, db.ForeignKey("concerts.id"), nullable=False)
+    cycle_id = db.Column(db.Integer, db.ForeignKey("cycles.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
-    program_order = db.Column(db.Integer, nullable=False)
     special = db.Column(
         db.Boolean, nullable=False, default=False, server_default=sa.false()
     )
 
-    concert = db.relationship("Concert", back_populates="pieces")
+    cycle = db.relationship("Cycle", back_populates="pieces")
+    program_pieces = db.relationship(
+        "ProgramPiece", back_populates="piece", cascade="all, delete-orphan"
+    )
     instrument_types = db.relationship(
         "InstrumentType",
         secondary=piece_instrument_types,
@@ -110,6 +202,10 @@ class Piece(db.Model):
     entries = db.relationship(
         "Entry", back_populates="piece", cascade="all, delete-orphan"
     )
+
+    def __str__(self):
+        # Admin select boxes list pieces from every cycle, so say which.
+        return f"{self.title} ({self.cycle.name})" if self.cycle else self.title
 
     def __repr__(self):
         return f"<Piece {self.title}>"
@@ -152,9 +248,9 @@ class InstrumentType(db.Model):
 def _enable_default_instrument_types_on_new_pieces(session, flush_context, instances):
     """Enable every `enabled_by_default` instrument type on new pieces.
 
-    Pieces get created from two different admin forms - the Piece view and
-    the inline form under a Concert - so the default lives here rather
-    than in either one. It only fires for pieces being inserted, so an
+    Pieces get created from two different admin paths - the Piece view and
+    the roster import - so the default lives here rather than in either
+    one. It only fires for pieces being inserted, so an
     admin can still remove a type from a piece that doesn't use it.
     """
     new_pieces = [obj for obj in session.new if isinstance(obj, Piece)]
@@ -168,6 +264,33 @@ def _enable_default_instrument_types_on_new_pieces(session, flush_context, insta
             for instrument_type in default_types:
                 if instrument_type not in piece.instrument_types:
                     piece.instrument_types.append(instrument_type)
+
+
+@event.listens_for(db.session, "before_flush")
+def _deactivate_other_cycles(session, flush_context, instances):
+    """Activating a cycle deactivates whichever one was active.
+
+    The old row is cleared with a direct UPDATE ahead of the flush: left to
+    the unit of work, the two rows' UPDATEs go in primary-key order, and if
+    the new one ran first the one-active index would reject it.
+    """
+    activated = [
+        obj
+        for obj in (*session.new, *session.dirty)
+        if isinstance(obj, Cycle) and obj.active
+    ]
+    if not activated:
+        return
+    keep_ids = [c.id for c in activated if c.id is not None]
+    table = Cycle.__table__
+    session.connection().execute(
+        sa.update(table)
+        .where(table.c.active.is_(True), table.c.id.notin_(keep_ids))
+        .values(active=False)
+    )
+    for obj in list(session.identity_map.values()):
+        if isinstance(obj, Cycle) and obj not in activated:
+            session.expire(obj, ["active"])
 
 
 class Case(db.Model):

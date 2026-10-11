@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% from "_special_toggle.html" import special_toggle %}
-{% block title %}Packing List - {{ concert.name }}{% endblock %}
+{% block title %}Packing List - {{ program.name }}{% endblock %}
 {% block content %}
+<button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
 <h1>Packing List</h1>
-<p class="text-muted">{{ concert.name }}</p>
+<p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
 
-{{ special_toggle(url_for('routes.report_packing_list', concert_id=concert.id), include_special, special_pieces) }}
+{{ special_toggle(url_for('routes.report_packing_list', program_id=program.id), include_special, special_pieces) }}
 
 {% if cases_by_type %}
   {% for instrument_type, cases in cases_by_type.items() %}
@@ -17,6 +18,6 @@
     </ul>
   {% endfor %}
 {% else %}
-  <p class="text-muted">No equipment has been signed up for this concert yet.</p>
+  <p class="text-muted">No equipment has been signed up for this program yet.</p>
 {% endif %}
 {% endblock %}

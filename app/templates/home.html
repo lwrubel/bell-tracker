@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{% if cycle %}{{ cycle.name }} - {% endif %}bell-tracker{% endblock %}
+{% block content %}
+{% if cycle %}
+<h1>{{ cycle.name }}</h1>
+<p>
+  <a class="btn btn-primary" href="{{ url_for('routes.cycle_detail', cycle_id=cycle.id) }}">Edit equipment</a>
+</p>
+
+<h2 class="h4 mt-4">Programs</h2>
+{% if cycle.programs %}
+<div class="list-group">
+  {% for program in cycle.programs %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+          <strong>{{ program.name }}</strong>
+          {% if program.datetime %}<div class="text-muted small">{{ program.when_label() }}</div>{% endif %}
+        </div>
+        <div class="mt-1">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View equipment</a>
+          {% if current_user.is_admin %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_packing_list', program_id=program.id) }}">Packing list</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No programs in this cycle yet.</p>
+{% endif %}
+{% else %}
+<h1>bell-tracker</h1>
+<p class="text-muted">There's no active cycle right now.</p>
+{% endif %}
+{% endblock %}

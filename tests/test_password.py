@@ -92,7 +92,7 @@ def test_flagged_user_lands_on_change_password(client, flagged_ringer):
 
 def test_flagged_user_cannot_reach_other_pages(client, flagged_ringer):
     login(client, flagged_ringer, RINGER_PASSWORD)
-    response = client.get("/concerts")
+    response = client.get("/")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/change-password")
 
@@ -105,7 +105,7 @@ def test_flagged_user_can_log_out(client, flagged_ringer):
 
 def test_unflagged_user_is_not_redirected(client, ringer):
     response = login(client, ringer, RINGER_PASSWORD)
-    assert response.request.path == "/concerts"
+    assert response.request.path == "/"
 
 
 # --- change password ---
@@ -114,11 +114,11 @@ def test_unflagged_user_is_not_redirected(client, ringer):
 def test_change_password_success_clears_flag(client, db, flagged_ringer):
     login(client, flagged_ringer, RINGER_PASSWORD)
     response = change_password(client, RINGER_PASSWORD, NEW_PASSWORD)
-    assert response.request.path == "/concerts"
+    assert response.request.path == "/"
     db.session.refresh(flagged_ringer)
     assert flagged_ringer.must_change_password is False
     client.post("/logout")
-    assert login(client, flagged_ringer, NEW_PASSWORD).request.path == "/concerts"
+    assert login(client, flagged_ringer, NEW_PASSWORD).request.path == "/"
 
 
 def test_change_password_wrong_current(client, db, ringer):

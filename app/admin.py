@@ -6,7 +6,16 @@ from flask_login import current_user
 from wtforms import PasswordField, SelectField
 
 from app import color, db, pitch, roster_import
-from app.models import Case, Concert, Entry, InstrumentType, Piece, User
+from app.models import (
+    Case,
+    Cycle,
+    Entry,
+    InstrumentType,
+    Piece,
+    Program,
+    ProgramPiece,
+    User,
+)
 from app.positions import POSITION_CODES, position_label, position_prefixes
 
 PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
@@ -63,18 +72,44 @@ class UserAdminView(SecureModelView):
             raise Exception("Password is required when creating a user.")
 
 
-class ConcertAdminView(SecureModelView):
-    column_list = ("name",)
+class CycleAdminView(SecureModelView):
+    column_list = ("name", "active")
+    form_columns = ("name", "active")
+    form_args = {
+        "active": {
+            "description": "The cycle ringers see when they log in. Making this "
+            "cycle active deactivates whichever one was."
+        }
+    }
     # "id" must stay in form_columns even though it's not user-editable:
     # Flask-Admin's inline-form machinery reads it to tell new rows from
     # existing ones when saving. Omitting it raises
-    # AttributeError: 'PieceForm' object has no attribute 'id'.
-    inline_models = [(Piece, {"form_columns": ["id", "title", "program_order", "special"]})]
+    # AttributeError: 'ProgramForm' object has no attribute 'id'.
+    inline_models = [(Program, {"form_columns": ["id", "name", "datetime"]})]
+
+
+class ProgramAdminView(SecureModelView):
+    column_list = ("cycle", "name", "datetime")
+    form_columns = ("cycle", "name", "datetime")
+    column_labels = {"datetime": "Date and time"}
+    # The pieces this program plays, numbered in program order. See
+    # CycleAdminView for why "id" is listed.
+    inline_models = [(ProgramPiece, {"form_columns": ["id", "piece", "position"]})]
+
+    def on_model_change(self, form, model, is_created):
+        for program_piece in model.program_pieces:
+            piece = program_piece.piece
+            if piece is not None and piece.cycle_id != model.cycle.id:
+                raise Exception(
+                    f'"{piece.title}" is in {piece.cycle.name}, not '
+                    f"{model.cycle.name}; a program can only play its own "
+                    "cycle's pieces."
+                )
 
 
 class PieceAdminView(SecureModelView):
-    column_list = ("concert", "title", "program_order", "special", "instrument_types")
-    form_columns = ("concert", "title", "program_order", "special", "instrument_types")
+    column_list = ("cycle", "title", "special", "instrument_types")
+    form_columns = ("cycle", "title", "special", "instrument_types")
 
 
 class InstrumentTypeAdminView(SecureModelView):
@@ -215,13 +250,13 @@ class RosterImportView(AdminAccessMixin, BaseView):
 
     @expose("/", methods=["GET", "POST"])
     def index(self):
-        concerts = Concert.query.order_by(Concert.id.desc()).all()
+        cycles = Cycle.query.order_by(Cycle.id.desc()).all()
         if request.method == "GET":
-            return self.render("admin/roster_import.html", concerts=concerts)
+            return self.render("admin/roster_import.html", cycles=cycles)
 
-        concert = db.session.get(Concert, request.form.get("concert_id", type=int) or 0)
-        if concert is None:
-            flash("Choose a concert.", "danger")
+        cycle = db.session.get(Cycle, request.form.get("cycle_id", type=int) or 0)
+        if cycle is None:
+            flash("Choose a cycle.", "danger")
             return redirect(url_for(".index"))
 
         if "confirm" in request.form:
@@ -232,11 +267,11 @@ class RosterImportView(AdminAccessMixin, BaseView):
                 flash(error, "danger")
                 return redirect(url_for(".index"))
 
-        plan = roster_import.plan_import(concert, csv_text)
+        plan = roster_import.plan_import(cycle, csv_text)
         if "confirm" in request.form and plan.can_apply:
-            roster_import.apply_import(concert, plan)
+            roster_import.apply_import(cycle, plan)
             flash(
-                f"Imported positions into {concert.name}: "
+                f"Imported positions into {cycle.name}: "
                 f"{len(plan.new_piece_titles)} pieces created, "
                 f"{plan.count(roster_import.ADD)} assignments added, "
                 f"{plan.count(roster_import.UPDATE)} changed.",
@@ -246,8 +281,8 @@ class RosterImportView(AdminAccessMixin, BaseView):
 
         return self.render(
             "admin/roster_import.html",
-            concerts=concerts,
-            concert=concert,
+            cycles=cycles,
+            cycle=cycle,
             plan=plan,
             csv_text=csv_text,
             actions=roster_import,
@@ -276,7 +311,8 @@ def init_admin(app):
         index_view=SecureAdminIndexView(),
     )
     admin.add_view(UserAdminView(User, db.session))
-    admin.add_view(ConcertAdminView(Concert, db.session))
+    admin.add_view(CycleAdminView(Cycle, db.session))
+    admin.add_view(ProgramAdminView(Program, db.session))
     admin.add_view(PieceAdminView(Piece, db.session))
     admin.add_view(InstrumentTypeAdminView(InstrumentType, db.session))
     admin.add_view(CaseAdminView(Case, db.session))

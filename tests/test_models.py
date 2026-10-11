@@ -57,14 +57,13 @@ def test_piece_is_not_special_by_default(db, piece):
     assert piece.special is False
 
 
-def test_admin_can_mark_piece_special(client, db, admin_user, concert, piece):
+def test_admin_can_mark_piece_special(client, db, admin_user, program, piece):
     login(client, admin_user, ADMIN_PASSWORD)
     client.post(
         f"/admin/piece/edit/?id={piece.id}",
         data={
-            "concert": concert.id,
+            "cycle": program.cycle_id,
             "title": piece.title,
-            "program_order": piece.program_order,
             "special": "y",
         },
     )

@@ -5,7 +5,7 @@ import pytest
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, login
 
 from app import roster_import
-from app.models import Entry, Piece, User
+from app.models import Cycle, Entry, Piece, User
 from werkzeug.security import generate_password_hash
 
 SAMPLE_CSV = (pathlib.Path(__file__).parent / "fixtures" / "roster_sample.csv").read_text()
@@ -34,15 +34,15 @@ def sample_ringers(db):
     return {name: _user(db, f"{name} Ringer") for name in SAMPLE_FIRST_NAMES}
 
 
-def _plan(concert, text):
-    return roster_import.plan_import(concert, text)
+def _plan(cycle, text):
+    return roster_import.plan_import(cycle, text)
 
 
 # --- planning ---
 
 
-def test_sample_sheet_plans_cleanly(db, concert, sample_ringers):
-    plan = _plan(concert, SAMPLE_CSV)
+def test_sample_sheet_plans_cleanly(db, cycle, sample_ringers):
+    plan = _plan(cycle, SAMPLE_CSV)
 
     assert plan.errors == []
     assert len(plan.new_piece_titles) == 13
@@ -52,11 +52,11 @@ def test_sample_sheet_plans_cleanly(db, concert, sample_ringers):
     assert plan.can_apply
 
 
-def test_sample_sheet_applies(db, concert, sample_ringers):
-    plan = _plan(concert, SAMPLE_CSV)
-    roster_import.apply_import(concert, plan)
+def test_sample_sheet_applies(db, cycle, sample_ringers):
+    plan = _plan(cycle, SAMPLE_CSV)
+    roster_import.apply_import(cycle, plan)
 
-    gaudete = Piece.query.filter_by(concert_id=concert.id, title="Aurora Fanfare").one()
+    gaudete = Piece.query.filter_by(cycle_id=cycle.id, title="Aurora Fanfare").one()
     positions = {e.user.name.split()[0]: e.position for e in gaudete.entries}
     assert positions["Ben"] == "LB2"
     assert positions["Nora"] == "P1"
@@ -71,23 +71,36 @@ def test_sample_sheet_applies(db, concert, sample_ringers):
     assert floats == ["Ben", "Kofi"]
 
 
-def test_new_pieces_follow_existing_program_order(db, concert, piece, sample_ringers):
+def test_new_pieces_join_the_cycle_but_no_program(
+    db, cycle, program, piece, sample_ringers
+):
     csv_text = "Position,Ode to Joy,Brand New Piece\nP1,Nora,Clara\n"
-    roster_import.apply_import(concert, _plan(concert, csv_text))
+    roster_import.apply_import(cycle, _plan(cycle, csv_text))
 
     new_piece = Piece.query.filter_by(title="Brand New Piece").one()
-    assert new_piece.program_order == piece.program_order + 1
-    assert Piece.query.filter_by(concert_id=concert.id).count() == 2
+    assert new_piece.cycle_id == cycle.id
+    assert new_piece.program_pieces == []
+    assert Piece.query.filter_by(cycle_id=cycle.id).count() == 2
+    assert program.pieces == [piece]
 
 
-def test_existing_piece_matched_ignoring_case_and_spaces(db, concert, piece, sample_ringers):
-    plan = _plan(concert, "Position,  ode to   JOY \nP1,Nora\n")
+def test_pieces_in_another_cycle_are_not_matched(db, cycle, piece, sample_ringers):
+    other = Cycle(name="Fall 2026")
+    db.session.add(other)
+    db.session.commit()
+
+    plan = _plan(other, "Position,Ode to Joy\nP1,Nora\n")
+    assert plan.new_piece_titles == ["Ode to Joy"]
+
+
+def test_existing_piece_matched_ignoring_case_and_spaces(db, cycle, piece, sample_ringers):
+    plan = _plan(cycle, "Position,  ode to   JOY \nP1,Nora\n")
     assert plan.new_piece_titles == []
     assert plan.errors == []
 
 
 def test_updates_changed_positions_and_keeps_equipment(
-    db, concert, piece, sample_ringers
+    db, cycle, piece, sample_ringers
 ):
     sam = sample_ringers["Nora"]
     entry = Entry(user_id=sam.id, piece_id=piece.id, position="P1", misc_notes="Tree")
@@ -95,10 +108,10 @@ def test_updates_changed_positions_and_keeps_equipment(
     db.session.add_all([entry, drew_entry])
     db.session.commit()
 
-    plan = _plan(concert, "Position,Ode to Joy\nP4,Nora\nP2,Clara\n")
+    plan = _plan(cycle, "Position,Ode to Joy\nP4,Nora\nP2,Clara\n")
     assert plan.count(roster_import.UPDATE) == 1
     assert plan.count(roster_import.UNCHANGED) == 1
-    roster_import.apply_import(concert, plan)
+    roster_import.apply_import(cycle, plan)
 
     db.session.refresh(entry)
     assert entry.position == "P4"
@@ -106,24 +119,24 @@ def test_updates_changed_positions_and_keeps_equipment(
 
 
 def test_never_removes_assignments_missing_from_sheet(
-    db, concert, piece, sample_ringers
+    db, cycle, piece, sample_ringers
 ):
     db.session.add(
         Entry(user_id=sample_ringers["Greta"].id, piece_id=piece.id, position="P5")
     )
     db.session.commit()
 
-    roster_import.apply_import(concert, _plan(concert, "Position,Ode to Joy\nP1,Nora\n"))
+    roster_import.apply_import(cycle, _plan(cycle, "Position,Ode to Joy\nP1,Nora\n"))
 
     assert Entry.query.filter_by(piece_id=piece.id).count() == 2
 
 
-def test_nothing_to_change_cannot_apply(db, concert, piece, sample_ringers):
+def test_nothing_to_change_cannot_apply(db, cycle, piece, sample_ringers):
     db.session.add(
         Entry(user_id=sample_ringers["Nora"].id, piece_id=piece.id, position="P1")
     )
     db.session.commit()
-    plan = _plan(concert, "Position,Ode to Joy\nP1,Nora\n")
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Nora\n")
     assert plan.errors == []
     assert not plan.can_apply
 
@@ -141,29 +154,29 @@ def test_nothing_to_change_cannot_apply(db, concert, piece, sample_ringers):
     ],
 )
 def test_problems_are_reported_and_block_import(
-    db, concert, piece, sample_ringers, csv_text, message
+    db, cycle, piece, sample_ringers, csv_text, message
 ):
-    plan = _plan(concert, csv_text)
+    plan = _plan(cycle, csv_text)
     assert any(message in e for e in plan.errors), plan.errors
     assert not plan.can_apply
 
 
-def test_ambiguous_first_name_is_an_error(db, concert, piece, sample_ringers):
+def test_ambiguous_first_name_is_an_error(db, cycle, piece, sample_ringers):
     _user(db, "Nora Other")
-    plan = _plan(concert, "Position,Ode to Joy\nP1,Nora\n")
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Nora\n")
     assert any("matches more than one ringer" in e for e in plan.errors)
 
 
 def test_stray_spaces_around_positions_and_names_are_ignored(
-    db, concert, piece, sample_ringers
+    db, cycle, piece, sample_ringers
 ):
-    plan = _plan(concert, "Position,Ode to Joy\nP3 ,  Nora \n")
+    plan = _plan(cycle, "Position,Ode to Joy\nP3 ,  Nora \n")
     assert plan.errors == []
     assert plan.assignments[0].position == "P3"
 
 
-def test_first_name_match_ignores_case(db, concert, piece, sample_ringers):
-    plan = _plan(concert, "Position,Ode to Joy\nlb1,nORA\n")
+def test_first_name_match_ignores_case(db, cycle, piece, sample_ringers):
+    plan = _plan(cycle, "Position,Ode to Joy\nlb1,nORA\n")
     assert plan.errors == []
     assert plan.assignments[0].position == "LB1"
 
@@ -173,11 +186,11 @@ def test_first_name_match_ignores_case(db, concert, piece, sample_ringers):
 URL = "/admin/roster_import/"
 
 
-def _upload(client, concert, text, filename="roster.csv"):
+def _upload(client, cycle, text, filename="roster.csv"):
     return client.post(
         URL,
         data={
-            "concert_id": concert.id,
+            "cycle_id": cycle.id,
             "file": (io.BytesIO(text.encode("utf-8-sig")), filename),
         },
         content_type="multipart/form-data",
@@ -192,10 +205,10 @@ def test_import_page_is_admin_only(client, ringer):
 
 
 def test_upload_shows_preview_without_saving(
-    client, db, admin_user, concert, piece, sample_ringers
+    client, db, admin_user, cycle, piece, sample_ringers
 ):
     login(client, admin_user, ADMIN_PASSWORD)
-    body = _upload(client, concert, SAMPLE_CSV).get_data(as_text=True)
+    body = _upload(client, cycle, SAMPLE_CSV).get_data(as_text=True)
 
     assert "Nothing has been saved yet" in body
     assert "Confirm import" in body
@@ -204,33 +217,33 @@ def test_upload_shows_preview_without_saving(
     assert Piece.query.count() == 1
 
 
-def test_confirm_applies_import(client, db, admin_user, concert, piece, sample_ringers):
+def test_confirm_applies_import(client, db, admin_user, cycle, piece, sample_ringers):
     login(client, admin_user, ADMIN_PASSWORD)
     response = client.post(
         URL,
-        data={"concert_id": concert.id, "csv_text": SAMPLE_CSV, "confirm": "1"},
+        data={"cycle_id": cycle.id, "csv_text": SAMPLE_CSV, "confirm": "1"},
         follow_redirects=True,
     )
     assert "13 pieces created" in response.get_data(as_text=True)
-    assert Piece.query.filter_by(concert_id=concert.id).count() == 14
+    assert Piece.query.filter_by(cycle_id=cycle.id).count() == 14
     assert Entry.query.count() > 0
 
 
-def test_preview_with_errors_has_no_confirm(client, db, admin_user, concert, piece):
+def test_preview_with_errors_has_no_confirm(client, db, admin_user, cycle, piece):
     login(client, admin_user, ADMIN_PASSWORD)
-    body = _upload(client, concert, "Position,Ode to Joy\nP1,Nobody\n").get_data(
+    body = _upload(client, cycle, "Position,Ode to Joy\nP1,Nobody\n").get_data(
         as_text=True
     )
     assert "no ringer named &#34;Nobody&#34;" in body
     assert "Confirm import" not in body
 
 
-def test_confirm_with_errors_saves_nothing(client, db, admin_user, concert, piece):
+def test_confirm_with_errors_saves_nothing(client, db, admin_user, cycle, piece):
     login(client, admin_user, ADMIN_PASSWORD)
     client.post(
         URL,
         data={
-            "concert_id": concert.id,
+            "cycle_id": cycle.id,
             "csv_text": "Position,Ode to Joy,New One\nP1,Nobody,Nobody\n",
             "confirm": "1",
         },
@@ -239,11 +252,11 @@ def test_confirm_with_errors_saves_nothing(client, db, admin_user, concert, piec
     assert Entry.query.count() == 0
 
 
-def test_non_utf8_upload_is_rejected(client, admin_user, concert):
+def test_non_utf8_upload_is_rejected(client, admin_user, cycle):
     login(client, admin_user, ADMIN_PASSWORD)
     response = client.post(
         URL,
-        data={"concert_id": concert.id, "file": (io.BytesIO(b"\xff\xfe\x00bad"), "x.csv")},
+        data={"cycle_id": cycle.id, "file": (io.BytesIO(b"\xff\xfe\x00bad"), "x.csv")},
         content_type="multipart/form-data",
         follow_redirects=True,
     )
@@ -251,7 +264,7 @@ def test_non_utf8_upload_is_rejected(client, admin_user, concert):
 
 
 def test_preview_round_trips_csv_through_confirm_form(
-    client, db, admin_user, concert, piece, sample_ringers
+    client, db, admin_user, cycle, piece, sample_ringers
 ):
     """Confirm with exactly what the preview page's hidden field carries,
     as a browser would - quotes and commas in titles must survive."""
@@ -267,7 +280,7 @@ def test_preview_round_trips_csv_through_confirm_form(
 
     login(client, admin_user, ADMIN_PASSWORD)
     parser = HiddenFields()
-    parser.feed(_upload(client, concert, SAMPLE_CSV).get_data(as_text=True))
+    parser.feed(_upload(client, cycle, SAMPLE_CSV).get_data(as_text=True))
     assert parser.fields["csv_text"] == SAMPLE_CSV
 
     client.post(URL, data={**parser.fields, "confirm": "1"})
@@ -281,24 +294,24 @@ def test_first_name_defaults_to_first_word_of_name(db):
     assert _user(db, "Beatrix Kiddo").first_name == "Beatrix"
 
 
-def test_import_matches_first_name_not_name(db, concert, piece):
+def test_import_matches_first_name_not_name(db, cycle, piece):
     user = _user(db, "Robert Smith")
     user.first_name = "Bob"
     db.session.commit()
 
-    assert _plan(concert, "Position,Ode to Joy\nP1,Bob\n").assignments[0].user == user
-    plan = _plan(concert, "Position,Ode to Joy\nP1,Robert\n")
+    assert _plan(cycle, "Position,Ode to Joy\nP1,Bob\n").assignments[0].user == user
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Robert\n")
     assert any('no ringer named "Robert"' in e for e in plan.errors)
 
 
-def test_distinct_first_names_resolve_shared_given_names(db, concert, piece):
+def test_distinct_first_names_resolve_shared_given_names(db, cycle, piece):
     """Two Sams can both be imported once their first_names differ."""
     sam_a = _user(db, "Sam Adams")
     sam_b = _user(db, "Sam Brown")
     sam_b.first_name = "Sam B"
     db.session.commit()
 
-    plan = _plan(concert, "Position,Ode to Joy\nP1,Sam\nP2,sam  b\n")
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Sam\nP2,sam  b\n")
     assert plan.errors == []
     assert [a.user for a in plan.assignments] == [sam_a, sam_b]
 

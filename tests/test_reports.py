@@ -1,7 +1,7 @@
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 
 from app import reports
-from app.models import Case, Entry, EntryInstrument, Piece
+from app.models import Case, Entry, EntryInstrument
 
 
 def _sign_up(db, user, piece, instrument_type, notes):
@@ -16,7 +16,7 @@ def _sign_up(db, user, piece, instrument_type, notes):
 
 
 def test_packing_list_includes_only_cases_overlapping_used_pitches(
-    db, ringer, concert, piece, instrument_type
+    db, ringer, program, piece, instrument_type
 ):
     low_case = Case(
         instrument_type_id=instrument_type.id,
@@ -35,13 +35,13 @@ def test_packing_list_includes_only_cases_overlapping_used_pitches(
 
     _sign_up(db, ringer, piece, instrument_type, "C4")
 
-    result = reports.packing_list(concert)
+    result = reports.packing_list(program)
 
     assert result == {instrument_type: [low_case]}
 
 
 def test_packing_list_includes_case_matched_only_by_second_range(
-    client, db, admin_user, ringer, concert, piece, instrument_type
+    client, db, admin_user, ringer, program, piece, instrument_type
 ):
     split_case = Case(
         instrument_type_id=instrument_type.id,
@@ -56,21 +56,21 @@ def test_packing_list_includes_case_matched_only_by_second_range(
 
     _sign_up(db, ringer, piece, instrument_type, "B5")
 
-    assert reports.packing_list(concert) == {instrument_type: [split_case]}
+    assert reports.packing_list(program) == {instrument_type: [split_case]}
 
     login(client, admin_user, ADMIN_PASSWORD)
-    body = client.get(f"/concerts/{concert.id}/reports/packing-list").get_data(
+    body = client.get(f"/programs/{program.id}/reports/packing-list").get_data(
         as_text=True
     )
     assert "C-SPLIT (C4-D4, A5-C6)" in body
 
 
-def test_packing_list_empty_when_nothing_signed_up(concert):
-    assert reports.packing_list(concert) == {}
+def test_packing_list_empty_when_nothing_signed_up(program):
+    assert reports.packing_list(program) == {}
 
 
 def test_equipment_table_groups_and_sorts_pitches_per_type(
-    db, ringer, other_ringer, concert, piece, instrument_type
+    db, ringer, other_ringer, program, piece, instrument_type
 ):
     _sign_up(db, ringer, piece, instrument_type, "E4,C4")
     entry2 = Entry(user_id=other_ringer.id, piece_id=piece.id, position="P2")
@@ -81,13 +81,13 @@ def test_equipment_table_groups_and_sorts_pitches_per_type(
     )
     db.session.commit()
 
-    notes_by_type, _, _ = reports.equipment_table(concert)
+    notes_by_type, _, _ = reports.equipment_table(program)
 
     assert notes_by_type[instrument_type] == ["C4", "D4", "E4"]
 
 
 def test_equipment_table_misc_entries_only_include_nonblank_notes(
-    db, ringer, other_ringer, concert, piece
+    db, ringer, other_ringer, program, piece
 ):
     entry_with_misc = Entry(
         user_id=ringer.id, piece_id=piece.id, position="P1", misc_notes="extra mallets"
@@ -98,41 +98,39 @@ def test_equipment_table_misc_entries_only_include_nonblank_notes(
     db.session.add_all([entry_with_misc, entry_blank])
     db.session.commit()
 
-    _, _, misc_entries = reports.equipment_table(concert)
+    _, _, misc_entries = reports.equipment_table(program)
 
     assert misc_entries == [entry_with_misc]
 
 
-def test_packing_list_route_requires_admin(client, ringer, concert):
+def test_packing_list_route_requires_admin(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(f"/concerts/{concert.id}/reports/packing-list")
+    response = client.get(f"/programs/{program.id}/reports/packing-list")
     assert response.status_code == 403
 
 
-def test_packing_list_route_accessible_to_admin(client, admin_user, concert):
+def test_packing_list_route_accessible_to_admin(client, admin_user, program):
     login(client, admin_user, ADMIN_PASSWORD)
-    response = client.get(f"/concerts/{concert.id}/reports/packing-list")
+    response = client.get(f"/programs/{program.id}/reports/packing-list")
     assert response.status_code == 200
 
 
-def test_equipment_table_route_requires_admin(client, ringer, concert):
+def test_equipment_table_route_requires_admin(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(f"/concerts/{concert.id}/reports/equipment-table")
+    response = client.get(f"/programs/{program.id}/reports/equipment-table")
     assert response.status_code == 403
 
 
-def test_reports_redirect_anonymous_to_login(client, concert):
+def test_reports_redirect_anonymous_to_login(client, program):
     response = client.get(
-        f"/concerts/{concert.id}/reports/packing-list", follow_redirects=False
+        f"/programs/{program.id}/reports/packing-list", follow_redirects=False
     )
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
 
-def _special_piece(db, concert, instrument_type):
-    special = Piece(
-        concert_id=concert.id, title="Encore", program_order=2, special=True
-    )
+def _special_piece(db, program, instrument_type):
+    special = add_piece(db, program, "Encore", 2, special=True)
     special.instrument_types.append(instrument_type)
     db.session.add(special)
     db.session.commit()
@@ -140,9 +138,9 @@ def _special_piece(db, concert, instrument_type):
 
 
 def test_equipment_table_can_exclude_special_pieces(
-    db, ringer, other_ringer, concert, piece, instrument_type, mallet_instrument_type
+    db, ringer, other_ringer, program, piece, instrument_type, mallet_instrument_type
 ):
-    special = _special_piece(db, concert, instrument_type)
+    special = _special_piece(db, program, instrument_type)
     _sign_up(db, ringer, piece, instrument_type, "C4")
     special_entry = _sign_up(db, other_ringer, special, instrument_type, "G5")
     special_entry.misc_notes = "Bell tree"
@@ -155,26 +153,26 @@ def test_equipment_table_can_exclude_special_pieces(
     )
     db.session.commit()
 
-    notes, mallets, misc = reports.equipment_table(concert)
+    notes, mallets, misc = reports.equipment_table(program)
     assert notes[instrument_type] == ["C4", "G5"]
     assert mallets[mallet_instrument_type] == {"Red yarn": 2}
     assert misc == [special_entry]
-    assert special.id in reports.mallet_requirements(concert)
+    assert special.id in reports.mallet_requirements(program)
 
-    notes, mallets, misc = reports.equipment_table(concert, include_special=False)
+    notes, mallets, misc = reports.equipment_table(program, include_special=False)
     assert notes[instrument_type] == ["C4"]
     assert mallet_instrument_type not in mallets
     assert misc == []
-    assert reports.mallet_requirements(concert, include_special=False) == {}
+    assert reports.mallet_requirements(program, include_special=False) == {}
 
 
 def test_equipment_table_route_excludes_special_on_request(
-    client, db, admin_user, ringer, concert, piece, instrument_type
+    client, db, admin_user, ringer, program, piece, instrument_type
 ):
-    special = _special_piece(db, concert, instrument_type)
+    special = _special_piece(db, program, instrument_type)
     _sign_up(db, ringer, special, instrument_type, "G5")
     login(client, admin_user, ADMIN_PASSWORD)
-    url = f"/concerts/{concert.id}/reports/equipment-table"
+    url = f"/programs/{program.id}/reports/equipment-table"
 
     included = client.get(url).get_data(as_text=True)
     assert "G5" in included
@@ -187,15 +185,15 @@ def test_equipment_table_route_excludes_special_on_request(
 
 
 def test_equipment_table_hides_toggle_without_special_pieces(
-    client, admin_user, concert, piece
+    client, admin_user, program, piece
 ):
     login(client, admin_user, ADMIN_PASSWORD)
-    response = client.get(f"/concerts/{concert.id}/reports/equipment-table")
+    response = client.get(f"/programs/{program.id}/reports/equipment-table")
     assert b"Exclude special pieces" not in response.data
 
 
 def test_packing_list_can_exclude_special_pieces(
-    client, db, admin_user, ringer, other_ringer, concert, piece, instrument_type
+    client, db, admin_user, ringer, other_ringer, program, piece, instrument_type
 ):
     low_case = Case(
         instrument_type_id=instrument_type.id,
@@ -211,17 +209,17 @@ def test_packing_list_can_exclude_special_pieces(
     )
     db.session.add_all([low_case, high_case])
     db.session.commit()
-    special = _special_piece(db, concert, instrument_type)
+    special = _special_piece(db, program, instrument_type)
     _sign_up(db, ringer, piece, instrument_type, "C4")
     _sign_up(db, other_ringer, special, instrument_type, "G5")
 
-    assert reports.packing_list(concert) == {instrument_type: [high_case, low_case]}
-    assert reports.packing_list(concert, include_special=False) == {
+    assert reports.packing_list(program) == {instrument_type: [high_case, low_case]}
+    assert reports.packing_list(program, include_special=False) == {
         instrument_type: [low_case]
     }
 
     login(client, admin_user, ADMIN_PASSWORD)
-    url = f"/concerts/{concert.id}/reports/packing-list"
+    url = f"/programs/{program.id}/reports/packing-list"
     assert "C-HIGH" in client.get(url).get_data(as_text=True)
     excluded = client.get(url + "?special=exclude").get_data(as_text=True)
     assert "C-HIGH" not in excluded

@@ -1,26 +1,28 @@
 from collections import defaultdict
 
 from app import pitch
-from app.models import Entry, EntryInstrument, Piece
+from app.models import Entry, EntryInstrument, Piece, ProgramPiece
 
 
-def _concert_piece_filter(query, concert, include_special):
-    query = query.filter(Piece.concert_id == concert.id)
+def _program_piece_filter(query, program, include_special):
+    query = query.join(ProgramPiece, ProgramPiece.piece_id == Piece.id).filter(
+        ProgramPiece.program_id == program.id
+    )
     if not include_special:
         query = query.filter(Piece.special.is_(False))
     return query
 
 
-def _entry_instruments_for_concert(concert, include_special=True):
+def _entry_instruments_for_program(program, include_special=True):
     query = EntryInstrument.query.join(Entry).join(Piece)
-    return _concert_piece_filter(query, concert, include_special).all()
+    return _program_piece_filter(query, program, include_special).all()
 
 
-def packing_list(concert, include_special=True):
+def packing_list(program, include_special=True):
     """Return {instrument_type: [case, ...]} for cases whose note range
-    overlaps a pitch actually used somewhere in this concert."""
+    overlaps a pitch actually used somewhere in this program."""
     used_pitches_by_type = defaultdict(set)
-    for entry_instrument in _entry_instruments_for_concert(concert, include_special):
+    for entry_instrument in _entry_instruments_for_program(program, include_special):
         if entry_instrument.instrument_type.selection_mode == "color":
             continue  # color-mode types have no pitch cases
         used_pitches_by_type[entry_instrument.instrument_type].update(
@@ -41,9 +43,9 @@ def packing_list(concert, include_special=True):
     return result
 
 
-def equipment_table(concert, include_special=True):
+def equipment_table(program, include_special=True):
     """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
-    equipment out for this concert. With include_special=False, pieces the
+    equipment out for this program. With include_special=False, pieces the
     admin marked special are left out entirely.
 
     notes_by_type: {instrument_type: [pitch, ...]} sorted low to high (pitch-mode types).
@@ -52,7 +54,7 @@ def equipment_table(concert, include_special=True):
     """
     notes_by_type = defaultdict(set)
     mallet_counts_by_type = defaultdict(lambda: defaultdict(int))
-    for entry_instrument in _entry_instruments_for_concert(concert, include_special):
+    for entry_instrument in _entry_instruments_for_program(program, include_special):
         instrument_type = entry_instrument.instrument_type
         if instrument_type.selection_mode == "color":
             for label, count in entry_instrument.color_counts():
@@ -73,8 +75,8 @@ def equipment_table(concert, include_special=True):
 
     misc_entries = [
         entry
-        for entry in _concert_piece_filter(
-            Entry.query.join(Piece), concert, include_special
+        for entry in _program_piece_filter(
+            Entry.query.join(Piece), program, include_special
         )
         if entry.misc_notes and entry.misc_notes.strip()
     ]
@@ -82,11 +84,11 @@ def equipment_table(concert, include_special=True):
     return sorted_notes_by_type, mallet_counts_by_type, misc_entries
 
 
-def mallet_requirements(concert, include_special=True):
+def mallet_requirements(program, include_special=True):
     """Return {piece_id: {label: total_count}} — mallet colors needed per
     piece, summed across every ringer's entry for that piece."""
     result = defaultdict(lambda: defaultdict(int))
-    for entry_instrument in _entry_instruments_for_concert(concert, include_special):
+    for entry_instrument in _entry_instruments_for_program(program, include_special):
         if entry_instrument.instrument_type.selection_mode != "color":
             continue
         piece_id = entry_instrument.entry.piece_id

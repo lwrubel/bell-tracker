@@ -65,4 +65,4 @@ def test_login_post_with_csrf_token_succeeds(csrf_client):
         follow_redirects=True,
     )
     assert response.status_code == 200
-    assert response.request.path == "/concerts"
+    assert response.request.path == "/"

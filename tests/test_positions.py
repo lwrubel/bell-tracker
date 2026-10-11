@@ -31,15 +31,15 @@ def test_every_p_position_has_base_notes():
             assert position_label(code) != code
 
 
-def test_ringer_pages_show_position_label(client, db, ringer, concert, piece):
+def test_ringer_pages_show_position_label(client, db, ringer, program, piece):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P2"))
     db.session.commit()
     login(client, ringer, RINGER_PASSWORD)
 
     for url in (
-        f"/concerts/{concert.id}",
-        f"/concerts/{concert.id}/pieces/{piece.id}/entry",
-        f"/concerts/{concert.id}/my-equipment",
+        f"/cycles/{program.cycle_id}",
+        f"/pieces/{piece.id}/entry",
+        f"/programs/{program.id}/my-equipment",
     ):
         assert "P2 - E4/F4" in client.get(url).get_data(as_text=True), url
 

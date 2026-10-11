@@ -60,7 +60,7 @@ def login():
 
         next_page = request.args.get("next")
         if not next_page or urlsplit(next_page).netloc != "":
-            next_page = url_for("routes.concerts_index")
+            next_page = url_for("routes.index")
         return redirect(next_page)
 
     return render_template("login.html", form=form)
@@ -89,14 +89,14 @@ def change_password():
             current_user.must_change_password = False
             db.session.commit()
             flash("Your password has been changed.", "success")
-            return redirect(url_for("routes.concerts_index"))
+            return redirect(url_for("routes.index"))
     return render_template("change_password.html", form=form)
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:
-        return redirect(url_for("routes.concerts_index"))
+        return redirect(url_for("routes.index"))
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data.strip().lower()).first()
@@ -125,7 +125,7 @@ def forgot_password():
 @bp.route("/reset-password/<token>", methods=["GET", "POST"])
 def reset_password(token):
     if current_user.is_authenticated:
-        return redirect(url_for("routes.concerts_index"))
+        return redirect(url_for("routes.index"))
     user = verify_reset_token(token)
     if user is None:
         flash("That reset link is invalid or has expired.", "danger")

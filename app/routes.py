@@ -12,7 +12,7 @@ from app.forms import (
     other_count_field_name,
     other_label_field_name,
 )
-from app.models import Concert, Entry, EntryInstrument, Piece
+from app.models import Cycle, Entry, EntryInstrument, Piece, Program
 from app.positions import FLOAT_POSITION
 
 bp = Blueprint("routes", __name__)
@@ -30,23 +30,18 @@ def admin_required(view):
 
 
 @bp.route("/")
-def index():
-    return redirect(url_for("routes.concerts_index"))
-
-
-@bp.route("/concerts")
 @login_required
-def concerts_index():
-    concerts = Concert.query.order_by(Concert.id.desc()).all()
-    return render_template("concerts.html", concerts=concerts)
+def index():
+    return render_template("home.html", cycle=Cycle.get_active())
 
 
-def _my_entries_by_piece(concert_id):
-    """The current user's entries in a concert, keyed by piece id."""
+def _my_entries_by_piece(piece_filter):
+    """The current user's entries on pieces matching `piece_filter`, keyed
+    by piece id."""
     return {
         entry.piece_id: entry
         for entry in Entry.query.join(Piece)
-        .filter(Piece.concert_id == concert_id, Entry.user_id == current_user.id)
+        .filter(piece_filter, Entry.user_id == current_user.id)
         .options(
             selectinload(Entry.instrument_selections).joinedload(
                 EntryInstrument.instrument_type
@@ -56,39 +51,42 @@ def _my_entries_by_piece(concert_id):
     }
 
 
-@bp.route("/concerts/<int:concert_id>")
+@bp.route("/cycles/<int:cycle_id>")
 @login_required
-def concert_detail(concert_id):
-    concert = Concert.query.get_or_404(concert_id)
-    entries_by_piece = _my_entries_by_piece(concert_id)
-    pieces = [p for p in concert.pieces if p.id in entries_by_piece]
+def cycle_detail(cycle_id):
+    cycle = Cycle.query.get_or_404(cycle_id)
+    entries_by_piece = _my_entries_by_piece(Piece.cycle_id == cycle_id)
+    pieces = [p for p in cycle.pieces if p.id in entries_by_piece]
     return render_template(
-        "concert_detail.html",
-        concert=concert,
+        "cycle_detail.html",
+        cycle=cycle,
         pieces=pieces,
         entries_by_piece=entries_by_piece,
         float_position=FLOAT_POSITION,
     )
 
 
-@bp.route("/concerts/<int:concert_id>/my-equipment")
+@bp.route("/programs/<int:program_id>/my-equipment")
 @login_required
-def my_equipment(concert_id):
-    concert = Concert.query.get_or_404(concert_id)
-    entries_by_piece = _my_entries_by_piece(concert_id)
-    entries = [
-        entries_by_piece[p.id] for p in concert.pieces if p.id in entries_by_piece
+def my_equipment(program_id):
+    program = Program.query.get_or_404(program_id)
+    entries_by_piece = _my_entries_by_piece(
+        Piece.id.in_([pp.piece_id for pp in program.program_pieces])
+    )
+    program_entries = [
+        (pp.position, entries_by_piece[pp.piece_id])
+        for pp in program.program_pieces
+        if pp.piece_id in entries_by_piece
     ]
-    return render_template("my_equipment.html", concert=concert, entries=entries)
+    return render_template(
+        "my_equipment.html", program=program, program_entries=program_entries
+    )
 
 
-@bp.route(
-    "/concerts/<int:concert_id>/pieces/<int:piece_id>/entry", methods=["GET", "POST"]
-)
+@bp.route("/pieces/<int:piece_id>/entry", methods=["GET", "POST"])
 @login_required
-def piece_entry(concert_id, piece_id):
-    concert = Concert.query.get_or_404(concert_id)
-    piece = Piece.query.filter_by(id=piece_id, concert_id=concert_id).first_or_404()
+def piece_entry(piece_id):
+    piece = Piece.query.get_or_404(piece_id)
     entry = Entry.query.filter_by(user_id=current_user.id, piece_id=piece_id).first()
     if entry is None or entry.position == FLOAT_POSITION:
         abort(404)
@@ -150,11 +148,10 @@ def piece_entry(concert_id, piece_id):
                 db.session.delete(selection)
         db.session.commit()
         flash("Saved.", "success")
-        return redirect(url_for("routes.concert_detail", concert_id=concert_id))
+        return redirect(url_for("routes.cycle_detail", cycle_id=piece.cycle_id))
 
     return render_template(
         "piece_entry.html",
-        concert=concert,
         piece=piece,
         entry=entry,
         form=form,
@@ -188,37 +185,37 @@ def _include_special():
     return request.args.get("special") != "exclude"
 
 
-@bp.route("/concerts/<int:concert_id>/reports/packing-list")
+@bp.route("/programs/<int:program_id>/reports/packing-list")
 @admin_required
-def report_packing_list(concert_id):
-    concert = Concert.query.get_or_404(concert_id)
+def report_packing_list(program_id):
+    program = Program.query.get_or_404(program_id)
     include_special = _include_special()
     return render_template(
         "packing_list.html",
-        concert=concert,
+        program=program,
         include_special=include_special,
-        special_pieces=[p for p in concert.pieces if p.special],
-        cases_by_type=reports.packing_list(concert, include_special),
+        special_pieces=[p for p in program.pieces if p.special],
+        cases_by_type=reports.packing_list(program, include_special),
     )
 
 
-@bp.route("/concerts/<int:concert_id>/reports/equipment-table")
+@bp.route("/programs/<int:program_id>/reports/equipment-table")
 @admin_required
-def report_equipment_table(concert_id):
-    concert = Concert.query.get_or_404(concert_id)
+def report_equipment_table(program_id):
+    program = Program.query.get_or_404(program_id)
     include_special = _include_special()
     notes_by_type, mallet_counts_by_type, misc_entries = reports.equipment_table(
-        concert, include_special
+        program, include_special
     )
     return render_template(
         "equipment_table.html",
-        concert=concert,
+        program=program,
         include_special=include_special,
-        special_pieces=[p for p in concert.pieces if p.special],
+        special_pieces=[p for p in program.pieces if p.special],
         notes_by_type=notes_by_type,
         mallet_counts_by_type=mallet_counts_by_type,
         mallet_requirements_by_piece=reports.mallet_requirements(
-            concert, include_special
+            program, include_special
         ),
         misc_entries=misc_entries,
     )

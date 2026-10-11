@@ -13,17 +13,17 @@
 </p>
 <p class="text-muted">
   You'll see a preview before anything is saved. Pieces not already in the
-  concert are created. Importing adds and updates assignments; it never
+  cycle are created; add them to programs afterwards. Importing adds and updates assignments; it never
   removes one, and saved equipment is kept.
 </p>
 
 <form method="post" enctype="multipart/form-data" style="max-width: 32rem;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="form-group">
-    <label for="concert_id">Concert</label>
-    <select class="form-control" id="concert_id" name="concert_id" required>
-      {% for c in concerts %}
-        <option value="{{ c.id }}">{{ c.name }}</option>
+    <label for="cycle_id">Cycle</label>
+    <select class="form-control" id="cycle_id" name="cycle_id" required>
+      {% for c in cycles %}
+        <option value="{{ c.id }}"{% if c.active %} selected{% endif %}>{{ c.name }}{% if c.active %} (active){% endif %}</option>
       {% endfor %}
     </select>
   </div>
@@ -35,7 +35,7 @@
 </form>
 
 {% else %}
-<p class="text-muted">Preview for <strong>{{ concert.name }}</strong>. Nothing has been saved yet.</p>
+<p class="text-muted">Preview for <strong>{{ cycle.name }}</strong>. Nothing has been saved yet.</p>
 
 {% if plan.errors %}
   <div class="alert alert-danger">
@@ -92,7 +92,7 @@
 
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <input type="hidden" name="concert_id" value="{{ concert.id }}">
+  <input type="hidden" name="cycle_id" value="{{ cycle.id }}">
   <input type="hidden" name="csv_text" value="{{ csv_text }}">
   {% if plan.can_apply %}
     <button type="submit" name="confirm" value="1" class="btn btn-primary">Confirm import</button>

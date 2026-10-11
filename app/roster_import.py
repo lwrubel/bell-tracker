@@ -43,7 +43,7 @@ class Assignment:
 
 @dataclass
 class ImportPlan:
-    concert_id: int
+    cycle_id: int
     new_piece_titles: list[str] = field(default_factory=list)
     assignments: list[Assignment] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -71,9 +71,9 @@ def _read_rows(csv_text):
     ]
 
 
-def plan_import(concert, csv_text):
-    """Work out what importing ``csv_text`` into ``concert`` would change."""
-    plan = ImportPlan(concert_id=concert.id)
+def plan_import(cycle, csv_text):
+    """Work out what importing ``csv_text`` into ``cycle`` would change."""
+    plan = ImportPlan(cycle_id=cycle.id)
     rows = _read_rows(csv_text)
     if not rows:
         plan.errors.append("The file is empty.")
@@ -87,7 +87,7 @@ def plan_import(concert, csv_text):
         )
         return plan
 
-    existing_pieces = {_normalize(p.title): p for p in concert.pieces}
+    existing_pieces = {_normalize(p.title): p for p in cycle.pieces}
     seen_titles = {}
     for title in titles:
         if not title:
@@ -166,15 +166,17 @@ def _assignment(piece, title, user, position):
     return Assignment(title, user, position, UPDATE, old_position=entry.position)
 
 
-def apply_import(concert, plan):
-    """Save a plan from ``plan_import``. The caller checks ``plan.can_apply``."""
-    pieces = {_normalize(p.title): p for p in concert.pieces}
-    next_order = max((p.program_order for p in concert.pieces), default=0) + 1
+def apply_import(cycle, plan):
+    """Save a plan from ``plan_import``. The caller checks ``plan.can_apply``.
+
+    New pieces join the cycle's repertoire only; an admin places them into
+    programs afterwards.
+    """
+    pieces = {_normalize(p.title): p for p in cycle.pieces}
     for title in plan.new_piece_titles:
-        piece = Piece(concert=concert, title=title, program_order=next_order)
+        piece = Piece(cycle=cycle, title=title)
         db.session.add(piece)
         pieces[_normalize(title)] = piece
-        next_order += 1
     db.session.flush()
 
     for assignment in plan.assignments:

@@ -1,46 +1,39 @@
-from conftest import RINGER_PASSWORD, login
+from conftest import RINGER_PASSWORD, add_piece, login
 
-from app.models import Entry, EntryInstrument, Piece
-
-
-def _url(concert):
-    return f"/concerts/{concert.id}/my-equipment"
+from app.models import Entry, EntryInstrument
 
 
-def test_concert_page_links_to_equipment_list(client, db, ringer, concert, piece):
-    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
-    db.session.commit()
+def _url(program):
+    return f"/programs/{program.id}/my-equipment"
 
+
+def test_home_page_links_to_each_programs_equipment_list(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(f"/concerts/{concert.id}")
-    assert b"My equipment list" in response.data
-    assert _url(concert).encode() in response.data
+    response = client.get("/")
+    assert b"View equipment" in response.data
+    assert _url(program).encode() in response.data
 
 
-def test_concerts_index_no_longer_has_equipment_list(client, ringer, concert):
+def test_equipment_list_links_back_home_and_offers_print(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    assert b"My equipment list" not in client.get("/concerts").data
+    response = client.get(_url(program))
+    assert b'href="/"' in response.data
+    assert b"window.print()" in response.data
 
 
-def test_equipment_list_links_back_to_concert(client, ringer, concert):
-    login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_url(concert))
-    assert f'href="/concerts/{concert.id}"'.encode() in response.data
-
-
-def test_requires_login(client, concert):
-    response = client.get(_url(concert))
+def test_requires_login(client, program):
+    response = client.get(_url(program))
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
 
-def test_404s_for_unknown_concert(client, ringer):
+def test_404s_for_unknown_program(client, ringer):
     login(client, ringer, RINGER_PASSWORD)
-    assert client.get("/concerts/9999/my-equipment").status_code == 404
+    assert client.get("/programs/9999/my-equipment").status_code == 404
 
 
 def test_lists_position_and_equipment_per_piece(
-    client, db, ringer, concert, piece, instrument_type, mallet_instrument_type
+    client, db, ringer, program, piece, instrument_type, mallet_instrument_type
 ):
     entry = Entry(
         user_id=ringer.id, piece_id=piece.id, position="P3", misc_notes="Bell tree"
@@ -61,7 +54,7 @@ def test_lists_position_and_equipment_per_piece(
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    body = client.get(_url(concert)).get_data(as_text=True)
+    body = client.get(_url(program)).get_data(as_text=True)
 
     assert "Ode to Joy" in body
     assert "P3" in body
@@ -71,19 +64,19 @@ def test_lists_position_and_equipment_per_piece(
     assert "Bell tree" in body
 
 
-def test_piece_without_equipment_says_so(client, db, ringer, concert, piece):
+def test_piece_without_equipment_says_so(client, db, ringer, program, piece):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    body = client.get(_url(concert)).get_data(as_text=True)
+    body = client.get(_url(program)).get_data(as_text=True)
 
     assert "P1" in body
     assert "No equipment selected" in body
 
 
-def test_only_shows_own_pieces(client, db, ringer, other_ringer, concert, piece):
-    other_piece = Piece(concert_id=concert.id, title="Carol of the Bells", program_order=2)
+def test_only_shows_own_pieces(client, db, ringer, other_ringer, program, piece):
+    other_piece = add_piece(db, program, "Carol of the Bells", 2)
     db.session.add(other_piece)
     db.session.flush()
     db.session.add_all(
@@ -100,7 +93,7 @@ def test_only_shows_own_pieces(client, db, ringer, other_ringer, concert, piece)
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    body = client.get(_url(concert)).get_data(as_text=True)
+    body = client.get(_url(program)).get_data(as_text=True)
 
     assert "Ode to Joy" in body
     assert "Carol of the Bells" not in body

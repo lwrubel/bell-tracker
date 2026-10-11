@@ -1,16 +1,15 @@
 {% extends "base.html" %}
-{% block title %}{{ concert.name }} - bell-tracker{% endblock %}
+{% block title %}{{ cycle.name }} - bell-tracker{% endblock %}
 {% block content %}
-<h1>{{ concert.name }}</h1>
+<p class="mb-2">
+  <a href="{{ url_for('routes.index') }}">&larr; Back to home</a>
+</p>
+<h1>{{ cycle.name }}</h1>
 
 {% if pieces %}
-<p>
-  <a class="btn btn-outline-primary" href="{{ url_for('routes.my_equipment', concert_id=concert.id) }}">My equipment list</a>
-</p>
 <table class="table">
   <thead>
     <tr>
-      <th>#</th>
       <th>Piece</th>
       <th>Your position</th>
       <th></th>
@@ -20,12 +19,11 @@
     {% for piece in pieces %}
       {% set entry = entries_by_piece[piece.id] %}
       <tr>
-        <td>{{ piece.program_order }}</td>
         <td>{{ piece.title }}</td>
         <td>{{ position_label(entry.position) }}</td>
         <td class="text-nowrap">
           {% if entry.position != float_position %}
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.piece_entry', concert_id=concert.id, piece_id=piece.id) }}">Enter equipment</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.piece_entry', piece_id=piece.id) }}">Enter equipment</a>
           {% endif %}
           {% if entry.has_equipment() %}
             <svg class="text-success ml-2 align-middle" width="20" height="20" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="Equipment saved">
@@ -39,6 +37,6 @@
   </tbody>
 </table>
 {% else %}
-<p class="text-muted">You haven't been assigned to any pieces in this program yet.</p>
+<p class="text-muted">You haven't been assigned to any pieces in this cycle yet.</p>
 {% endif %}
 {% endblock %}

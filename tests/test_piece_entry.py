@@ -3,51 +3,51 @@ from conftest import RINGER_PASSWORD, login
 from app.models import Entry, EntryInstrument
 
 
-def _entry_url(concert, piece):
-    return f"/concerts/{concert.id}/pieces/{piece.id}/entry"
+def _entry_url(piece):
+    return f"/pieces/{piece.id}/entry"
 
 
-def test_entry_form_404s_when_ringer_has_no_entry(client, ringer, concert, piece):
+def test_entry_form_404s_when_ringer_has_no_entry(client, ringer, program, piece):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
     assert response.status_code == 404
 
 
-def test_entry_form_404s_for_float_position(client, db, ringer, concert, piece):
+def test_entry_form_404s_for_float_position(client, db, ringer, program, piece):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="Float"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
     assert response.status_code == 404
 
 
 def test_entry_form_renders_pitch_checkboxes_for_enabled_instrument_types(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
 
     assert response.status_code == 200
     assert b'type="checkbox"' in response.data
     assert b'value="C4"' in response.data
 
 
-def test_entry_form_links_back_to_concert(client, db, ringer, concert, piece):
+def test_entry_form_links_back_to_cycle(client, db, ringer, program, piece):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
 
-    assert f'href="/concerts/{concert.id}"'.encode() in response.data
+    assert f'href="/cycles/{program.cycle_id}"'.encode() in response.data
 
 
 def test_submitting_pitches_creates_entry_instrument(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
@@ -55,7 +55,7 @@ def test_submitting_pitches_creates_entry_instrument(
 
     login(client, ringer, RINGER_PASSWORD)
     response = client.post(
-        _entry_url(concert, piece),
+        _entry_url(piece),
         data={
             f"instrument_{instrument_type.id}": ["C4", "E4"],
             "misc_notes": "extra mallets",
@@ -71,7 +71,7 @@ def test_submitting_pitches_creates_entry_instrument(
 
 
 def test_pitches_are_stored_as_sharps_regardless_of_display(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
@@ -79,7 +79,7 @@ def test_pitches_are_stored_as_sharps_regardless_of_display(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, piece),
+        _entry_url(piece),
         data={f"instrument_{instrument_type.id}": ["C#4"], "misc_notes": ""},
         follow_redirects=True,
     )
@@ -89,7 +89,7 @@ def test_pitches_are_stored_as_sharps_regardless_of_display(
 
 
 def test_resubmitting_with_no_pitches_deletes_the_selection(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
@@ -101,7 +101,7 @@ def test_resubmitting_with_no_pitches_deletes_the_selection(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, piece),
+        _entry_url(piece),
         data={f"instrument_{instrument_type.id}": [], "misc_notes": ""},
         follow_redirects=True,
     )
@@ -111,7 +111,7 @@ def test_resubmitting_with_no_pitches_deletes_the_selection(
 
 
 def test_existing_selections_are_prepopulated_on_reload(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
@@ -122,18 +122,18 @@ def test_existing_selections_are_prepopulated_on_reload(
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
 
     assert b'value="C4"' in response.data
     assert b"checked" in response.data
 
 
 def test_ringer_cannot_fill_in_another_ringers_entry(
-    client, db, ringer, other_ringer, concert, piece
+    client, db, ringer, other_ringer, program, piece
 ):
     db.session.add(Entry(user_id=other_ringer.id, piece_id=piece.id, position="P1"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, piece))
+    response = client.get(_entry_url(piece))
     assert response.status_code == 404

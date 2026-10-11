@@ -81,6 +81,28 @@ uv run python scripts/sqlite_to_pg.py instance/app.db
 This **replaces** everything in the target database. It preserves row ids and
 realigns Postgres' sequences afterward, so admin-created rows don't collide.
 
+## Cycles, programs and pieces
+
+A **Cycle** is a season's repertoire: it owns its **Pieces**, and has several
+**Programs** (performances, each with a name and date/time). Each program
+plays some of the cycle's pieces in its own order. Admins manage these at
+`/admin/`:
+
+- **Cycle**: create one and tick **Active** to make it the one ringers see
+  when they log in. Only one cycle can be active, so activating a cycle
+  deactivates the previous one. Programs can be added inline here too.
+- **Program**: pick its cycle, then add rows under **Program Pieces**, each a
+  piece and its position number. A program can only use its own cycle's
+  pieces.
+- **Piece**: title, cycle, special flag, instrument types.
+
+Ringers' equipment is stored per piece, so it's entered once and shows up in
+every program that plays the piece. The home page shows the active cycle with
+an **Edit equipment** button, and lists its programs. Each program has a
+printable **View equipment** page with the ringer's own equipment in program
+order. Admins also get each program's **Packing list** and **Equipment
+table** there.
+
 ## Assigning ringers to pieces and positions (admin)
 
 Roster assignment is admin-driven: a ringer only sees a piece in their own
@@ -88,9 +110,9 @@ program view once an admin has explicitly assigned them a position on it.
 This is done through the **Entry** section of the Flask-Admin panel
 (`/admin/`), not by the ringer.
 
-Prerequisites (usually set up once per concert):
+Prerequisites (usually set up once per cycle):
 
-1. The **Concert** exists with its **Pieces** (each with a `program_order`).
+1. The **Cycle** exists with its **Pieces**.
 2. The ringer has a **User** account (admin-created via `/admin/` → Users).
 
 To assign a ringer to a piece:
@@ -102,7 +124,8 @@ To assign a ringer to a piece:
 4. Save.
 
 That Entry row is what makes the piece appear on the ringer's
-`/concerts/<id>` page, with the position shown read-only. Repeat once per
+**Edit equipment** page for the cycle (`/cycles/<id>`), with the position
+shown read-only. Repeat once per
 (ringer, piece) — a ringer can only have one Entry per piece.
 
 A few things worth knowing:
@@ -110,15 +133,15 @@ A few things worth knowing:
 - **`Float`** means "not performing" — the ringer sees the piece listed with
   the `Float` label but no equipment form to fill in.
 - If a ringer has no Entry for a piece, that piece doesn't appear in their
-  program view at all.
+  cycle or program views at all.
 - The equipment fields (misc notes, instrument/pitch selections) also show
   up on the Entry list/detail view, but read-only — those are filled in by
   the ringer from the front end, not set by the admin here.
 
 ### Importing positions from a spreadsheet
 
-For a whole concert at once, use `/admin/` → **Import positions**. Pick the
-concert and upload the roster sheet saved as CSV:
+For a whole cycle at once, use `/admin/` → **Import positions**. Pick the
+cycle and upload the roster sheet saved as CSV:
 
 - The first row lists the pieces. Its first cell is just a label and is
   ignored.
@@ -136,8 +159,9 @@ assignments it will add or change. Any problem, such as an unknown position
 or a name matching no user or more than one, blocks the whole import until
 the sheet is fixed.
 
-Importing only adds and updates. Pieces not already in the concert are
-created at the end of the program with the default instrument types.
+Importing only adds and updates. Pieces not already in the cycle are
+created with the default instrument types, but aren't in any program yet:
+add them to programs from the **Program** admin.
 Assignments missing from the sheet are **not** removed, and ringers keep any
 equipment they've saved. Delete stale assignments in the **Entry** list.
 
@@ -156,7 +180,7 @@ Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode*
   `Green yarn:2,Red yarn:1,Other: soft bass:1`.
 
 Per-piece mallet totals (summed across every ringer assigned to the piece)
-appear on the ringer's concert-detail and piece-entry pages and in the
+appear on the ringer's cycle and piece-entry pages and in the
 **Equipment Table** report ("Mallets Needed Per Piece").
 
 ### Where a type is enabled, and who sees it
@@ -165,8 +189,8 @@ Two more fields on an Instrument Type control this, independently of the
 selection mode:
 
 - **`enabled_by_default`**: the type is attached to every newly created piece.
-  Pieces get created from two different admin forms (the Piece view and the
-  inline form under a Concert), so this lives in a `before_flush` hook in
+  Pieces get created from two different admin paths (the Piece view and the
+  roster import), so this lives in a `before_flush` hook in
   `app/models.py` rather than in either form. It only applies to pieces being
   created — you can still uncheck the type on a piece that doesn't use it, and
   it won't come back. Set on **Mallets** and **Bass Bells**.

@@ -52,5 +52,4 @@ def test_admin_brand_links_to_the_front_end(client, admin_user, url):
 def test_front_end_home_is_reachable_from_the_admin_brand(client, admin_user):
     login(client, admin_user, ADMIN_PASSWORD)
     response = client.get("/", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/concerts" in response.headers["Location"]
+    assert response.status_code == 200

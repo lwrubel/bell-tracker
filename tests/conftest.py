@@ -4,7 +4,7 @@ import pytest
 
 from app import create_app
 from app import db as _db
-from app.models import Concert, InstrumentType, Piece, User
+from app.models import Cycle, InstrumentType, Piece, Program, ProgramPiece, User
 
 RINGER_PASSWORD = "ringerpass123"
 ADMIN_PASSWORD = "adminPassword456"
@@ -118,27 +118,44 @@ def bass_instrument_type(db):
 
 
 @pytest.fixture()
-def concert(db):
-    c = Concert(name="Spring Concert")
+def cycle(db):
+    c = Cycle(name="Spring 2026", active=True)
     db.session.add(c)
     db.session.commit()
     return c
 
 
 @pytest.fixture()
-def piece(db, concert, instrument_type):
-    p = Piece(concert_id=concert.id, title="Ode to Joy", program_order=1)
-    p.instrument_types.append(instrument_type)
+def program(db, cycle):
+    p = Program(cycle=cycle, name="Spring Concert")
     db.session.add(p)
     db.session.commit()
     return p
 
 
+def add_piece(db, program, title, position, **kwargs):
+    """A new piece in `program`'s cycle, placed in `program` at `position`.
+
+    Added to the session but not committed.
+    """
+    piece = Piece(cycle_id=program.cycle_id, title=title, **kwargs)
+    db.session.add(piece)
+    db.session.add(ProgramPiece(program=program, piece=piece, position=position))
+    return piece
+
+
 @pytest.fixture()
-def mallet_piece(db, concert, mallet_instrument_type):
-    p = Piece(concert_id=concert.id, title="Toccata", program_order=2)
+def piece(db, program, instrument_type):
+    p = add_piece(db, program, "Ode to Joy", 1)
+    p.instrument_types.append(instrument_type)
+    db.session.commit()
+    return p
+
+
+@pytest.fixture()
+def mallet_piece(db, program, mallet_instrument_type):
+    p = add_piece(db, program, "Toccata", 2)
     p.instrument_types.append(mallet_instrument_type)
-    db.session.add(p)
     db.session.commit()
     return p
 

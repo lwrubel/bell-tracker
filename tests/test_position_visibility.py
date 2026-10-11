@@ -1,30 +1,30 @@
 import pytest
-from conftest import RINGER_PASSWORD, login
+from conftest import RINGER_PASSWORD, add_piece, login
 
 from app import positions, reports
 from app.models import Entry, EntryInstrument, InstrumentType, Piece
 
 
 @pytest.fixture()
-def bass_piece(db, concert, instrument_type, bass_instrument_type):
+def bass_piece(db, program, instrument_type, bass_instrument_type):
     """A piece with an unrestricted type (Chimes) plus Bass Bells, which the
     enabled_by_default flag attaches on its own."""
-    p = Piece(concert_id=concert.id, title="Bass Piece", program_order=3)
+    p = add_piece(db, program, "Bass Piece", 3)
     p.instrument_types.append(instrument_type)
     db.session.add(p)
     db.session.commit()
     return p
 
 
-def _entry_url(concert, piece):
-    return f"/concerts/{concert.id}/pieces/{piece.id}/entry"
+def _entry_url(piece):
+    return f"/pieces/{piece.id}/entry"
 
 
-def _open_entry_as(client, db, ringer, concert, piece, position):
+def _open_entry_as(client, db, ringer, program, piece, position):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position=position))
     db.session.commit()
     login(client, ringer, RINGER_PASSWORD)
-    return client.get(_entry_url(concert, piece))
+    return client.get(_entry_url(piece))
 
 
 # --- who sees what -------------------------------------------------------
@@ -32,9 +32,9 @@ def _open_entry_as(client, db, ringer, concert, piece, position):
 
 @pytest.mark.parametrize("position", ["LB1", "LB2", "LB3"])
 def test_lb_positions_see_bass_bells(
-    client, db, ringer, concert, bass_piece, bass_instrument_type, position
+    client, db, ringer, program, bass_piece, bass_instrument_type, position
 ):
-    response = _open_entry_as(client, db, ringer, concert, bass_piece, position)
+    response = _open_entry_as(client, db, ringer, program, bass_piece, position)
 
     assert response.status_code == 200
     assert f'name="instrument_{bass_instrument_type.id}"'.encode() in response.data
@@ -43,9 +43,9 @@ def test_lb_positions_see_bass_bells(
 
 @pytest.mark.parametrize("position", ["P1", "P11", "Other"])
 def test_non_lb_positions_do_not_see_bass_bells(
-    client, db, ringer, concert, bass_piece, bass_instrument_type, position
+    client, db, ringer, program, bass_piece, bass_instrument_type, position
 ):
-    response = _open_entry_as(client, db, ringer, concert, bass_piece, position)
+    response = _open_entry_as(client, db, ringer, program, bass_piece, position)
 
     assert response.status_code == 200
     assert f'name="instrument_{bass_instrument_type.id}"'.encode() not in response.data
@@ -54,9 +54,9 @@ def test_non_lb_positions_do_not_see_bass_bells(
 
 @pytest.mark.parametrize("position", ["LB1", "P1"])
 def test_unrestricted_types_stay_visible_to_every_position(
-    client, db, ringer, concert, bass_piece, instrument_type, position
+    client, db, ringer, program, bass_piece, instrument_type, position
 ):
-    response = _open_entry_as(client, db, ringer, concert, bass_piece, position)
+    response = _open_entry_as(client, db, ringer, program, bass_piece, position)
 
     assert f'name="instrument_{instrument_type.id}"'.encode() in response.data
 
@@ -65,7 +65,7 @@ def test_unrestricted_types_stay_visible_to_every_position(
 
 
 def test_lb_ringer_can_save_bass_bell_pitches(
-    client, db, ringer, concert, bass_piece, bass_instrument_type
+    client, db, ringer, program, bass_piece, bass_instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="LB1")
     db.session.add(entry)
@@ -73,7 +73,7 @@ def test_lb_ringer_can_save_bass_bell_pitches(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, bass_piece),
+        _entry_url(bass_piece),
         data={f"instrument_{bass_instrument_type.id}": ["C2", "G2"], "misc_notes": ""},
         follow_redirects=True,
     )
@@ -84,7 +84,7 @@ def test_lb_ringer_can_save_bass_bell_pitches(
 
 
 def test_saving_from_a_non_lb_position_keeps_a_hidden_bass_bells_row(
-    client, db, ringer, concert, bass_piece, instrument_type, bass_instrument_type
+    client, db, ringer, program, bass_piece, instrument_type, bass_instrument_type
 ):
     # The ringer signed up at LB1, then an admin moved them to P1. Their bass
     # bells row is now hidden - saving the form must not silently delete it.
@@ -102,7 +102,7 @@ def test_saving_from_a_non_lb_position_keeps_a_hidden_bass_bells_row(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, bass_piece),
+        _entry_url(bass_piece),
         data={f"instrument_{instrument_type.id}": ["C4"], "misc_notes": ""},
         follow_redirects=True,
     )
@@ -116,19 +116,19 @@ def test_saving_from_a_non_lb_position_keeps_a_hidden_bass_bells_row(
 # --- enabled_by_default --------------------------------------------------
 
 
-def test_bass_bells_is_enabled_on_a_new_piece(db, concert, bass_instrument_type):
-    p = Piece(concert_id=concert.id, title="Postlude", program_order=12)
+def test_bass_bells_is_enabled_on_a_new_piece(db, program, bass_instrument_type):
+    p = add_piece(db, program, "Postlude", 12)
     db.session.add(p)
     db.session.commit()
 
     assert p.instrument_types == [bass_instrument_type]
 
 
-def test_bass_bells_is_enabled_on_a_piece_added_through_a_concert(
-    db, concert, bass_instrument_type
+def test_bass_bells_is_enabled_on_a_piece_added_through_a_cycle(
+    db, cycle, bass_instrument_type
 ):
-    p = Piece(title="Offertory", program_order=13)
-    concert.pieces.append(p)
+    p = Piece(title="Offertory")
+    cycle.pieces.append(p)
     db.session.commit()
 
     assert p.instrument_types == [bass_instrument_type]
@@ -138,12 +138,12 @@ def test_bass_bells_is_enabled_on_a_piece_added_through_a_concert(
 
 
 def test_entry_form_lists_types_in_display_order(
-    client, db, ringer, concert, bass_piece, bass_instrument_type, instrument_type
+    client, db, ringer, program, bass_piece, bass_instrument_type, instrument_type
 ):
     """bass_piece attaches Chimes explicitly and picks up Bass Bells from
     enabled_by_default afterwards, so the join lists them in that order -
     display_order (10 vs 20) has to win."""
-    response = _open_entry_as(client, db, ringer, concert, bass_piece, "LB1")
+    response = _open_entry_as(client, db, ringer, program, bass_piece, "LB1")
     body = response.get_data(as_text=True)
 
     assert body.index(f"instrument_{bass_instrument_type.id}") < body.index(
@@ -174,10 +174,10 @@ def test_unranked_types_sort_to_the_end(
     assert entry.visible_instrument_types()[-1] is mallet_instrument_type
 
 
-def test_display_order_beats_alphabetical(db, ringer, concert, instrument_type):
+def test_display_order_beats_alphabetical(db, ringer, program, instrument_type):
     """Guards the ranks against a tiebreak that would pass by accident."""
     late = InstrumentType(name="Aaa Bells", display_order=90)
-    piece = Piece(concert_id=concert.id, title="Ordered", program_order=9)
+    piece = add_piece(db, program, "Ordered", 9)
     db.session.add(late)
     piece.instrument_types.append(late)
     piece.instrument_types.append(instrument_type)
@@ -197,7 +197,7 @@ def test_position_prefixes_are_derived_from_the_position_codes():
 
 
 def test_reports_still_count_a_hidden_types_selections(
-    db, ringer, concert, bass_piece, bass_instrument_type
+    db, ringer, program, bass_piece, bass_instrument_type
 ):
     # Visibility is presentation only; the equipment table is for the admin
     # laying gear out, so a row hidden from its own ringer still counts.
@@ -211,6 +211,6 @@ def test_reports_still_count_a_hidden_types_selections(
     )
     db.session.commit()
 
-    notes_by_type, _, _ = reports.equipment_table(concert)
+    notes_by_type, _, _ = reports.equipment_table(program)
 
     assert notes_by_type[bass_instrument_type] == ["C2"]

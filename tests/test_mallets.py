@@ -1,11 +1,11 @@
-from conftest import RINGER_PASSWORD, login
+from conftest import RINGER_PASSWORD, add_piece, login
 
 from app import color, reports
 from app.models import Entry, EntryInstrument, Piece
 
 
-def _entry_url(concert, piece):
-    return f"/concerts/{concert.id}/pieces/{piece.id}/entry"
+def _entry_url(piece):
+    return f"/pieces/{piece.id}/entry"
 
 
 def _color_field(mallet_instrument_type, label):
@@ -47,31 +47,31 @@ def test_other_label_survives_round_trip():
 
 
 def test_new_piece_gets_color_types_automatically(
-    db, concert, mallet_instrument_type
+    db, program, mallet_instrument_type
 ):
-    p = Piece(concert_id=concert.id, title="Fanfare", program_order=7)
+    p = add_piece(db, program, "Fanfare", 7)
     db.session.add(p)
     db.session.commit()
 
     assert p.instrument_types == [mallet_instrument_type]
 
 
-def test_piece_added_through_a_concert_gets_color_types(
-    db, concert, mallet_instrument_type
+def test_piece_added_through_a_cycle_gets_color_types(
+    db, cycle, mallet_instrument_type
 ):
-    # The Concert admin's inline form appends to concert.pieces rather than
-    # calling session.add, so cover that path too.
-    p = Piece(title="Prelude", program_order=8)
-    concert.pieces.append(p)
+    # A piece appended through a relationship reaches the session by
+    # cascade rather than session.add, so cover that path too.
+    p = Piece(title="Prelude")
+    cycle.pieces.append(p)
     db.session.commit()
 
     assert p.instrument_types == [mallet_instrument_type]
 
 
 def test_default_does_not_duplicate_an_explicit_selection(
-    db, concert, mallet_instrument_type
+    db, program, mallet_instrument_type
 ):
-    p = Piece(concert_id=concert.id, title="Chorale", program_order=9)
+    p = add_piece(db, program, "Chorale", 9)
     p.instrument_types.append(mallet_instrument_type)
     db.session.add(p)
     db.session.commit()
@@ -79,16 +79,16 @@ def test_default_does_not_duplicate_an_explicit_selection(
     assert p.instrument_types == [mallet_instrument_type]
 
 
-def test_types_without_the_default_flag_are_not_enabled(db, concert, instrument_type):
-    p = Piece(concert_id=concert.id, title="Interlude", program_order=10)
+def test_types_without_the_default_flag_are_not_enabled(db, program, instrument_type):
+    p = add_piece(db, program, "Interlude", 10)
     db.session.add(p)
     db.session.commit()
 
     assert p.instrument_types == []
 
 
-def test_admin_can_remove_mallets_from_a_piece(db, concert, mallet_instrument_type):
-    p = Piece(concert_id=concert.id, title="Aria", program_order=11)
+def test_admin_can_remove_mallets_from_a_piece(db, program, mallet_instrument_type):
+    p = add_piece(db, program, "Aria", 11)
     db.session.add(p)
     db.session.commit()
     assert p.instrument_types == [mallet_instrument_type]
@@ -104,13 +104,13 @@ def test_admin_can_remove_mallets_from_a_piece(db, concert, mallet_instrument_ty
 
 
 def test_entry_form_renders_a_number_field_per_color_plus_other(
-    client, db, ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     db.session.add(Entry(user_id=ringer.id, piece_id=mallet_piece.id, position="P1"))
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, mallet_piece))
+    response = client.get(_entry_url(mallet_piece))
 
     assert response.status_code == 200
     assert b'type="number"' in response.data
@@ -123,7 +123,7 @@ def test_entry_form_renders_a_number_field_per_color_plus_other(
 
 
 def test_submitting_counts_creates_entry_instrument_ordered_by_color_list(
-    client, db, ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=mallet_piece.id, position="P1")
     db.session.add(entry)
@@ -131,7 +131,7 @@ def test_submitting_counts_creates_entry_instrument_ordered_by_color_list(
 
     login(client, ringer, RINGER_PASSWORD)
     response = client.post(
-        _entry_url(concert, mallet_piece),
+        _entry_url(mallet_piece),
         data={
             _color_field(mallet_instrument_type, "Green yarn"): 2,
             _color_field(mallet_instrument_type, "Red yarn"): 1,
@@ -146,7 +146,7 @@ def test_submitting_counts_creates_entry_instrument_ordered_by_color_list(
 
 
 def test_other_row_is_stored_and_sanitized(
-    client, db, ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=mallet_piece.id, position="P1")
     db.session.add(entry)
@@ -154,7 +154,7 @@ def test_other_row_is_stored_and_sanitized(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, mallet_piece),
+        _entry_url(mallet_piece),
         data={
             f"other_{mallet_instrument_type.id}_label": "soft, bass: mallet",
             f"other_{mallet_instrument_type.id}_count": 3,
@@ -168,7 +168,7 @@ def test_other_row_is_stored_and_sanitized(
 
 
 def test_blank_submit_creates_no_selection_and_deletes_existing(
-    client, db, ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=mallet_piece.id, position="P1")
     db.session.add(entry)
@@ -184,7 +184,7 @@ def test_blank_submit_creates_no_selection_and_deletes_existing(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, mallet_piece),
+        _entry_url(mallet_piece),
         data={_color_field(mallet_instrument_type, "Green yarn"): 0, "misc_notes": ""},
         follow_redirects=True,
     )
@@ -194,7 +194,7 @@ def test_blank_submit_creates_no_selection_and_deletes_existing(
 
 
 def test_existing_counts_are_prepopulated_on_reload(
-    client, db, ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=mallet_piece.id, position="P1")
     db.session.add(entry)
@@ -209,7 +209,7 @@ def test_existing_counts_are_prepopulated_on_reload(
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(concert, mallet_piece))
+    response = client.get(_entry_url(mallet_piece))
 
     assert b'value="2"' in response.data
     assert b'value="soft bass"' in response.data
@@ -233,7 +233,7 @@ def _sign_up_mallets(db, user, piece, instrument_type, notes):
 
 
 def test_mallet_requirements_sums_across_ringers_per_piece(
-    db, ringer, other_ringer, concert, mallet_piece, mallet_instrument_type
+    db, ringer, other_ringer, program, mallet_piece, mallet_instrument_type
 ):
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
     entry2 = Entry(user_id=other_ringer.id, piece_id=mallet_piece.id, position="P2")
@@ -248,32 +248,32 @@ def test_mallet_requirements_sums_across_ringers_per_piece(
     )
     db.session.commit()
 
-    result = reports.mallet_requirements(concert)
+    result = reports.mallet_requirements(program)
 
     assert result == {mallet_piece.id: {"Green yarn": 5, "Red yarn": 1}}
 
 
 def test_equipment_table_returns_mallet_totals_by_type(
-    db, ringer, concert, mallet_piece, mallet_instrument_type
+    db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
 
-    notes_by_type, mallet_counts_by_type, _ = reports.equipment_table(concert)
+    notes_by_type, mallet_counts_by_type, _ = reports.equipment_table(program)
 
     assert notes_by_type == {}
     assert mallet_counts_by_type == {mallet_instrument_type: {"Green yarn": 2}}
 
 
 def test_packing_list_ignores_color_mode_types(
-    db, ringer, concert, mallet_piece, mallet_instrument_type
+    db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
 
-    assert reports.packing_list(concert) == {}
+    assert reports.packing_list(program) == {}
 
 
 def test_pitch_mode_entries_are_unchanged(
-    client, db, ringer, concert, piece, instrument_type
+    client, db, ringer, program, piece, instrument_type
 ):
     entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
@@ -281,7 +281,7 @@ def test_pitch_mode_entries_are_unchanged(
 
     login(client, ringer, RINGER_PASSWORD)
     client.post(
-        _entry_url(concert, piece),
+        _entry_url(piece),
         data={f"instrument_{instrument_type.id}": ["C4", "E4"], "misc_notes": ""},
         follow_redirects=True,
     )
@@ -291,7 +291,7 @@ def test_pitch_mode_entries_are_unchanged(
 
 
 def test_ringer_views_do_not_show_other_ringers_mallets(
-    client, db, ringer, other_ringer, concert, mallet_piece, mallet_instrument_type
+    client, db, ringer, other_ringer, program, mallet_piece, mallet_instrument_type
 ):
     """Mallets are a per-position choice, so a ringer's own pages must not
     surface the piece-wide total across everyone on the piece."""
@@ -310,10 +310,10 @@ def test_ringer_views_do_not_show_other_ringers_mallets(
 
     login(client, ringer, RINGER_PASSWORD)
 
-    program = client.get(f"/concerts/{concert.id}").get_data(as_text=True)
+    program = client.get(f"/cycles/{program.cycle_id}").get_data(as_text=True)
     assert "Red yarn" not in program
     assert "&times;2" not in program
 
-    form = client.get(_entry_url(concert, mallet_piece)).get_data(as_text=True)
+    form = client.get(_entry_url(mallet_piece)).get_data(as_text=True)
     assert "Red yarn &times;7" not in form
     assert "all ringers" not in form
