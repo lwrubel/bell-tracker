@@ -94,7 +94,17 @@ class ProgramAdminView(SecureModelView):
     column_labels = {"datetime": "Date and time"}
     # The pieces this program plays, numbered in program order. See
     # CycleAdminView for why "id" is listed.
-    inline_models = [(ProgramPiece, {"form_columns": ["id", "piece", "position"]})]
+    # "Position" means a ringer's spot in a piece everywhere else, so the
+    # piece's place in the program is labelled "Order" here.
+    inline_models = [
+        (
+            ProgramPiece,
+            {
+                "form_columns": ["id", "piece", "position"],
+                "form_args": {"position": {"label": "Order"}},
+            },
+        )
+    ]
 
     def on_model_change(self, form, model, is_created):
         for program_piece in model.program_pieces:

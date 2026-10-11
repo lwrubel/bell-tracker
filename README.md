@@ -92,7 +92,7 @@ plays some of the cycle's pieces in its own order. Admins manage these at
   when they log in. Only one cycle can be active, so activating a cycle
   deactivates the previous one. Programs can be added inline here too.
 - **Program**: pick its cycle, then add rows under **Program Pieces**, each a
-  piece and its position number. A program can only use its own cycle's
+  piece and its **Order** number. A program can only use its own cycle's
   pieces.
 - **Piece**: title, cycle, special flag, instrument types.
 

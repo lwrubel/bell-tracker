@@ -1,3 +1,5 @@
+import re
+
 import pytest
 import sqlalchemy as sa
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
@@ -134,6 +136,14 @@ def test_admin_rejects_a_piece_from_another_cycle(client, db, admin_user, progra
     assert "a program can only play its own" in response.get_data(as_text=True)
     db.session.rollback()
     assert ProgramPiece.query.count() == 0
+
+
+def test_program_admin_labels_piece_order_as_order(client, admin_user, program, piece):
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/admin/program/edit/?id={program.id}").get_data(as_text=True)
+
+    assert re.search(r'<label[^>]*for="program_pieces-0-position"[^>]*>\s*Order', body)
+    assert re.search(r'for="program_pieces-0-position"[^>]*>\s*Position', body) is None
 
 
 def test_admin_sets_program_pieces_and_order(client, db, admin_user, program):
