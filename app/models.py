@@ -202,6 +202,30 @@ class Case(db.Model):
         """Display form, e.g. "C4-D4" or "C4-D4, A5-C6"."""
         return ", ".join(f"{low}-{high}" for low, high in self.ranges())
 
+    def validation_error(self):
+        """Why this case can't be saved as-is, or None if it can.
+
+        Shared by the admin form and the seed loader (app/case_seed.py).
+        """
+        instrument_type = self.instrument_type
+        if instrument_type.selection_mode == "color":
+            return "Cases only apply to pitch-based instrument types."
+        if bool(self.second_range_low) != bool(self.second_range_high):
+            return "A second range needs both a low and a high note."
+        type_low = instrument_type.note_range_low
+        type_high = instrument_type.note_range_high
+        for low, high in self.ranges():
+            if pitch.pitch_index(low) > pitch.pitch_index(high):
+                return "Low note must not be above the high note."
+            if not pitch.in_range(low, type_low, type_high) or not pitch.in_range(
+                high, type_low, type_high
+            ):
+                return (
+                    f"Case range must fall within {instrument_type.name}'s "
+                    f"range ({type_low}-{type_high})."
+                )
+        return None
+
     def __repr__(self):
         return f"<Case {self.case_number}>"
 

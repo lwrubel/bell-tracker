@@ -1,0 +1,38 @@
+case,type,low,high,second_low,second_high
+B23,Main Bells,G#8,C9,,
+B10,Main Bells,C#8,G8,,
+B9,Main Bells,G#7,C8,,
+B6,Main Bells,C#7,G7,,
+B4,Main Bells,G#6,C7,,
+B2,Main Bells,G4,B4,C#6,G6
+B1,Main Bells,C5,C6,,
+B3,Main Bells,C4,F#4,,
+B5,Main Bells,G3,B3,,
+B7,Bass Bells,D#3,F#3,,
+B8,Bass Bells,C3,D3,,
+B11,Bass Bells,B2,,,
+B12,Bass Bells,A#2,,,
+B13,Bass Bells,A2,,,
+B14,Bass Bells,G#2,,,
+B15,Bass Bells,G2,,,
+C1,Chimes,G4,G6,,
+C2,Chimes,C4,F#4,G#6,C7
+C3,Chimes,G3,B3,C#7,G7
+C4,Chimes,E3,F#3,G#7,C8
+C5,Chimes,C3,D#3,,
+C6,Bass Chimes,A2,B2,,
+C7,Bass Chimes,G2,G#2,,
+C8,Bass Chimes,E2,F#2,,
+C9,Bass Chimes,D2,D#2,,
+C10,Bass Chimes,C2,C#2,,
+D3/4,Duplicate Bells,C4,F#4,G#6,C7
+D2,Duplicate Bells,G4,B4,,
+D1,Duplicate Bells,C5,C6,,
+D5,Duplicate Bells,G3,B3,,
+D6,Duplicate Bells,C#7,G7,,
+D9,Duplicate Bells,G#7,C8,,
+P1,Petit & Fritsen,C5,C6,,
+P2,Petit & Fritsen,G4,B4,C#6,G6
+P3,Petit & Fritsen,C4,D#4,,
+P4,Petit & Fritsen,E4,F#4,A6,C7
+SMB,Silver Melody Bells,C5,C#7,,

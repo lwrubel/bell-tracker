@@ -1,7 +1,11 @@
+from pathlib import Path
+
 import click
 
-from app import db
+from app import case_seed, db
 from app.models import User
+
+DEFAULT_CASES_CSV = Path(__file__).resolve().parent.parent / "seed" / "cases.csv"
 
 
 def register_cli(app):
@@ -22,3 +26,26 @@ def register_cli(app):
         db.session.add(user)
         db.session.commit()
         click.echo(f"Created admin user {email}.")
+
+    @app.cli.command("load-cases")
+    @click.argument(
+        "csv_path",
+        type=click.Path(exists=True, dir_okay=False, path_type=Path),
+        default=DEFAULT_CASES_CSV,
+    )
+    @click.option(
+        "--dry-run", is_flag=True, help="Check the sheet and report, saving nothing."
+    )
+    def load_cases(csv_path, dry_run):
+        """Add or overwrite cases from a CSV (default: seed/cases.csv)."""
+        result = case_seed.load_cases(
+            csv_path.read_text(encoding="utf-8-sig"), dry_run=dry_run
+        )
+        if result.errors:
+            for error in result.errors:
+                click.echo(error, err=True)
+            raise click.ClickException("Nothing was loaded.")
+        verb = "Would add" if dry_run else "Added"
+        click.echo(f"{verb} {len(result.added)}: {', '.join(result.added) or '-'}")
+        verb = "Would overwrite" if dry_run else "Overwrote"
+        click.echo(f"{verb} {len(result.updated)}: {', '.join(result.updated) or '-'}")

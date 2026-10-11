@@ -154,25 +154,12 @@ class CaseAdminView(SecureModelView):
     }
 
     def on_model_change(self, form, model, is_created):
-        if model.instrument_type.selection_mode == "color":
-            raise Exception("Cases only apply to pitch-based instrument types.")
         # "" from the blank choice means "no second range".
         model.second_range_low = model.second_range_low or None
         model.second_range_high = model.second_range_high or None
-        if bool(model.second_range_low) != bool(model.second_range_high):
-            raise Exception("A second range needs both a low and a high note.")
-        type_low = model.instrument_type.note_range_low
-        type_high = model.instrument_type.note_range_high
-        for low, high in model.ranges():
-            if pitch.pitch_index(low) > pitch.pitch_index(high):
-                raise Exception("Low note must not be above the high note.")
-            if not pitch.in_range(low, type_low, type_high) or not pitch.in_range(
-                high, type_low, type_high
-            ):
-                raise Exception(
-                    f"Case range must fall within {model.instrument_type.name}'s "
-                    f"range ({type_low}-{type_high})."
-                )
+        error = model.validation_error()
+        if error:
+            raise Exception(error)
 
 
 def _format_instrument_selections(view, context, model, name):

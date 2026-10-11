@@ -213,6 +213,23 @@ into a `PRE_DEPLOY` job so instances don't race each other.
 Production starts empty — bootstrap the first admin with `create-admin` from
 the App Platform console.
 
+### Loading the cases
+
+`seed/cases.csv` holds the case list and ships in the image. Once the
+instrument types exist (the `type` column has to match their names), load it
+from the App Platform console (**Console** tab on the `web` component):
+
+```sh
+flask --app wsgi load-cases --dry-run   # check the sheet, save nothing
+flask --app wsgi load-cases
+```
+
+Each row overwrites the case with the same case number or adds it, and cases
+not in the sheet are left alone, so re-running it is harmless. Every row is
+checked first (known type, valid pitches, inside the type's range), and any
+problem loads nothing. A blank `high` means a single bell. Locally, run the
+same command through `docker compose exec web`.
+
 ## Environment variables
 
 - `SECRET_KEY` - Flask session secret (set a real value in production)
