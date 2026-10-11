@@ -135,8 +135,8 @@ class ProgramAdminView(SecureModelView):
 
 
 class PieceAdminView(SecureModelView):
-    column_list = ("cycle", "title", "special", "instrument_types")
-    form_columns = ("cycle", "title", "special", "instrument_types")
+    column_list = ("cycle", "title", "instrument_types")
+    form_columns = ("cycle", "title", "instrument_types")
 
 
 class InstrumentTypeAdminView(SecureModelView):

@@ -53,24 +53,6 @@ def test_deleting_piece_cascades_to_its_entries(db, ringer, piece):
     assert db.session.get(Entry, entry_id) is None
 
 
-def test_piece_is_not_special_by_default(db, piece):
-    assert piece.special is False
-
-
-def test_admin_can_mark_piece_special(client, db, admin_user, program, piece):
-    login(client, admin_user, ADMIN_PASSWORD)
-    client.post(
-        f"/admin/piece/edit/?id={piece.id}",
-        data={
-            "cycle": program.cycle_id,
-            "title": piece.title,
-            "special": "y",
-        },
-    )
-    db.session.refresh(piece)
-    assert piece.special is True
-
-
 def test_single_range_case_has_one_range():
     case = Case(case_number="1", note_range_low="C4", note_range_high="D4")
     assert case.ranges() == [("C4", "D4")]

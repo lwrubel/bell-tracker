@@ -120,19 +120,6 @@ def test_max_counts_is_the_most_ticked_on_one_piece(db, program, stick_type):
     assert reports.checkbox_max_counts(program) == {stick_type: 3}
 
 
-def test_max_counts_can_leave_out_special_pieces(db, program, stick_type):
-    regular = add_piece(db, program, "Regular", 1)
-    special = add_piece(db, program, "Encore", 2, special=True)
-    db.session.commit()
-    users = _ringers(db, 3)
-    _tick(db, users[:1], regular, stick_type)
-    _tick(db, users, special, stick_type)
-
-    assert reports.checkbox_max_counts(program, include_special=False) == {
-        stick_type: 1
-    }
-
-
 def test_max_counts_empty_when_nobody_ticked(program, stick_type):
     assert reports.checkbox_max_counts(program) == {}
 

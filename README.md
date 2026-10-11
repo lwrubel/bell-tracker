@@ -94,7 +94,7 @@ plays some of the cycle's pieces in its own order. Admins manage these at
 - **Program**: pick its cycle, then add rows under **Program Pieces**, each a
   piece and its **Order** number. A program can only use its own cycle's
   pieces.
-- **Piece**: title, cycle, special flag, instrument types.
+- **Piece**: title, cycle, instrument types.
 
 Ringers' equipment is stored per piece, so it's entered once and shows up in
 every program that plays the piece. The home page shows the active cycle with

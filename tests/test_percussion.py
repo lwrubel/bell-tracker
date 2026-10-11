@@ -181,20 +181,6 @@ def test_used_options_lists_each_option_picked_once_or_more(db, program, percuss
     }
 
 
-def test_used_options_can_leave_out_special_pieces(db, program, percussion):
-    regular = _piece_with_percussion(db, program, percussion, "Regular", 1)
-    special = _piece_with_percussion(db, program, percussion, "Encore", 2)
-    special.special = True
-    db.session.commit()
-    users = _ringers(db, 2)
-    _pick(db, users[:1], regular, percussion, "Triangle")
-    _pick(db, users, special, percussion, "Triangle", "Slap Stick")
-
-    assert reports.used_options(program, include_special=False) == {
-        percussion: [_option(percussion, "Triangle")]
-    }
-
-
 def test_percussion_stays_out_of_pitch_reports(db, ringer, program, percussion):
     piece = _piece_with_percussion(db, program, percussion)
     _pick(db, [ringer], piece, percussion, "Triangle")

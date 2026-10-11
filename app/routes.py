@@ -187,22 +187,14 @@ def _selected_notes_value(form, instrument_type):
     return ",".join(field.data or [])
 
 
-def _include_special():
-    """Reports include special pieces unless the admin asks to leave them out."""
-    return request.args.get("special") != "exclude"
-
-
 @bp.route("/programs/<int:program_id>/reports/cases-list")
 @reports_required
 def report_cases_list(program_id):
     program = Program.query.get_or_404(program_id)
-    include_special = _include_special()
     return render_template(
         "cases_list.html",
         program=program,
-        include_special=include_special,
-        special_pieces=[p for p in program.pieces if p.special],
-        cases_by_type=reports.cases_list(program, include_special),
+        cases_by_type=reports.cases_list(program),
     )
 
 
@@ -210,15 +202,12 @@ def report_cases_list(program_id):
 @reports_required
 def report_equipment_pull_list(program_id):
     program = Program.query.get_or_404(program_id)
-    include_special = _include_special()
     return render_template(
         "equipment_pull_list.html",
         program=program,
-        include_special=include_special,
-        special_pieces=[p for p in program.pieces if p.special],
-        bells_by_type=reports.equipment_pull_list(program, include_special),
-        checkbox_counts=reports.checkbox_max_counts(program, include_special),
-        used_options=reports.used_options(program, include_special),
+        bells_by_type=reports.equipment_pull_list(program),
+        checkbox_counts=reports.checkbox_max_counts(program),
+        used_options=reports.used_options(program),
     )
 
 
@@ -226,13 +215,10 @@ def report_equipment_pull_list(program_id):
 @reports_required
 def report_bass_bells(program_id):
     program = Program.query.get_or_404(program_id)
-    include_special = _include_special()
     return render_template(
         "bass_bells.html",
         program=program,
-        include_special=include_special,
-        special_pieces=[p for p in program.pieces if p.special],
-        pieces=reports.bass_bells(program, include_special),
+        pieces=reports.bass_bells(program),
     )
 
 
@@ -240,21 +226,16 @@ def report_bass_bells(program_id):
 @reports_required
 def report_equipment_table(program_id):
     program = Program.query.get_or_404(program_id)
-    include_special = _include_special()
     notes_by_type, mallet_counts_by_type, misc_entries = reports.equipment_table(
-        program, include_special
+        program
     )
     return render_template(
         "equipment_table.html",
         program=program,
-        include_special=include_special,
-        special_pieces=[p for p in program.pieces if p.special],
         notes_by_type=notes_by_type,
         mallet_counts_by_type=mallet_counts_by_type,
-        checkbox_counts=reports.checkbox_max_counts(program, include_special),
-        used_options=reports.used_options(program, include_special),
-        mallet_requirements_by_piece=reports.mallet_requirements(
-            program, include_special
-        ),
+        checkbox_counts=reports.checkbox_max_counts(program),
+        used_options=reports.used_options(program),
+        mallet_requirements_by_piece=reports.mallet_requirements(program),
         misc_entries=misc_entries,
     )

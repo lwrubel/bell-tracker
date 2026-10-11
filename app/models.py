@@ -196,9 +196,6 @@ class Piece(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cycle_id = db.Column(db.Integer, db.ForeignKey("cycles.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
-    special = db.Column(
-        db.Boolean, nullable=False, default=False, server_default=sa.false()
-    )
 
     cycle = db.relationship("Cycle", back_populates="pieces")
     program_pieces = db.relationship(
