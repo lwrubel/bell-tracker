@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if cycle %}{{ cycle.name }} - {% endif %}bell-tracker{% endblock %}
+{% block title %}{% if cycle %}{{ cycle.name }} - {% endif %}Bell Tracker{% endblock %}
 {% block content %}
 {% if cycle %}
 <h1>{{ cycle.name }}</h1>
@@ -34,7 +34,7 @@
 <p class="text-muted">No programs in this cycle yet.</p>
 {% endif %}
 {% else %}
-<h1>bell-tracker</h1>
+<h1>Bell Tracker</h1>
 <p class="text-muted">There's no active cycle right now.</p>
 {% endif %}
 {% endblock %}

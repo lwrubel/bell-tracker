@@ -107,9 +107,9 @@ def forgot_password():
             try:
                 send_email(
                     user.email,
-                    "Reset your bell-tracker password",
+                    "Reset your Bell Tracker password",
                     f"Hi {user.name},\n\n"
-                    f"Use this link to choose a new bell-tracker password:\n\n"
+                    f"Use this link to choose a new Bell Tracker password:\n\n"
                     f"{link}\n\n"
                     f"The link expires in {RESET_MAX_AGE // 60} minutes. If you "
                     f"didn't ask to reset your password, you can ignore this email.\n",

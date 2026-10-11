@@ -1,4 +1,4 @@
-# bell-tracker
+# Bell Tracker
 
 Flask + Postgres app with a Flask-Admin panel, running in Docker.
 

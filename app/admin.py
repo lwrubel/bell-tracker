@@ -349,7 +349,7 @@ def _read_upload(file):
 def init_admin(app):
     admin = Admin(
         app,
-        name="bell-tracker",
+        name="Bell Tracker",
         theme=Bootstrap4Theme(),
         index_view=SecureAdminIndexView(),
     )
