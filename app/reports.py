@@ -61,7 +61,7 @@ def equipment_pull_list(program, include_special=True):
     to high. Main Bells and Bass Bells are left out.
 
     A pitch covered by two cases is listed under both, matching the cases
-    list, which brings both.
+    used list, which brings both.
     """
     result = {}
     used_pitches_by_type = _used_pitches_by_type(program, include_special)

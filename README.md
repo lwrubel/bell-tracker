@@ -98,9 +98,9 @@ plays some of the cycle's pieces in its own order. Admins manage these at
 
 Ringers' equipment is stored per piece, so it's entered once and shows up in
 every program that plays the piece. The home page shows the active cycle with
-an **Edit equipment** button, and lists its programs. Each program has a
-printable **View equipment** page with the ringer's own equipment in program
-order. Admins also get each program's **Cases list** and **Equipment
+an **Edit my equipment** button, and lists its programs. Each program has a
+printable **View my equipment** page with the ringer's own equipment in program
+order. Admins also get each program's **Cases used list** and **Equipment
 table** there.
 
 ## Assigning ringers to pieces and positions (admin)
@@ -124,7 +124,7 @@ To assign a ringer to a piece:
 4. Save.
 
 That Entry row is what makes the piece appear on the ringer's
-**Edit equipment** page for the cycle (`/cycles/<id>`), with the position
+**Edit my equipment** page for the cycle (`/cycles/<id>`), with the position
 shown read-only. Repeat once per
 (ringer, piece) — a ringer can only have one Entry per piece.
 
@@ -171,7 +171,7 @@ Each **Instrument Type** (`/admin/` → Instrument Type) has a **selection mode*
 
 - **`pitch`** (default): the type has a low/high note range, and a ringer's
   equipment form shows a chromatic pitch picker for it. `Case` rows and the
-  cases list only apply to pitch-mode types.
+  cases used list only apply to pitch-mode types.
 - **`color`**: for mallets. Leave the note ranges blank. The permitted colors
   are a fixed list in `app/color.py` (`Black yarn`, `Red yarn`, …). A ringer's
   equipment form shows a **count field per color** plus one free-text

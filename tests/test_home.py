@@ -25,7 +25,7 @@ def test_home_shows_active_cycle_and_its_programs(client, db, ringer, cycle, pro
     assert "Old Cycle" not in body
     assert program.name in body
     assert f'href="/cycles/{cycle.id}"' in body
-    assert "Edit equipment" in body
+    assert "Edit my equipment" in body
 
 
 def test_home_lists_programs_by_date(client, db, ringer, cycle):

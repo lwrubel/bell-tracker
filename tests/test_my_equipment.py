@@ -10,7 +10,7 @@ def _url(program):
 def test_home_page_links_to_each_programs_equipment_list(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
     response = client.get("/")
-    assert b"View equipment" in response.data
+    assert b"View my equipment" in response.data
     assert _url(program).encode() in response.data
 
 

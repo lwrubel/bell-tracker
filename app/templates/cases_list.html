@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "_special_toggle.html" import special_toggle %}
-{% block title %}Cases List - {{ program.name }}{% endblock %}
+{% block title %}Cases Used List - {{ program.name }}{% endblock %}
 {% block content %}
 <button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
-<h1>Cases List</h1>
+<h1>Cases Used List</h1>
 <p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
 
 {{ special_toggle(url_for('routes.report_cases_list', program_id=program.id), include_special, special_pieces) }}

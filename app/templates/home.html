@@ -4,7 +4,7 @@
 {% if cycle %}
 <h1>{{ cycle.name }}</h1>
 <p>
-  <a class="btn btn-primary" href="{{ url_for('routes.cycle_detail', cycle_id=cycle.id) }}">Edit equipment</a>
+  <a class="btn btn-primary" href="{{ url_for('routes.cycle_detail', cycle_id=cycle.id) }}">Edit my equipment</a>
 </p>
 
 <h2 class="h4 mt-4">Programs</h2>
@@ -18,11 +18,11 @@
           {% if program.datetime %}<div class="text-muted small">{{ program.when_label() }}</div>{% endif %}
         </div>
         <div class="mt-1">
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View equipment</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View my equipment</a>
           {% if current_user.is_admin %}
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases list</a>
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Equipment pull list</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases used list</a>
           {% endif %}
         </div>
       </div>
