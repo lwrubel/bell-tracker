@@ -18,9 +18,9 @@ def _entry_instruments_for_program(program, include_special=True):
     return _program_piece_filter(query, program, include_special).all()
 
 
-def cases_list(program, include_special=True):
-    """Return {instrument_type: [case, ...]} for cases whose note range
-    overlaps a pitch actually used somewhere in this program."""
+def _used_pitches_by_type(program, include_special):
+    """{instrument_type: {pitch, ...}} for pitch-mode types signed up in
+    this program."""
     used_pitches_by_type = defaultdict(set)
     for entry_instrument in _entry_instruments_for_program(program, include_special):
         if entry_instrument.instrument_type.selection_mode == "color":
@@ -28,9 +28,16 @@ def cases_list(program, include_special=True):
         used_pitches_by_type[entry_instrument.instrument_type].update(
             entry_instrument.note_list()
         )
+    return used_pitches_by_type
 
+
+def cases_list(program, include_special=True):
+    """Return {instrument_type: [case, ...]} for cases whose note range
+    overlaps a pitch actually used somewhere in this program."""
     result = {}
-    for instrument_type, used_pitches in used_pitches_by_type.items():
+    for instrument_type, used_pitches in _used_pitches_by_type(
+        program, include_special
+    ).items():
         if not used_pitches:
             continue
         needed_cases = [
@@ -40,6 +47,45 @@ def cases_list(program, include_special=True):
         ]
         if needed_cases:
             result[instrument_type] = sorted(needed_cases, key=lambda c: c.case_number)
+    return result
+
+
+# Instrument types left out of the equipment pull list, by name.
+EQUIPMENT_PULL_LIST_EXCLUDED_TYPES = {"Main Bells", "Bass Bells"}
+
+
+def equipment_pull_list(program, include_special=True):
+    """Return {instrument_type: ([(case, [pitch, ...]), ...], [pitch, ...])}:
+    for each type, the bells to take out of each case, then any used pitches
+    no case covers. Types are in display order, cases by number, pitches low
+    to high. Main Bells and Bass Bells are left out.
+
+    A pitch covered by two cases is listed under both, matching the cases
+    list, which brings both.
+    """
+    result = {}
+    used_pitches_by_type = _used_pitches_by_type(program, include_special)
+    for instrument_type in sorted(
+        used_pitches_by_type, key=lambda t: (t.display_order, t.name)
+    ):
+        if instrument_type.name in EQUIPMENT_PULL_LIST_EXCLUDED_TYPES:
+            continue
+        used_pitches = sorted(
+            used_pitches_by_type[instrument_type], key=pitch.pitch_index
+        )
+        if not used_pitches:
+            continue
+        cases = []
+        for case in sorted(instrument_type.cases, key=lambda c: c.case_number):
+            bells = [p for p in used_pitches if case.covers(p)]
+            if bells:
+                cases.append((case, bells))
+        uncovered = [
+            p
+            for p in used_pitches
+            if not any(case.covers(p) for case in instrument_type.cases)
+        ]
+        result[instrument_type] = (cases, uncovered)
     return result
 
 

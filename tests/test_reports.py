@@ -1,7 +1,7 @@
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 
 from app import reports
-from app.models import Case, Entry, EntryInstrument
+from app.models import Case, Entry, EntryInstrument, InstrumentType
 
 
 def _sign_up(db, user, piece, instrument_type, notes):
@@ -224,3 +224,106 @@ def test_cases_list_can_exclude_special_pieces(
     excluded = client.get(url + "?special=exclude").get_data(as_text=True)
     assert "C-HIGH" not in excluded
     assert "Leaves out special pieces:" in excluded
+
+
+# --- equipment pull list ------------------------------------------------
+
+
+def _case(db, instrument_type, number, low, high, **kwargs):
+    case = Case(
+        instrument_type_id=instrument_type.id,
+        case_number=number,
+        note_range_low=low,
+        note_range_high=high,
+        **kwargs,
+    )
+    db.session.add(case)
+    db.session.commit()
+    return case
+
+
+def test_equipment_pull_list_lists_bells_needed_from_each_case(
+    db, ringer, other_ringer, program, piece, instrument_type
+):
+    low = _case(db, instrument_type, "C1", "C4", "B4")
+    high = _case(db, instrument_type, "C2", "C5", "C6")
+    _case(db, instrument_type, "C3", "C#6", "C6")  # nothing used from this one
+    _sign_up(db, ringer, piece, instrument_type, "E4,C5,C4")
+    _sign_up(db, other_ringer, piece, instrument_type, "C4,G5")
+
+    result = reports.equipment_pull_list(program)
+
+    assert result == {
+        instrument_type: ([(low, ["C4", "E4"]), (high, ["C5", "G5"])], [])
+    }
+
+
+def test_equipment_pull_list_reports_pitches_no_case_covers(
+    db, ringer, program, piece, instrument_type
+):
+    case = _case(db, instrument_type, "C1", "C4", "D4")
+    _sign_up(db, ringer, piece, instrument_type, "C4,G5")
+
+    assert reports.equipment_pull_list(program) == {
+        instrument_type: ([(case, ["C4"])], ["G5"])
+    }
+
+
+def test_equipment_pull_list_leaves_out_main_and_bass_bells(
+    db, ringer, program, piece, instrument_type
+):
+    for name in ("Main Bells", "Bass Bells"):
+        excluded = InstrumentType(name=name, note_range_low="C2", note_range_high="C8")
+        db.session.add(excluded)
+        db.session.commit()
+        _case(db, excluded, f"{name[0]}1", "C4", "C5")
+        other = add_piece(db, program, f"{name} piece", 5 + len(name))
+        db.session.commit()
+        _sign_up(db, ringer, other, excluded, "C4")
+    _case(db, instrument_type, "C1", "C4", "C5")
+    _sign_up(db, ringer, piece, instrument_type, "C4")
+
+    assert list(reports.equipment_pull_list(program)) == [instrument_type]
+
+
+def test_equipment_pull_list_ignores_color_mode_types(
+    db, ringer, program, mallet_piece, mallet_instrument_type
+):
+    _sign_up(db, ringer, mallet_piece, mallet_instrument_type, "Red yarn:2")
+    assert reports.equipment_pull_list(program) == {}
+
+
+def test_equipment_pull_list_only_counts_this_programs_pieces(
+    db, ringer, cycle, program, piece, instrument_type
+):
+    from app.models import Program
+
+    _case(db, instrument_type, "C1", "C4", "C5")
+    _sign_up(db, ringer, piece, instrument_type, "C4")
+    other_program = Program(cycle=cycle, name="Other")
+    db.session.add(other_program)
+    db.session.commit()
+
+    assert reports.equipment_pull_list(other_program) == {}
+
+
+def test_equipment_pull_list_route_is_admin_only(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    url = f"/programs/{program.id}/reports/equipment-pull-list"
+    assert client.get(url).status_code == 403
+
+
+def test_equipment_pull_list_page(client, db, admin_user, program, piece, instrument_type):
+    _case(db, instrument_type, "C1", "C4", "D4")
+    _sign_up(db, admin_user, piece, instrument_type, "D4,C4,A6")
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-pull-list").get_data(
+        as_text=True
+    )
+
+    assert "Equipment Pull List" in body
+    assert "<strong>C1</strong>: C4, D4" in body
+    assert "Not in any case: A6" in body
+    home = client.get("/").get_data(as_text=True)
+    assert f"/programs/{program.id}/reports/equipment-pull-list" in home

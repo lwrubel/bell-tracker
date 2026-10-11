@@ -199,6 +199,20 @@ def report_cases_list(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/reports/equipment-pull-list")
+@admin_required
+def report_equipment_pull_list(program_id):
+    program = Program.query.get_or_404(program_id)
+    include_special = _include_special()
+    return render_template(
+        "equipment_pull_list.html",
+        program=program,
+        include_special=include_special,
+        special_pieces=[p for p in program.pieces if p.special],
+        bells_by_type=reports.equipment_pull_list(program, include_special),
+    )
+
+
 @bp.route("/programs/<int:program_id>/reports/equipment-table")
 @admin_required
 def report_equipment_table(program_id):
