@@ -69,6 +69,80 @@ def test_cases_list_empty_when_nothing_signed_up(program):
     assert reports.cases_list(program) == {}
 
 
+def _main_bells_with_cases(db):
+    main_bells = InstrumentType(
+        name="Main Bells", note_range_low="C4", note_range_high="C8", display_order=0
+    )
+    db.session.add(main_bells)
+    db.session.commit()
+    cases = [
+        Case(
+            instrument_type_id=main_bells.id,
+            case_number=number,
+            note_range_low=low,
+            note_range_high=high,
+        )
+        for number, low, high in [
+            ("B10", "C#8", "G8"),
+            ("B3", "C4", "F#4"),
+            ("B1", "C5", "C6"),
+        ]
+    ]
+    db.session.add_all(cases)
+    db.session.commit()
+    return main_bells, cases
+
+
+def test_cases_list_always_lists_every_main_bells_case(db, program):
+    main_bells, cases = _main_bells_with_cases(db)
+
+    result = reports.cases_list(program)
+
+    assert list(result) == [main_bells]
+    assert [c.case_number for c in result[main_bells]] == ["B1", "B3", "B10"]
+
+
+def test_cases_list_always_lists_every_bass_bells_case(
+    db, program, bass_instrument_type
+):
+    bass_case = Case(
+        instrument_type_id=bass_instrument_type.id,
+        case_number="LB1",
+        note_range_low="C2",
+        note_range_high="B2",
+    )
+    db.session.add(bass_case)
+    db.session.commit()
+
+    assert reports.cases_list(program) == {bass_instrument_type: [bass_case]}
+
+
+def test_cases_list_puts_main_bells_first_alongside_signed_up_cases(
+    client, db, admin_user, ringer, program, piece, instrument_type
+):
+    main_bells, _ = _main_bells_with_cases(db)
+    chime_case = Case(
+        instrument_type_id=instrument_type.id,
+        case_number="C-1",
+        note_range_low="C4",
+        note_range_high="C5",
+    )
+    db.session.add(chime_case)
+    db.session.commit()
+    _sign_up(db, ringer, piece, instrument_type, "C4")
+
+    result = reports.cases_list(program)
+
+    assert list(result) == [main_bells, instrument_type]
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/cases-list").get_data(
+        as_text=True
+    )
+    assert "B1 (C5-C6)" in body
+    assert "B3 (C4-F#4)" in body
+
+
 def test_equipment_table_groups_and_sorts_pitches_per_type(
     db, ringer, other_ringer, program, piece, instrument_type
 ):

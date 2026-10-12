@@ -1,7 +1,17 @@
 from collections import defaultdict
 
 from app import pitch
-from app.models import Entry, EntryInstrument, Piece, ProgramPiece
+from app.models import (
+    ALWAYS_LISTED_CASE_TYPES,
+    BASS_BELLS,
+    MAIN_BELLS,
+    Case,
+    Entry,
+    EntryInstrument,
+    InstrumentType,
+    Piece,
+    ProgramPiece,
+)
 
 
 def _program_piece_filter(query, program):
@@ -30,23 +40,33 @@ def _used_pitches_by_type(program):
 
 def cases_list(program):
     """Return {instrument_type: [case, ...]} for cases whose note range
-    overlaps a pitch actually used somewhere in this program."""
-    result = {}
+    overlaps a pitch actually used somewhere in this program, plus every
+    Main Bells and Bass Bells case, which are always brought. Types in display order, cases
+    by number (B2 before B10)."""
+    needed = {}
     for instrument_type, used_pitches in _used_pitches_by_type(program).items():
-        if not used_pitches:
+        if instrument_type.name in ALWAYS_LISTED_CASE_TYPES:
             continue
-        needed_cases = [
+        needed[instrument_type] = [
             case
             for case in instrument_type.cases
             if any(case.covers(p) for p in used_pitches)
         ]
-        if needed_cases:
-            result[instrument_type] = sorted(needed_cases, key=lambda c: c.case_number)
-    return result
+    for instrument_type in InstrumentType.query.filter(
+        InstrumentType.name.in_(ALWAYS_LISTED_CASE_TYPES)
+    ):
+        needed[instrument_type] = list(instrument_type.cases)
+    return {
+        instrument_type: sorted(cases, key=Case.sort_key)
+        for instrument_type, cases in sorted(
+            needed.items(), key=lambda item: (item[0].display_order, item[0].name)
+        )
+        if cases
+    }
 
 
 # Instrument types left out of the equipment pull list, by name.
-EQUIPMENT_PULL_LIST_EXCLUDED_TYPES = {"Main Bells", "Bass Bells"}
+EQUIPMENT_PULL_LIST_EXCLUDED_TYPES = {MAIN_BELLS, BASS_BELLS}
 
 
 def equipment_pull_list(program):
@@ -71,7 +91,7 @@ def equipment_pull_list(program):
         if not used_pitches:
             continue
         cases = []
-        for case in sorted(instrument_type.cases, key=lambda c: c.case_number):
+        for case in sorted(instrument_type.cases, key=Case.sort_key):
             bells = [p for p in used_pitches if case.covers(p)]
             if bells:
                 cases.append((case, bells))

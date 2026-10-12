@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import re
 
 from flask_login import UserMixin
 import sqlalchemy as sa
@@ -18,6 +19,13 @@ DEFAULT_DISPLAY_ORDER = 100
 # What a ticked checkbox-mode selection stores in EntryInstrument.notes. An
 # unticked box stores no row at all.
 CHECKED_NOTES = "yes"
+# Ringers never sign up for the main bells: they're always on the tables,
+# so the type is kept off the equipment form.
+MAIN_BELLS = "Main Bells"
+BASS_BELLS = "Bass Bells"
+# Every case of these types goes on the cases used list, whatever was
+# signed up for.
+ALWAYS_LISTED_CASE_TYPES = {MAIN_BELLS, BASS_BELLS}
 
 
 def _first_word_of_name(context):
@@ -369,6 +377,16 @@ class Case(db.Model):
         """Whether pitch `name` falls in any of the case's ranges."""
         return any(pitch.in_range(name, low, high) for low, high in self.ranges())
 
+    def sort_key(self):
+        """Orders case numbers by their numeric parts, so B2 comes before
+        B10 rather than after it as plain text would put it."""
+        # Splitting on a captured group alternates text and digits, so the
+        # digit runs always sit at odd indexes and compare as ints.
+        return [
+            int(part) if i % 2 else part
+            for i, part in enumerate(re.split(r"(\d+)", self.case_number))
+        ]
+
     def range_label(self):
         """Display form, e.g. "C4-D4" or "C4-D4, A5-C6"."""
         return ", ".join(f"{low}-{high}" for low, high in self.ranges())
@@ -442,9 +460,9 @@ class Entry(db.Model):
         """Instrument types this ringer sees on their equipment form.
 
         A type carrying a position_prefix (bass bells with "LB") is limited
-        to positions starting with it; everything else is shown to everyone
-        on the piece. Presentation only - reports still count a hidden
-        type's selections.
+        to positions starting with it; Main Bells is never shown; everything
+        else is shown to everyone on the piece. Presentation only - reports
+        still count a hidden type's selections.
 
         Order comes from InstrumentType.display_order via the piece's
         relationship, so filtering here preserves it.
@@ -452,7 +470,8 @@ class Entry(db.Model):
         return [
             t
             for t in self.piece.instrument_types
-            if not t.position_prefix or self.position.startswith(t.position_prefix)
+            if t.name != MAIN_BELLS
+            and (not t.position_prefix or self.position.startswith(t.position_prefix))
         ]
 
     def __repr__(self):

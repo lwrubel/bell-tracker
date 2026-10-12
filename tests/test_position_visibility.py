@@ -30,6 +30,23 @@ def _open_entry_as(client, db, ringer, program, piece, position):
 # --- who sees what -------------------------------------------------------
 
 
+@pytest.mark.parametrize("position", ["P1", "LB1"])
+def test_main_bells_are_never_on_the_entry_form(
+    client, db, ringer, program, bass_piece, position
+):
+    main_bells = InstrumentType(
+        name="Main Bells", note_range_low="C4", note_range_high="C8", display_order=0
+    )
+    bass_piece.instrument_types.append(main_bells)
+    db.session.commit()
+
+    response = _open_entry_as(client, db, ringer, program, bass_piece, position)
+
+    assert response.status_code == 200
+    assert f'name="instrument_{main_bells.id}"'.encode() not in response.data
+    assert b"Main Bells" not in response.data
+
+
 @pytest.mark.parametrize("position", ["LB1", "LB2", "LB3"])
 def test_lb_positions_see_bass_bells(
     client, db, ringer, program, bass_piece, bass_instrument_type, position
