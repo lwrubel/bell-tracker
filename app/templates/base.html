@@ -2,55 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bell Tracker{% endblock %}</title>
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
   >
-  <style>
-    .brand-logo {
-      color: #7a4b0f;
-      font-family: Georgia, "Times New Roman", serif;
-      font-weight: 700;
-      font-size: 1.4rem;
-      letter-spacing: .01em;
-    }
-    .brand-logo:hover, .brand-logo:focus { color: #5c3708; text-decoration: none; }
-    .brand-logo .brand-name em {
-      font-style: italic;
-      font-weight: 400;
-      color: #a8701a;
-    }
-    @media print {
-      nav.navbar { display: none !important; }
-    }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,500..700,100,1;1,9..144,400..600,100,1&display=swap"
+  >
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
-  <nav class="navbar navbar-light bg-light mb-4">
-    <div class="container d-flex justify-content-between">
-      <a class="navbar-brand brand-logo" href="{{ url_for('routes.index') }}">
-        <span class="brand-name">Bell <em>Tracker</em></span>
-      </a>
-      <div>
-        {% if current_user.is_authenticated %}
-          <span class="mr-2">{{ current_user.name }}</span>
-          {% if current_user.is_admin %}
-            <a class="btn btn-outline-secondary btn-sm" href="/admin/">Admin</a>
+  <header class="site-header">
+    <div class="container">
+      <nav class="site-bar">
+        <a class="brand-logo" href="{{ url_for('routes.index') }}">
+          <span class="brand-name">Bell <em>Tracker</em></span>
+        </a>
+        <div class="site-nav">
+          {% if current_user.is_authenticated %}
+            <span class="user-name">{{ current_user.name }}</span>
+            {% if current_user.is_admin %}
+              <a href="/admin/">Admin</a>
+            {% endif %}
+            <a href="{{ url_for('auth.change_password') }}">Change password</a>
+            <form method="post" action="{{ url_for('auth.logout') }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="link-button">Log out</button>
+            </form>
+          {% else %}
+            <a href="{{ url_for('auth.login') }}">Log in</a>
           {% endif %}
-          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.change_password') }}">Change password</a>
-          <form method="post" action="{{ url_for('auth.logout') }}" class="d-inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
-          </form>
-        {% else %}
-          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.login') }}">Login</a>
-        {% endif %}
-      </div>
+        </div>
+      </nav>
     </div>
-  </nav>
-  <div class="container">
+  </header>
+  <main class="container page">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -59,6 +51,6 @@
       {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
-  </div>
+  </main>
 </body>
 </html>

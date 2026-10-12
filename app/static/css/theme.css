@@ -1,0 +1,296 @@
+/* Bell Tracker theme, layered over Bootstrap 4.
+   Academic but friendly: Fraunces (its soft, slightly wonky cut) for
+   headings, Figtree for everything people read and fill in.
+   The one decorative device is the five-line staff under the header. */
+
+:root {
+  --ink: #1d2433;
+  --oxford: #22385c;
+  --oxford-dark: #172840;
+  --oxford-tint: #e8edf5;
+  --link: #1c5ca8;
+  --link-hover: #123f75;
+  --bronze: #9a6b2f;
+  --muted: #5b6475;
+  --rule: #d5d9e0;
+  --page: #f6f7f9;
+  --surface: #ffffff;
+  --success: #2f6b4f;
+  --danger: #a33a32;
+
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Figtree", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 4px;
+}
+
+/* ---------- Base ---------- */
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1, .h1 { font-size: 2.25rem; margin-bottom: 1rem; }
+h2, .h2 { font-size: 1.6rem; margin-top: 2rem; }
+h3, .h3, h4, .h4 { font-size: 1.3rem; }
+h5, .h5 { font-size: 1.1rem; margin-top: 1.25rem; }
+
+/* Links are a clearer blue than the ink and always underlined, so they
+   never read as plain text. Buttons opt out via .btn. */
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: rgba(28, 92, 168, .4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+}
+a:hover {
+  color: var(--link-hover);
+  text-decoration-color: currentColor;
+}
+a.btn, a.btn:hover, a.brand-logo { text-decoration: none; }
+
+.text-muted { color: var(--muted) !important; }
+.text-success { color: var(--success) !important; }
+.text-danger { color: var(--danger) !important; }
+
+:focus-visible {
+  outline: 2px solid var(--bronze);
+  outline-offset: 2px;
+}
+
+main.page {
+  padding-bottom: 4rem;
+}
+
+/* ---------- Header and staff ---------- */
+
+.site-header {
+  background: var(--surface);
+  margin-bottom: 2.5rem;
+}
+
+.site-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .5rem 1.5rem;
+  padding: 1.25rem 0 1rem;
+}
+
+/* Five staff lines, 5px apart, spanning the page like a printed score. */
+.site-header::after {
+  content: "";
+  display: block;
+  height: 21px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      #c4ccd8 0 1px,
+      transparent 1px 5px
+    );
+  background-size: 100% 21px;
+}
+
+.brand-logo {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.7rem;
+  letter-spacing: .005em;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+.brand-logo:hover, .brand-logo:focus { color: var(--oxford); text-decoration: none; }
+.brand-logo .brand-name em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--bronze);
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem 1.25rem;
+  font-size: .925rem;
+}
+.site-nav .user-name { color: var(--muted); }
+.site-nav a,
+.site-nav .link-button {
+  color: var(--link);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.site-nav a:hover,
+.site-nav .link-button:hover { color: var(--link-hover); }
+.site-nav .link-button {
+  text-decoration: underline;
+  text-decoration-color: rgba(28, 92, 168, .4);
+  text-underline-offset: .2em;
+}
+.site-nav .link-button:hover { text-decoration-color: currentColor; }
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  border-radius: var(--radius);
+  font-weight: 500;
+  letter-spacing: .01em;
+}
+.btn:focus, .btn.focus { box-shadow: none; }
+.btn:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+
+.btn-primary {
+  background: var(--oxford);
+  border-color: var(--oxford);
+}
+.btn-primary:hover,
+.btn-primary:not(:disabled):not(.disabled):active {
+  background: var(--oxford-dark);
+  border-color: var(--oxford-dark);
+}
+
+.btn-outline-primary {
+  color: var(--oxford);
+  border-color: var(--oxford);
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:not(:disabled):not(.disabled):active {
+  background: var(--oxford);
+  border-color: var(--oxford);
+  color: #fff;
+}
+
+.btn-outline-secondary {
+  color: var(--ink);
+  border-color: #98a3b5;
+  background: var(--surface);
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:not(:disabled):not(.disabled):active {
+  background: var(--oxford-tint);
+  border-color: #b9c3d3;
+  color: var(--oxford-dark);
+}
+
+/* ---------- Forms ---------- */
+
+label { font-weight: 500; }
+
+.form-control {
+  border-color: #c3c9d3;
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+.form-control:focus {
+  border-color: var(--oxford);
+  box-shadow: 0 0 0 .15rem rgba(34, 56, 92, .18);
+}
+
+.form-check-input { accent-color: var(--oxford); }
+.form-check-label { font-weight: 400; }
+
+.custom-control-input:checked ~ .custom-control-label::before {
+  background-color: var(--oxford);
+  border-color: var(--oxford);
+}
+.custom-control-input:focus ~ .custom-control-label::before {
+  box-shadow: 0 0 0 .15rem rgba(34, 56, 92, .18);
+}
+
+.form-text { font-size: .85rem; }
+
+details.instrument-section {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: .7rem 1rem;
+}
+details.instrument-section > summary {
+  margin-bottom: 0;
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+details.instrument-section[open] > summary { margin-bottom: .75rem; }
+
+/* ---------- Lists, cards, tables ---------- */
+
+.list-group-item,
+.card {
+  background: var(--surface);
+  border-color: var(--rule);
+}
+.list-group-item:first-child { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
+.list-group-item:last-child { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.card { border-radius: var(--radius); }
+.card dl > dd:last-child { margin-bottom: 0; }
+.card-title { font-family: var(--font-serif); font-weight: 600; margin-top: 0; }
+
+.table {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+.table thead th {
+  border-top: 0;
+  border-bottom: 1px solid var(--ink);
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 600;
+}
+.table td, .table th { border-top-color: var(--rule); vertical-align: middle; }
+
+/* Home page: one program per row, the ringer's own sheet first,
+   reports as quiet secondary links. */
+.program-list .list-group-item { padding: 1rem 1.25rem; }
+.program-name {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.program-reports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+  margin-top: .5rem;
+  font-size: .9rem;
+}
+.program-reports .reports-label { color: var(--muted); }
+
+/* ---------- Alerts ---------- */
+
+.alert {
+  border-radius: var(--radius);
+  border-width: 0 0 0 3px;
+}
+.alert-success { background: #e9f2ed; border-color: var(--success); color: #1f4a36; }
+.alert-danger  { background: #f8eae8; border-color: var(--danger); color: #6e2620; }
+.alert-warning { background: #f7f0e3; border-color: var(--bronze); color: #5c3f19; }
+.alert-info    { background: var(--oxford-tint); border-color: var(--oxford); color: var(--oxford-dark); }
+
+/* ---------- Print ---------- */
+
+@media print {
+  body { background: #fff; }
+  .site-header { display: none !important; }
+  .card, .table { border-color: #999; }
+}

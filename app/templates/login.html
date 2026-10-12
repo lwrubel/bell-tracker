@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Login - Bell Tracker{% endblock %}
+{% block title %}Log in - Bell Tracker{% endblock %}
 {% block content %}
-<h1>Login</h1>
-<form method="post" novalidate>
+<h1>Log in</h1>
+<form method="post" novalidate style="max-width: 28rem;">
   {{ form.hidden_tag() }}
   <div class="form-group">
     {{ form.email.label }}

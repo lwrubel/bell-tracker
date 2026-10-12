@@ -9,24 +9,25 @@
 
 <h2 class="h4 mt-4">Programs</h2>
 {% if cycle.programs %}
-<div class="list-group">
+<div class="list-group program-list">
   {% for program in cycle.programs %}
     <div class="list-group-item">
-      <div class="d-flex justify-content-between align-items-center flex-wrap">
+      <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap: .5rem 1rem;">
         <div>
-          <strong>{{ program.name }}</strong>
+          <div class="program-name">{{ program.name }}</div>
           {% if program.datetime %}<div class="text-muted small">{{ program.when_label() }}</div>{% endif %}
         </div>
-        <div class="mt-1">
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View my equipment</a>
-          {% if current_user.can_view_reports %}
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bells</a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases used list</a>
-          {% endif %}
-        </div>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View my equipment</a>
       </div>
+      {% if current_user.can_view_reports %}
+        <div class="program-reports">
+          <span class="reports-label">Reports:</span>
+          <a href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
+          <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
+          <a href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bells</a>
+          <a href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases used list</a>
+        </div>
+      {% endif %}
     </div>
   {% endfor %}
 </div>
