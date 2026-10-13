@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from sqlalchemy.orm import joinedload, selectinload
+
 from app import pitch
 from app.models import (
     ALWAYS_LISTED_CASE_TYPES,
@@ -12,6 +14,7 @@ from app.models import (
     Piece,
     ProgramPiece,
 )
+from app.positions import FLOAT_POSITION, ROSTER_POSITION_ORDER
 
 
 def _program_piece_filter(query, program):
@@ -222,3 +225,43 @@ def mallet_requirements(program):
         for label, count in entry_instrument.color_counts():
             result[piece_id][label] += count
     return {piece_id: dict(counts) for piece_id, counts in result.items()}
+
+
+def progress_grid(cycle):
+    """Who has entered equipment, laid out like the roster spreadsheet.
+
+    Returns (pieces, rows, counts): pieces are the cycle's pieces in title
+    order (the columns); rows are (position, [[entry, ...] per piece]) in
+    roster order, with any position not on the roster sheet at the end;
+    counts are {piece_id: (entered, expected)}. Float ringers don't enter
+    equipment, so they aren't counted.
+    """
+    pieces = list(cycle.pieces)
+    column = {piece.id: i for i, piece in enumerate(pieces)}
+    entries = (
+        Entry.query.join(Piece)
+        .filter(Piece.cycle_id == cycle.id)
+        .options(joinedload(Entry.user), selectinload(Entry.instrument_selections))
+        .all()
+    )
+
+    cells = defaultdict(lambda: [[] for _ in pieces])
+    counts = {piece.id: [0, 0] for piece in pieces}
+    for entry in entries:
+        cells[entry.position][column[entry.piece_id]].append(entry)
+        if entry.position != FLOAT_POSITION:
+            counts[entry.piece_id][1] += 1
+            if entry.has_equipment():
+                counts[entry.piece_id][0] += 1
+
+    for row in cells.values():
+        for cell in row:
+            cell.sort(key=lambda e: e.user.first_name.casefold())
+    positions = ROSTER_POSITION_ORDER + sorted(
+        set(cells) - set(ROSTER_POSITION_ORDER)
+    )
+    rows = [
+        (position, cells[position] if position in cells else [[] for _ in pieces])
+        for position in positions
+    ]
+    return pieces, rows, {pid: tuple(c) for pid, c in counts.items()}

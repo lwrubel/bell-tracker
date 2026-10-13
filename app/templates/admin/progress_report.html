@@ -1,0 +1,78 @@
+{% extends "admin/master.html" %}
+{% block head_css %}
+{{ super() }}
+<style>
+  .progress-grid th, .progress-grid td { white-space: nowrap; font-size: .875rem; }
+  .progress-grid thead th { vertical-align: bottom; }
+  .progress-grid .entered { color: #28a745; font-weight: 600; }
+  .progress-grid .not-entered { color: #6c757d; }
+</style>
+{% endblock %}
+{% block body %}
+<h2>Progress report</h2>
+
+{% if not cycle %}
+<p class="text-muted">There are no cycles yet.</p>
+{% else %}
+<form method="get" class="form-inline mb-3">
+  <label for="cycle_id" class="mr-2">Cycle</label>
+  <select class="form-control mr-2" id="cycle_id" name="cycle_id" onchange="this.form.submit()">
+    {% for c in cycles %}
+      <option value="{{ c.id }}"{% if c.id == cycle.id %} selected{% endif %}>{{ c.name }}{% if c.active %} (active){% endif %}</option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit" class="btn btn-outline-secondary">Show</button></noscript>
+</form>
+
+<p class="text-muted">
+  <span class="entered">&#10003;</span> marks a ringer who has entered equipment
+  for that piece. Float ringers don't enter equipment.
+</p>
+
+{% if pieces %}
+<div class="table-responsive">
+  <table class="table table-sm table-bordered progress-grid">
+    <thead>
+      <tr>
+        <th>Position</th>
+        {% for piece in pieces %}<th>{{ piece.title }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for position, cells in rows %}
+        <tr>
+          <th scope="row">{{ position }}</th>
+          {% for entries in cells %}
+            <td>
+              {% for entry in entries %}
+                {% if entry.position == float_position %}
+                  {{ entry.user.first_name }}
+                {% elif entry.has_equipment() %}
+                  <span class="entered" title="Equipment entered">{{ entry.user.first_name }} &#10003;</span>
+                {% else %}
+                  <span class="not-entered" title="No equipment entered yet">{{ entry.user.first_name }}</span>
+                {% endif %}{% if not loop.last %}, {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endfor %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Entered</th>
+        {% for piece in pieces %}
+          {% set entered, expected = counts[piece.id] %}
+          <th{% if expected and entered == expected %} class="entered"{% endif %}>{{ entered }} / {{ expected }}</th>
+        {% endfor %}
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">{{ cycle.name }} has no pieces yet.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

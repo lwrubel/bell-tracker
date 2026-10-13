@@ -4,6 +4,13 @@ POSITION_CODES = [f"P{i}" for i in range(1, 12)] + ["LB1", "LB2", "LB3", "Float"
 
 FLOAT_POSITION = "Float"
 
+# Row order on the roster spreadsheet: the bass positions, the trebles, then
+# Other and Float.
+ROSTER_POSITION_ORDER = ["LB3", "LB2", "LB1"] + [f"P{i}" for i in range(1, 12)] + [
+    "Other",
+    "Float",
+]
+
 # The two base notes each treble position rings. Positions not listed here
 # (LB, Float, Other) have no fixed notes and display as their bare code.
 POSITION_BASE_NOTES = {

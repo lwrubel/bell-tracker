@@ -5,7 +5,7 @@ from flask_admin.theme import Bootstrap4Theme
 from flask_login import current_user
 from wtforms import PasswordField, SelectField
 
-from app import color, db, pitch, roster_import
+from app import color, db, pitch, reports, roster_import
 from app.models import (
     Case,
     Cycle,
@@ -17,7 +17,12 @@ from app.models import (
     ProgramPiece,
     User,
 )
-from app.positions import POSITION_CODES, position_label, position_prefixes
+from app.positions import (
+    FLOAT_POSITION,
+    POSITION_CODES,
+    position_label,
+    position_prefixes,
+)
 
 PITCH_CHOICES = [(p, p) for p in pitch.all_pitches()]
 # Range is optional for color-mode instrument types, so offer a blank choice.
@@ -346,6 +351,29 @@ def _read_upload(file):
         return None, "Couldn't read that file. Save it as CSV (UTF-8) and try again."
 
 
+class ProgressReportView(AdminAccessMixin, BaseView):
+    """A cycle's assignments laid out like the roster spreadsheet, with a
+    check by each ringer who has entered their equipment."""
+
+    @expose("/")
+    def index(self):
+        cycles = Cycle.query.order_by(Cycle.id.desc()).all()
+        cycle_id = request.args.get("cycle_id", type=int)
+        cycle = (
+            db.session.get(Cycle, cycle_id) if cycle_id else Cycle.get_active()
+        ) or (cycles[0] if cycles else None)
+        pieces, rows, counts = reports.progress_grid(cycle) if cycle else ([], [], {})
+        return self.render(
+            "admin/progress_report.html",
+            cycles=cycles,
+            cycle=cycle,
+            pieces=pieces,
+            rows=rows,
+            counts=counts,
+            float_position=FLOAT_POSITION,
+        )
+
+
 def init_admin(app):
     admin = Admin(
         app,
@@ -362,5 +390,8 @@ def init_admin(app):
     admin.add_view(EntryAdminView(Entry, db.session))
     admin.add_view(
         RosterImportView(name="Import positions", endpoint="roster_import")
+    )
+    admin.add_view(
+        ProgressReportView(name="Progress report", endpoint="progress_report")
     )
     return admin
