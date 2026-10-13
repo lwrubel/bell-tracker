@@ -31,7 +31,7 @@ def _open_entry_as(client, db, ringer, program, piece, position):
 
 
 @pytest.mark.parametrize("position", ["P1", "LB1"])
-def test_main_bells_are_never_on_the_entry_form(
+def test_main_bells_are_on_the_entry_form_marked_optional(
     client, db, ringer, program, bass_piece, position
 ):
     main_bells = InstrumentType(
@@ -43,8 +43,18 @@ def test_main_bells_are_never_on_the_entry_form(
     response = _open_entry_as(client, db, ringer, program, bass_piece, position)
 
     assert response.status_code == 200
-    assert f'name="instrument_{main_bells.id}"'.encode() not in response.data
-    assert b"Main Bells" not in response.data
+    assert f'name="instrument_{main_bells.id}"'.encode() in response.data
+    assert b"(Optional)" in response.data
+
+
+def test_only_main_bells_are_marked_optional(
+    client, db, ringer, program, bass_piece
+):
+    response = _open_entry_as(client, db, ringer, program, bass_piece, "LB1")
+
+    assert response.status_code == 200
+    assert b"Bass Bells" in response.data
+    assert b"(Optional)" not in response.data
 
 
 @pytest.mark.parametrize("position", ["LB1", "LB2", "LB3"])

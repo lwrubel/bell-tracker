@@ -97,7 +97,10 @@
     {% else %}
       {% set field = form["instrument_" ~ instrument_type.id] %}
       <details class="form-group instrument-section">
-        <summary>{{ field.label.text }}</summary>
+        <summary>
+          {{ field.label.text }}
+          {% if instrument_type.optional_on_form() %}<span class="text-muted font-weight-normal">(Optional)</span>{% endif %}
+        </summary>
         <div class="pitch-checkboxes">
           {% set octave = namespace(prev=none) %}
           {% for subfield in field %}

@@ -19,8 +19,8 @@ DEFAULT_DISPLAY_ORDER = 100
 # What a ticked checkbox-mode selection stores in EntryInstrument.notes. An
 # unticked box stores no row at all.
 CHECKED_NOTES = "yes"
-# Ringers never sign up for the main bells: they're always on the tables,
-# so the type is kept off the equipment form.
+# The main bells are always on the tables, so signing up for them is
+# optional; the equipment form labels the type that way.
 MAIN_BELLS = "Main Bells"
 BASS_BELLS = "Bass Bells"
 # Every case of these types goes on the cases used list, whatever was
@@ -274,6 +274,9 @@ class InstrumentType(db.Model):
     def label_on_form(self):
         return self.form_label or self.name
 
+    def optional_on_form(self):
+        return self.name == MAIN_BELLS
+
     def __repr__(self):
         return f"<InstrumentType {self.name}>"
 
@@ -460,9 +463,9 @@ class Entry(db.Model):
         """Instrument types this ringer sees on their equipment form.
 
         A type carrying a position_prefix (bass bells with "LB") is limited
-        to positions starting with it; Main Bells is never shown; everything
-        else is shown to everyone on the piece. Presentation only - reports
-        still count a hidden type's selections.
+        to positions starting with it; everything else is shown to everyone
+        on the piece. Presentation only - reports still count a hidden
+        type's selections.
 
         Order comes from InstrumentType.display_order via the piece's
         relationship, so filtering here preserves it.
@@ -470,8 +473,7 @@ class Entry(db.Model):
         return [
             t
             for t in self.piece.instrument_types
-            if t.name != MAIN_BELLS
-            and (not t.position_prefix or self.position.startswith(t.position_prefix))
+            if not t.position_prefix or self.position.startswith(t.position_prefix)
         ]
 
     def __repr__(self):
