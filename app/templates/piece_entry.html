@@ -45,7 +45,7 @@
   <a href="{{ url_for('routes.cycle_detail', cycle_id=piece.cycle.id) }}">&larr; Back to {{ piece.cycle.name }}</a>
 </p>
 <h1>{{ piece.title }}</h1>
-<p class="text-muted">{{ piece.cycle.name }} &middot; Position: <strong>{{ position_label(entry.position) }}</strong></p>
+<p>Position: <strong>{{ position_label(entry.position) }}</strong></p>
 
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
@@ -120,8 +120,7 @@
   {% endfor %}
   <div class="form-group">
     {{ form.misc_notes.label }}
-    {{ form.misc_notes(class="form-control", rows=3, **{"aria-describedby": "misc_notes_help"}) }}
-    <small id="misc_notes_help" class="form-text text-muted">{{ form.misc_notes.description }}</small>
+    {{ form.misc_notes(class="form-control", rows=3) }}
   </div>
   {{ form.submit(class="btn btn-primary") }}
 </form>
