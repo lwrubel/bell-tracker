@@ -279,6 +279,11 @@ class EntryAdminView(SecureModelView):
         "instrument_selections": _format_instrument_selections,
     }
     can_view_details = True
+    # Look up one ringer's entries by any of the names they might go by.
+    column_searchable_list = ("user.name", "user.first_name", "user.email", "piece.title")
+    column_filters = ("user.name", "piece.title", "position")
+    column_sortable_list = (("user", "user.name"), ("piece", "piece.title"), "position")
+    column_default_sort = [("user.name", False), ("piece.title", False)]
     form_columns = ("user", "piece", "position")
     form_overrides = {"position": SelectField}
     form_args = {"position": {"choices": POSITION_CHOICES}}
