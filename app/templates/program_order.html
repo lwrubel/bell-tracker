@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Program order - {{ program.name }} - Bell Tracker{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2 d-print-none">
+  <a href="{{ url_for('routes.index') }}">&larr; Back to home</a>
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print</button>
+</div>
+<h1>Program order</h1>
+<p class="text-muted">
+  {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
+</p>
+
+{% if program.program_pieces %}
+<ol class="list-group">
+  {% for pp in program.program_pieces %}
+    <li class="list-group-item">
+      {{ pp.position }}. {{ pp.piece.title }}
+    </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="text-muted">No pieces have been added to this program yet.</p>
+{% endif %}
+{% endblock %}

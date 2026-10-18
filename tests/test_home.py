@@ -202,6 +202,59 @@ def test_program_view_follows_each_programs_order(client, db, ringer, cycle, pro
     assert "Beta" not in second
 
 
+# --- program order page --------------------------------------------------
+
+
+def test_home_links_each_program_to_its_order(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get("/").get_data(as_text=True)
+
+    assert f'href="/programs/{program.id}/order"' in body
+    assert "View my equipment" in body
+
+
+def test_program_order_lists_every_piece_in_order(client, db, ringer, cycle, program):
+    add_piece(db, program, "Alpha", 2)
+    add_piece(db, program, "Beta", 1)
+    # In the cycle but not this program.
+    cycle.pieces.append(Piece(title="Not Yet Placed"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/order").get_data(as_text=True)
+
+    assert body.index("1. Beta") < body.index("2. Alpha")
+    assert "Not Yet Placed" not in body
+
+
+def test_program_order_shown_to_admin_with_no_pieces(client, db, admin_user, program):
+    add_piece(db, program, "Alpha", 1)
+    db.session.commit()
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/order").get_data(as_text=True)
+
+    assert "1. Alpha" in body
+
+
+def test_program_order_for_an_empty_program(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/order").get_data(as_text=True)
+
+    assert "No pieces have been added" in body
+
+
+def test_program_order_404s_for_unknown_program(client, ringer):
+    login(client, ringer, RINGER_PASSWORD)
+    assert client.get("/programs/999999/order").status_code == 404
+
+
+def test_program_order_requires_login(client, program):
+    response = client.get(f"/programs/{program.id}/order", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
 # --- cycle (edit equipment) page -----------------------------------------
 
 

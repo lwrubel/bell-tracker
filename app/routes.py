@@ -85,6 +85,15 @@ def my_equipment(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/order")
+@login_required
+def program_order(program_id):
+    """The whole program's pieces in performance order, for everyone -
+    including admins who aren't assigned to any of them."""
+    program = Program.query.get_or_404(program_id)
+    return render_template("program_order.html", program=program)
+
+
 @bp.route("/pieces/<int:piece_id>/entry", methods=["GET", "POST"])
 @login_required
 def piece_entry(piece_id):
