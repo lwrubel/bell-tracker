@@ -12,13 +12,15 @@
       <ul>
         {% for entry, bells in positions %}
           <li>
-            <strong>{{ entry.position }}</strong> ({{ entry.user.name }}):
+            <strong>{{ entry.position }}</strong> ({{ entry.user.name }})
             {% if bells %}
-              {% for instrument_type, pitches in bells %}
-                {% if bells | length > 1 %}{{ instrument_type.name }}: {% endif %}{{ pitches | join(", ") }}{% if not loop.last %}; {% endif %}
-              {% endfor %}
+              <ul>
+                {% for instrument_type, pitches in bells %}
+                  <li>{{ instrument_type.name }}: {{ pitches | join(", ") }}</li>
+                {% endfor %}
+              </ul>
             {% else %}
-              <span class="text-muted">no bells signed up</span>
+              &mdash; <span class="text-muted">no bells signed up</span>
             {% endif %}
           </li>
         {% endfor %}

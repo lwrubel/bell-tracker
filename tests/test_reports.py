@@ -389,8 +389,8 @@ def test_bass_bells_page(client, db, admin_user, ringer, program, piece, bass_in
 
     assert "<h1>Bass Bells</h1>" in body
     assert "1. Ode to Joy" in body
-    assert "<strong>LB1</strong> (Ringer One):" in body
-    assert "C3, D3" in body
+    assert "<strong>LB1</strong> (Ringer One)" in body
+    assert "<li>Bass Bells: C3, D3</li>" in body
     assert "2. No Bass" in body
     assert "No LB positions." in body
     home = client.get("/").get_data(as_text=True)
