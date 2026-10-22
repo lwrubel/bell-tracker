@@ -262,8 +262,9 @@ def _format_instrument_selections(view, context, model, name):
 class EntryAdminView(SecureModelView):
     """Roster-assignment tool: admins assign user+piece+position here.
 
-    Equipment fields (misc_notes, instrument selections) are the ringer's to
-    fill in from the front end; shown here read-only for troubleshooting.
+    Instrument selections are the ringer's to fill in from the front end and
+    are shown here read-only for troubleshooting. misc_notes is editable so
+    admins can correct or add to what a ringer wrote.
     """
 
     column_list = ("user", "piece", "position", "misc_notes", "instrument_selections")
@@ -284,7 +285,7 @@ class EntryAdminView(SecureModelView):
     column_filters = ("user.name", "piece.title", "position")
     column_sortable_list = (("user", "user.name"), ("piece", "piece.title"), "position")
     column_default_sort = [("user.name", False), ("piece.title", False)]
-    form_columns = ("user", "piece", "position")
+    form_columns = ("user", "piece", "position", "misc_notes")
     form_overrides = {"position": SelectField}
     form_args = {"position": {"choices": POSITION_CHOICES}}
 

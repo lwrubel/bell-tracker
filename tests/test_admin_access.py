@@ -92,3 +92,26 @@ def test_entry_admin_list_sorts_by_ringer(
 
     assert response.status_code == 200
     assert body.index("Abby Two") < body.index("Ringer One")
+
+
+def test_entry_admin_edits_misc_notes(client, db, admin_user, ringer, piece):
+    from app.models import Entry
+
+    entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
+    db.session.add(entry)
+    db.session.commit()
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    response = client.post(
+        f"/admin/entry/edit/?id={entry.id}",
+        data={
+            "user": str(ringer.id),
+            "piece": str(piece.id),
+            "position": "P1",
+            "misc_notes": "Bell tree",
+        },
+    )
+
+    assert response.status_code == 302
+    db.session.refresh(entry)
+    assert entry.misc_notes == "Bell tree"
