@@ -4,6 +4,7 @@
 {% block content %}
 <h1>Equipment Table</h1>
 <p class="text-muted">{{ program.name }}</p>
+<p class="text-muted small">Main Bells are not included.</p>
 
 {% if notes_by_type %}
   {% for instrument_type, notes in notes_by_type.items() %}

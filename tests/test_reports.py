@@ -160,6 +160,24 @@ def test_equipment_table_groups_and_sorts_pitches_per_type(
     assert notes_by_type[instrument_type] == ["C4", "D4", "E4"]
 
 
+def test_equipment_table_leaves_out_main_bells(
+    db, ringer, program, piece, instrument_type
+):
+    main_bells = InstrumentType(
+        name="Main Bells", note_range_low="C4", note_range_high="C8"
+    )
+    db.session.add(main_bells)
+    db.session.commit()
+    other = add_piece(db, program, "Main Bells piece", 9)
+    db.session.commit()
+    _sign_up(db, ringer, other, main_bells, "C5")
+    _sign_up(db, ringer, piece, instrument_type, "C4")
+
+    notes_by_type, _, _ = reports.equipment_table(program)
+
+    assert list(notes_by_type) == [instrument_type]
+
+
 def test_equipment_table_misc_entries_only_include_nonblank_notes(
     db, ringer, other_ringer, program, piece
 ):

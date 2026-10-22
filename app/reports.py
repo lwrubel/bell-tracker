@@ -180,7 +180,8 @@ def equipment_table(program):
     """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
     equipment out for this program.
 
-    notes_by_type: {instrument_type: [pitch, ...]} sorted low to high (pitch-mode types).
+    notes_by_type: {instrument_type: [pitch, ...]} sorted low to high (pitch-mode
+        types other than Main Bells, which are always on the tables).
     mallet_counts_by_type: {instrument_type: {label: total_count}} (color-mode types).
     misc_entries: Entry rows with non-empty misc_notes, for attribution.
     """
@@ -191,7 +192,10 @@ def equipment_table(program):
         if instrument_type.selection_mode == "color":
             for label, count in entry_instrument.color_counts():
                 mallet_counts_by_type[instrument_type][label] += count
-        elif instrument_type.selection_mode == "pitch":
+        elif (
+            instrument_type.selection_mode == "pitch"
+            and instrument_type.name != MAIN_BELLS
+        ):
             notes_by_type[instrument_type].update(entry_instrument.note_list())
 
     sorted_notes_by_type = {
