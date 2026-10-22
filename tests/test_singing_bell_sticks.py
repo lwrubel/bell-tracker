@@ -94,7 +94,7 @@ def test_ticking_and_unticking_saves(client, db, ringer, program, stick_type):
     assert entry.instrument_selections == []
 
 
-def test_my_equipment_shows_yes(client, db, ringer, program, stick_type):
+def test_my_equipment_lists_the_stick_by_name(client, db, ringer, program, stick_type):
     piece = add_piece(db, program, "Fanfare", 1)
     db.session.commit()
     _tick(db, [ringer], piece, stick_type)
@@ -102,8 +102,8 @@ def test_my_equipment_shows_yes(client, db, ringer, program, stick_type):
     login(client, ringer, RINGER_PASSWORD)
     body = client.get(f"/programs/{program.id}/my-equipment").get_data(as_text=True)
 
-    assert "Singing Bell Sticks" in body
-    assert "Yes" in body
+    assert '<dt class="col-sm-12">Singing Bell Stick</dt>' in body
+    assert "Yes" not in body
 
 
 # --- reports -------------------------------------------------------------

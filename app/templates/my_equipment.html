@@ -21,18 +21,21 @@
         {% if selections or misc %}
           <dl class="row mb-0">
             {% for sel in selections %}
+              {# A checkbox row only exists when ticked, so its name says it all. #}
+              {% if sel.instrument_type.selection_mode == "checkbox" %}
+              <dt class="col-sm-12">{{ sel.instrument_type.label_on_form() }}</dt>
+              {% else %}
               <dt class="col-sm-3">{{ sel.instrument_type.name }}</dt>
               <dd class="col-sm-9">
                 {% if sel.instrument_type.selection_mode == "color" %}
                   {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
-                {% elif sel.instrument_type.selection_mode == "checkbox" %}
-                  Yes
                 {% elif sel.instrument_type.selection_mode == "options" %}
                   {{ sel.selected_options() | join(", ") }}
                 {% else %}
                   {{ sel.note_list() | join(", ") }}
                 {% endif %}
               </dd>
+              {% endif %}
             {% endfor %}
             {% if misc %}
               <dt class="col-sm-3">Miscellaneous</dt>
