@@ -1,0 +1,20 @@
+{# Entry's edit page with a tab for its instrument selections, which live on
+   their own page (EntryAdminView.equipment_view). #}
+{% extends "admin/model/edit.html" %}
+
+{% block navlinks %}
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a href="{{ return_url }}" class="nav-link">{{ _gettext('List') }}</a>
+  </li>
+  <li class="nav-item">
+    <a href="javascript:void(0)" class="nav-link active">{{ _gettext('Edit') }}</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ get_url('.equipment_view', id=request.args.get('id'), url=return_url) }}">Instruments</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ get_url('.details_view', id=request.args.get('id'), url=return_url) }}">{{ _gettext('Details') }}</a>
+  </li>
+</ul>
+{% endblock %}

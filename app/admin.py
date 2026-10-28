@@ -1,11 +1,14 @@
-from flask import flash, redirect, request, url_for
+from flask import abort, flash, redirect, request, url_for
 from flask_admin import Admin, AdminIndexView, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
+from flask_admin.helpers import get_redirect_target
+from flask_admin.model.template import EndpointLinkRowAction
 from flask_admin.theme import Bootstrap4Theme
 from flask_login import current_user
 from wtforms import PasswordField, SelectField
 
 from app import color, db, pitch, reports, roster_import
+from app.equipment import equipment_form_for, save_equipment
 from app.models import (
     Case,
     Cycle,
@@ -262,9 +265,10 @@ def _format_instrument_selections(view, context, model, name):
 class EntryAdminView(SecureModelView):
     """Roster-assignment tool: admins assign user+piece+position here.
 
-    Instrument selections are the ringer's to fill in from the front end and
-    are shown here read-only for troubleshooting. misc_notes is editable so
-    admins can correct or add to what a ringer wrote.
+    Ringers fill in their own equipment from the front end; admins can
+    correct or add to it - misc_notes on the edit form, instrument
+    selections on the separate equipment page, which reuses the ringer's
+    form so both store selections the same way.
     """
 
     column_list = ("user", "piece", "position", "misc_notes", "instrument_selections")
@@ -288,6 +292,38 @@ class EntryAdminView(SecureModelView):
     form_columns = ("user", "piece", "position", "misc_notes")
     form_overrides = {"position": SelectField}
     form_args = {"position": {"choices": POSITION_CHOICES}}
+    edit_template = "admin/entry_edit.html"
+    column_extra_row_actions = [
+        EndpointLinkRowAction(
+            "fa fa-music", ".equipment_view", title="Edit instrument selections"
+        )
+    ]
+
+    @expose("/equipment/", methods=["GET", "POST"])
+    def equipment_view(self):
+        return_url = get_redirect_target() or self.get_url(".index_view")
+        entry = self.get_one(request.args.get("id", ""))
+        if entry is None:
+            abort(404)
+
+        form = equipment_form_for(
+            entry, formdata=request.form if request.method == "POST" else None
+        )
+        if form.validate_on_submit():
+            save_equipment(entry, form)
+            flash(
+                f"Saved equipment for {entry.user.name} on {entry.piece.title}.",
+                "success",
+            )
+            return redirect(return_url)
+
+        return self.render(
+            "admin/entry_equipment.html",
+            entry=entry,
+            form=form,
+            instrument_types=entry.visible_instrument_types(),
+            return_url=return_url,
+        )
 
 
 # A roster sheet is a few KB; anything this big is the wrong file.
