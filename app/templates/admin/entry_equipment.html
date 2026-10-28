@@ -1,0 +1,46 @@
+{% extends "admin/master.html" %}
+{% from "_equipment_form.html" import equipment_styles, equipment_fields, flat_toggle_script %}
+
+{% block head %}
+  {{ super() }}
+  {{ equipment_styles() }}
+{% endblock %}
+
+{% block body %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a href="{{ return_url }}" class="nav-link">{{ _gettext('List') }}</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ get_url('.edit_view', id=entry.id, url=return_url) }}">{{ _gettext('Edit') }}</a>
+  </li>
+  <li class="nav-item">
+    <a href="javascript:void(0)" class="nav-link active">Instruments</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ get_url('.details_view', id=entry.id, url=return_url) }}">{{ _gettext('Details') }}</a>
+  </li>
+</ul>
+
+<h2>{{ entry.user.name }} &middot; {{ entry.piece.title }}</h2>
+<p>Position: <strong>{{ position_label(entry.position) }}</strong></p>
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  {{ equipment_fields(form, instrument_types) }}
+  {% if not instrument_types %}
+    <p class="text-muted">No instrument types are enabled for this piece and position.</p>
+  {% endif %}
+  <div class="form-group">
+    {{ form.misc_notes.label }}
+    {{ form.misc_notes(class="form-control", rows=3) }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+  <a href="{{ return_url }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+  {{ flat_toggle_script() }}
+{% endblock %}

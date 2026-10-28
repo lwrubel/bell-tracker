@@ -115,3 +115,98 @@ def test_entry_admin_edits_misc_notes(client, db, admin_user, ringer, piece):
     assert response.status_code == 302
     db.session.refresh(entry)
     assert entry.misc_notes == "Bell tree"
+
+
+def _entry_with_pitches(db, ringer, piece, instrument_type, notes):
+    from app.models import Entry, EntryInstrument
+
+    entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
+    db.session.add(entry)
+    db.session.flush()
+    db.session.add(
+        EntryInstrument(
+            entry_id=entry.id, instrument_type_id=instrument_type.id, notes=notes
+        )
+    )
+    db.session.commit()
+    return entry
+
+
+def test_entry_admin_equipment_page_shows_saved_selections(
+    client, db, admin_user, ringer, piece, instrument_type
+):
+    entry = _entry_with_pitches(db, ringer, piece, instrument_type, "C4,E4")
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    response = client.get(f"/admin/entry/equipment/?id={entry.id}")
+    body = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert re.search(r'<input[^>]*checked[^>]*value="C4"', body)
+    assert not re.search(r'<input[^>]*checked[^>]*value="D4"', body)
+
+
+def test_entry_admin_edits_instrument_selections(
+    client, db, admin_user, ringer, piece, instrument_type
+):
+    entry = _entry_with_pitches(db, ringer, piece, instrument_type, "C4,E4")
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    response = client.post(
+        f"/admin/entry/equipment/?id={entry.id}",
+        data={f"instrument_{instrument_type.id}": ["D4"], "misc_notes": "Gloves"},
+    )
+
+    assert response.status_code == 302
+    db.session.refresh(entry)
+    assert [s.notes for s in entry.instrument_selections] == ["D4"]
+    assert entry.misc_notes == "Gloves"
+
+
+def test_entry_admin_clearing_selections_removes_them(
+    client, db, admin_user, ringer, piece, instrument_type
+):
+    entry = _entry_with_pitches(db, ringer, piece, instrument_type, "C4")
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    client.post(f"/admin/entry/equipment/?id={entry.id}", data={"misc_notes": ""})
+
+    db.session.refresh(entry)
+    assert entry.instrument_selections == []
+
+
+def test_entry_admin_equipment_page_404s_for_missing_entry(client, admin_user):
+    login(client, admin_user, ADMIN_PASSWORD)
+    response = client.get("/admin/entry/equipment/?id=999999")
+    assert response.status_code == 404
+
+
+def test_entry_admin_equipment_page_blocked_for_ringer(
+    client, db, ringer, piece, instrument_type
+):
+    entry = _entry_with_pitches(db, ringer, piece, instrument_type, "C4")
+    login(client, ringer, RINGER_PASSWORD)
+
+    response = client.post(
+        f"/admin/entry/equipment/?id={entry.id}",
+        data={f"instrument_{instrument_type.id}": ["D4"]},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+    db.session.refresh(entry)
+    assert entry.instrument_selections[0].notes == "C4"
+
+
+def test_entry_admin_links_to_equipment_page(
+    client, db, admin_user, ringer, piece, instrument_type
+):
+    entry = _entry_with_pitches(db, ringer, piece, instrument_type, "C4")
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    list_body = client.get("/admin/entry/").get_data(as_text=True)
+    edit_body = client.get(f"/admin/entry/edit/?id={entry.id}").get_data(as_text=True)
+
+    assert f"/admin/entry/equipment/?id={entry.id}" in list_body
+    assert f"/admin/entry/equipment/?id={entry.id}" in edit_body
