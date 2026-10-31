@@ -357,6 +357,19 @@ def test_checkmark_when_only_misc_notes_saved(client, db, ringer, program, piece
     assert b"Equipment saved" in response.data
 
 
+def test_checkmark_when_saved_with_nothing_selected(
+    client, db, ringer, program, piece
+):
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    client.post(f"/pieces/{piece.id}/entry", data={"misc_notes": ""})
+    response = client.get(_cycle_url(program))
+
+    assert b"Equipment saved" in response.data
+
+
 def test_blank_misc_notes_do_not_count(client, db, ringer, program, piece):
     db.session.add(
         Entry(user_id=ringer.id, piece_id=piece.id, position="P1", misc_notes="  ")

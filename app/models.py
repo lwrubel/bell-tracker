@@ -440,6 +440,9 @@ class Entry(db.Model):
     piece_id = db.Column(db.Integer, db.ForeignKey("pieces.id"), nullable=False)
     position = db.Column(db.String(20), nullable=False)
     misc_notes = db.Column(db.Text, nullable=True)
+    # Set whenever the equipment form is saved, so a ringer who needs nothing
+    # on a piece still counts as having entered it.
+    equipment_saved_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
@@ -450,9 +453,12 @@ class Entry(db.Model):
     )
 
     def has_equipment(self):
-        """Whether the ringer has saved any equipment on this piece."""
-        return bool(self.instrument_selections) or bool(
-            self.misc_notes and self.misc_notes.strip()
+        """Whether the ringer has saved the equipment form on this piece,
+        even with nothing selected."""
+        return (
+            self.equipment_saved_at is not None
+            or bool(self.instrument_selections)
+            or bool(self.misc_notes and self.misc_notes.strip())
         )
 
     def sorted_instrument_selections(self):

@@ -12,7 +12,7 @@ from app.forms import (
     other_count_field_name,
     other_label_field_name,
 )
-from app.models import CHECKED_NOTES, EntryInstrument
+from app.models import CHECKED_NOTES, EntryInstrument, utcnow
 
 
 def equipment_form_for(entry, formdata=None):
@@ -63,6 +63,7 @@ def save_equipment(entry, form):
     off LB won't have their stored bass bells wiped on the next save.
     """
     entry.misc_notes = form.misc_notes.data
+    entry.equipment_saved_at = utcnow()
     existing_selections = {
         sel.instrument_type_id: sel for sel in entry.instrument_selections
     }
