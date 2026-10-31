@@ -1,7 +1,7 @@
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 
 from app import reports
-from app.models import Case, Entry, EntryInstrument, InstrumentType
+from app.models import CHECKED_NOTES, Case, Entry, EntryInstrument, InstrumentType, User
 
 
 def _sign_up(db, user, piece, instrument_type, notes):
@@ -395,3 +395,88 @@ def test_bass_bells_page(client, db, admin_user, ringer, program, piece, bass_in
     assert "No LB positions." in body
     home = client.get("/").get_data(as_text=True)
     assert f"/programs/{program.id}/reports/bass-bells" in home
+
+
+# --- cover sheets --------------------------------------------------------
+
+
+def _ringer(db, name):
+    user = User(email=f"{name.lower().replace(' ', '.')}@example.com", name=name)
+    user.set_password(RINGER_PASSWORD)
+    db.session.add(user)
+    return user
+
+
+def _cover_sheet_entries(db, piece):
+    """Ringers on `piece` across P, LB, Other and Float positions."""
+    entries = {}
+    for name, position in [
+        ("Pat Ten", "P10"),
+        ("Lee Bass", "LB1"),
+        ("Olive Other", "Other"),
+        ("Fay Float", "Float"),
+        ("Ann Two", "P2"),
+        ("Bea Float", "Float"),
+    ]:
+        entry = Entry(user=_ringer(db, name), piece=piece, position=position)
+        db.session.add(entry)
+        entries[name] = entry
+    db.session.commit()
+    return entries
+
+
+def test_cover_sheets_orders_by_roster_and_leaves_out_lb(db, program, piece):
+    entries = _cover_sheet_entries(db, piece)
+
+    [(program_piece, ringers, floats)] = reports.cover_sheets(program)
+
+    assert program_piece.piece == piece
+    assert ringers == [entries["Ann Two"], entries["Pat Ten"], entries["Olive Other"]]
+    assert floats == [entries["Bea Float"], entries["Fay Float"]]
+
+
+def test_cover_sheets_lists_each_program_piece_even_when_empty(db, program, piece):
+    other = add_piece(db, program, "Empty Piece", 2)
+    db.session.commit()
+
+    sheets = reports.cover_sheets(program)
+
+    assert [(pp.piece, r, f) for pp, r, f in sheets] == [
+        (piece, [], []),
+        (other, [], []),
+    ]
+
+
+def test_cover_sheets_route_shows_ringers_and_equipment(
+    client, db, admin_user, program, piece, instrument_type
+):
+    entries = _cover_sheet_entries(db, piece)
+    stick_type = InstrumentType(
+        name="Singing Bell Sticks",
+        form_label="Singing Bell Stick",
+        selection_mode="checkbox",
+    )
+    db.session.add(stick_type)
+    ann = entries["Ann Two"]
+    ann.misc_notes = "Bell tree"
+    db.session.add_all(
+        [
+            EntryInstrument(entry=ann, instrument_type=instrument_type, notes="C4,E4"),
+            EntryInstrument(entry=ann, instrument_type=stick_type, notes=CHECKED_NOTES),
+        ]
+    )
+    db.session.commit()
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/cover-sheets").get_data(
+        as_text=True
+    )
+
+    assert "Ode to Joy" in body
+    assert "P2 - E4/F4" in body
+    assert "Ann Two" in body
+    assert "<strong>Chimes:</strong> C4, E4" in body
+    assert "Singing Bell Stick" in body
+    assert "<strong>Misc:</strong> Bell tree" in body
+    assert "Lee Bass" not in body
+    assert '<span class="sheet-label">Float</span>Bea Float, Fay Float' in body
