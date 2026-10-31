@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_entry_equipment.html" import entry_equipment %}
 {% block title %}My equipment - {{ program.name }} - Bell Tracker{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-2 d-print-none">
@@ -16,35 +17,7 @@
       <div class="card-body">
         <h5 class="card-title mb-1">{{ position }}. {{ entry.piece.title }}</h5>
         <p class="text-muted mb-2">Position: <strong>{{ position_label(entry.position) }}</strong></p>
-        {% set selections = entry.sorted_instrument_selections() %}
-        {% set misc = (entry.misc_notes or "").strip() %}
-        {% if selections or misc %}
-          <dl class="row mb-0">
-            {% for sel in selections %}
-              {# A checkbox row only exists when ticked, so its name says it all. #}
-              {% if sel.instrument_type.selection_mode == "checkbox" %}
-              <dt class="col-sm-12">{{ sel.instrument_type.label_on_form() }}</dt>
-              {% else %}
-              <dt class="col-sm-3">{{ sel.instrument_type.name }}</dt>
-              <dd class="col-sm-9">
-                {% if sel.instrument_type.selection_mode == "color" %}
-                  {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
-                {% elif sel.instrument_type.selection_mode == "options" %}
-                  {{ sel.selected_options() | join(", ") }}
-                {% else %}
-                  {{ sel.note_list() | join(", ") }}
-                {% endif %}
-              </dd>
-              {% endif %}
-            {% endfor %}
-            {% if misc %}
-              <dt class="col-sm-3">Miscellaneous</dt>
-              <dd class="col-sm-9" style="white-space: pre-line;">{{ misc }}</dd>
-            {% endif %}
-          </dl>
-        {% else %}
-          <p class="text-muted mb-0">No equipment selected.</p>
-        {% endif %}
+        {{ entry_equipment(entry) }}
       </div>
     </div>
   {% endfor %}

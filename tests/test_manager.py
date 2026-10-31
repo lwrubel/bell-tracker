@@ -1,7 +1,13 @@
 import pytest
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, login
 
-REPORTS = ["equipment-table", "equipment-pull-list", "bass-bells", "cases-list"]
+REPORTS = [
+    "equipment-table",
+    "equipment-pull-list",
+    "bass-bells",
+    "cases-list",
+    "cover-sheets",
+]
 
 
 @pytest.mark.parametrize("report", REPORTS)

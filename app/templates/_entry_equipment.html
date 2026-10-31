@@ -1,0 +1,47 @@
+{# The equipment one entry has saved, shared by My equipment and the cover
+   sheets. Compact puts each type on its own short line for a table cell. #}
+{% macro selection_values(sel) -%}
+  {%- if sel.instrument_type.selection_mode == "color" -%}
+    {% for label, count in sel.color_counts() %}{{ label }} ×{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}
+  {%- elif sel.instrument_type.selection_mode == "options" -%}
+    {{ sel.selected_options() | join(", ") }}
+  {%- else -%}
+    {{ sel.note_list() | join(", ") }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro entry_equipment(entry, compact=False) %}
+  {% set selections = entry.sorted_instrument_selections() %}
+  {% set misc = (entry.misc_notes or "").strip() %}
+  {% if compact %}
+    {% for sel in selections %}
+      {# A checkbox row only exists when ticked, so its name says it all. #}
+      {% if sel.instrument_type.selection_mode == "checkbox" %}
+        <div>{{ sel.instrument_type.label_on_form() }}</div>
+      {% else %}
+        <div><strong>{{ sel.instrument_type.name }}:</strong> {{ selection_values(sel) }}</div>
+      {% endif %}
+    {% endfor %}
+    {% if misc %}
+      <div style="white-space: pre-line;"><strong>Misc:</strong> {{ misc }}</div>
+    {% endif %}
+  {% elif selections or misc %}
+    <dl class="row mb-0">
+      {% for sel in selections %}
+        {# A checkbox row only exists when ticked, so its name says it all. #}
+        {% if sel.instrument_type.selection_mode == "checkbox" %}
+        <dt class="col-sm-12">{{ sel.instrument_type.label_on_form() }}</dt>
+        {% else %}
+        <dt class="col-sm-3">{{ sel.instrument_type.name }}</dt>
+        <dd class="col-sm-9">{{ selection_values(sel) }}</dd>
+        {% endif %}
+      {% endfor %}
+      {% if misc %}
+        <dt class="col-sm-3">Miscellaneous</dt>
+        <dd class="col-sm-9" style="white-space: pre-line;">{{ misc }}</dd>
+      {% endif %}
+    </dl>
+  {% else %}
+    <p class="text-muted mb-0">No equipment selected.</p>
+  {% endif %}
+{% endmacro %}

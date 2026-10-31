@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% from "_entry_equipment.html" import entry_equipment %}
+{% block title %}Cover Sheets - {{ program.name }}{% endblock %}
+{% block head %}
+<style>
+  /* Each sheet is laid out as a letter page. The left margin is wider so
+     three-hole punching clears the text. */
+  @page { size: letter; margin: 0.6in 0.6in 0.6in 1.1in; }
+
+  .cover-sheet {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    box-shadow: 0 1px 3px rgba(29, 36, 51, .08);
+    max-width: 8.5in;
+    margin: 0 auto 2rem;
+    padding: 0.6in 0.6in 0.6in 1.1in;
+    color: var(--ink);
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    border-bottom: 2px solid var(--oxford);
+    padding-bottom: .5rem;
+    margin-bottom: 1.25rem;
+  }
+  .sheet-header h2 { font-size: 1.9rem; margin: 0; color: var(--oxford-dark); }
+  .sheet-meta {
+    text-align: right;
+    font-size: .8rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  .sheet-meta .piece-number { color: var(--bronze); font-weight: 600; }
+
+  .sheet-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  .sheet-table th {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--oxford-dark);
+    background: var(--oxford-tint);
+    border-bottom: 1px solid var(--oxford);
+    padding: .4rem .6rem;
+    text-align: left;
+  }
+  .sheet-table td {
+    border-bottom: 1px solid #8a93a3;
+    padding: .45rem .6rem;
+    vertical-align: top;
+    line-height: 1.35;
+  }
+  .sheet-table .col-position { width: 8rem; white-space: nowrap; font-weight: 600; }
+  .sheet-table .col-name { width: 11rem; }
+  .sheet-table td > div + div { margin-top: .1rem; }
+
+  .sheet-float { margin: .9rem 0 0; font-size: .95rem; }
+  .sheet-label {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--oxford-dark);
+    margin-right: .4rem;
+  }
+
+  @media (max-width: 700px) {
+    .cover-sheet { padding: 1.25rem 1rem; }
+    .sheet-header { flex-direction: column; align-items: flex-start; }
+    .sheet-meta { text-align: left; }
+  }
+
+  @media print {
+    /* Bootstrap's print styles force a 992px-wide page, which overflows
+       the printable area and clips the right edge. */
+    body, main.page { min-width: 0 !important; }
+    main.page { padding: 0; margin: 0; max-width: none; width: auto; }
+    .cover-sheets-header { display: none; }
+    .cover-sheet {
+      border: 0;
+      box-shadow: none;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      break-after: page;
+      font-size: 11pt;
+    }
+    .cover-sheet:last-child { break-after: auto; }
+    .sheet-header h2 { font-size: 20pt; }
+    .sheet-meta { font-size: 8pt; }
+    .sheet-table { font-size: 11pt; }
+    .sheet-table th { font-size: 8pt; }
+    .sheet-table tr { break-inside: avoid; }
+    .sheet-table th, .sheet-header {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="cover-sheets-header">
+  <button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
+  <h1>Cover Sheets</h1>
+  <p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
+</div>
+
+{% if pieces %}
+  {% for program_piece, entries, float_entries in pieces %}
+    <section class="cover-sheet">
+      <header class="sheet-header">
+        <h2>{{ program_piece.piece.title }}</h2>
+        <div class="sheet-meta">
+          <div class="piece-number">No. {{ program_piece.position }}</div>
+          <div>{{ program.name }}</div>
+          {% if program.datetime %}<div>{{ program.when_label() }}</div>{% endif %}
+        </div>
+      </header>
+      {% if entries %}
+        <table class="sheet-table">
+          <thead>
+            <tr>
+              <th class="col-position">Position</th>
+              <th class="col-name">Ringer Name</th>
+              <th>Equipment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+              <tr>
+                <td class="col-position">{{ position_label(entry.position) }}</td>
+                <td class="col-name">{{ entry.user.name }}</td>
+                <td>{{ entry_equipment(entry, compact=True) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted">No ringers assigned.</p>
+      {% endif %}
+      {% if float_entries %}
+        <p class="sheet-float"><span class="sheet-label">Float</span>{{ float_entries | map(attribute="user.name") | join(", ") }}</p>
+      {% endif %}
+    </section>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">This program has no pieces yet.</p>
+{% endif %}
+{% endblock %}

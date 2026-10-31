@@ -148,6 +148,17 @@ def report_bass_bells(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/reports/cover-sheets")
+@reports_required
+def report_cover_sheets(program_id):
+    program = Program.query.get_or_404(program_id)
+    return render_template(
+        "cover_sheets.html",
+        program=program,
+        pieces=reports.cover_sheets(program),
+    )
+
+
 @bp.route("/programs/<int:program_id>/reports/equipment-table")
 @reports_required
 def report_equipment_table(program_id):

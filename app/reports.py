@@ -141,6 +141,50 @@ def bass_bells(program):
     return result
 
 
+def cover_sheets(program):
+    """Return [(program_piece, entries, float_entries), ...]: every piece in
+    program order, its ringers in roster order (P1-P11, then Other), and its
+    Float ringers by first name. LB positions are left out; they get their
+    own cover sheets.
+    """
+    order = {code: i for i, code in enumerate(ROSTER_POSITION_ORDER)}
+    entries = (
+        Entry.query.join(Piece)
+        .options(
+            joinedload(Entry.user),
+            selectinload(Entry.instrument_selections).joinedload(
+                EntryInstrument.instrument_type
+            ),
+        )
+    )
+    entries_by_piece = defaultdict(list)
+    for entry in _program_piece_filter(entries, program).all():
+        entries_by_piece[entry.piece_id].append(entry)
+
+    result = []
+    for program_piece in program.program_pieces:
+        piece_entries = entries_by_piece[program_piece.piece_id]
+        ringers = sorted(
+            (
+                e
+                for e in piece_entries
+                if e.position != FLOAT_POSITION
+                and not e.position.startswith(BASS_POSITION_PREFIX)
+            ),
+            key=lambda e: (
+                order.get(e.position, len(order)),
+                e.position,
+                e.user.first_name.casefold(),
+            ),
+        )
+        floats = sorted(
+            (e for e in piece_entries if e.position == FLOAT_POSITION),
+            key=lambda e: e.user.first_name.casefold(),
+        )
+        result.append((program_piece, ringers, floats))
+    return result
+
+
 def checkbox_max_counts(program):
     """Return {instrument_type: count} for checkbox-mode types (singing bell
     sticks): the most ringers who ticked it on any one piece in the program,
