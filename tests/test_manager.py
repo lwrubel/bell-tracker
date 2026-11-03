@@ -6,7 +6,6 @@ REPORTS = [
     "equipment-pull-list",
     "bass-bells",
     "cases-list",
-    "cover-sheets",
 ]
 
 
@@ -22,6 +21,14 @@ def test_ringer_cannot_open_reports(client, ringer, program, report):
     login(client, ringer, RINGER_PASSWORD)
     response = client.get(f"/programs/{program.id}/reports/{report}")
     assert response.status_code == 403
+
+
+def test_ringer_can_open_cover_sheets_from_home(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    url = f"/programs/{program.id}/reports/cover-sheets"
+
+    assert url in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 200
 
 
 def test_manager_sees_report_buttons_but_no_admin_link(client, manager, program):
