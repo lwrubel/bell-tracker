@@ -185,9 +185,7 @@ def test_percussion_stays_out_of_pitch_reports(db, ringer, program, percussion):
     piece = _piece_with_percussion(db, program, percussion)
     _pick(db, [ringer], piece, percussion, "Triangle")
 
-    notes_by_type, mallets, _ = reports.equipment_table(program)
-    assert notes_by_type == {}
-    assert mallets == {}
+    assert reports.equipment_by_pitch(program) == []
     assert reports.cases_list(program) == {}
     assert reports.equipment_pull_list(program) == {}
     assert reports.bass_bells(program)[0][1] == []

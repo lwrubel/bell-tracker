@@ -253,15 +253,12 @@ def test_mallet_requirements_sums_across_ringers_per_piece(
     assert result == {mallet_piece.id: {"Green yarn": 5, "Red yarn": 1}}
 
 
-def test_equipment_table_returns_mallet_totals_by_type(
+def test_mallets_stay_out_of_equipment_by_pitch(
     db, ringer, program, mallet_piece, mallet_instrument_type
 ):
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
 
-    notes_by_type, mallet_counts_by_type, _ = reports.equipment_table(program)
-
-    assert notes_by_type == {}
-    assert mallet_counts_by_type == {mallet_instrument_type: {"Green yarn": 2}}
+    assert reports.equipment_by_pitch(program) == []
 
 
 def test_cases_list_ignores_color_mode_types(

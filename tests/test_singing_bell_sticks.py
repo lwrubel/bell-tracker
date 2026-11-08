@@ -129,9 +129,7 @@ def test_sticks_stay_out_of_pitch_reports(db, program, stick_type, instrument_ty
     db.session.commit()
     _tick(db, _ringers(db, 1), piece, stick_type)
 
-    notes_by_type, mallets, _ = reports.equipment_table(program)
-    assert notes_by_type == {}
-    assert mallets == {}
+    assert reports.equipment_by_pitch(program) == []
     assert reports.cases_list(program) == {}
     assert reports.equipment_pull_list(program) == {}
 

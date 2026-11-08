@@ -52,3 +52,4 @@ def test_admin_entry_views_show_position_label(client, db, admin_user, ringer, p
     assert "P3 - G4/A4" in client.get("/admin/entry/").get_data(as_text=True)
     form = client.get("/admin/entry/new/").get_data(as_text=True)
     assert '<option value="P3">P3 - G4/A4</option>' in form
+
