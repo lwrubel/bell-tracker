@@ -6,7 +6,15 @@ from sqlalchemy.orm import selectinload
 
 from app import db, reports
 from app.equipment import equipment_form_for, save_equipment
-from app.models import Cycle, Entry, EntryInstrument, Piece, Program, ProgramPiece
+from app.models import (
+    BASS_BELLS,
+    Cycle,
+    Entry,
+    EntryInstrument,
+    Piece,
+    Program,
+    ProgramPiece,
+)
 from app.positions import FLOAT_POSITION
 
 bp = Blueprint("routes", __name__)
@@ -196,6 +204,7 @@ def report_bass_bell_cover_sheets(program_id):
     return render_template(
         "bass_bell_cover_sheets.html",
         program=program,
+        BASS_BELLS=BASS_BELLS,
         pieces=reports.bass_bell_cover_sheets(program),
     )
 
