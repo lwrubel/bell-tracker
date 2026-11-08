@@ -1,4 +1,4 @@
-from conftest import RINGER_PASSWORD, add_piece, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 
 from app import color, reports
 from app.models import Entry, EntryInstrument, Piece
@@ -219,8 +219,8 @@ def test_existing_counts_are_prepopulated_on_reload(
 # --- reports --------------------------------------------------------
 
 
-def _sign_up_mallets(db, user, piece, instrument_type, notes):
-    entry = Entry(user_id=user.id, piece_id=piece.id, position="P1")
+def _sign_up_mallets(db, user, piece, instrument_type, notes, position="P1"):
+    entry = Entry(user_id=user.id, piece_id=piece.id, position=position)
     db.session.add(entry)
     db.session.commit()
     db.session.add(
@@ -232,25 +232,44 @@ def _sign_up_mallets(db, user, piece, instrument_type, notes):
     return entry
 
 
-def test_mallet_requirements_sums_across_ringers_per_piece(
+def test_mallet_max_counts_takes_the_most_on_any_one_piece(
     db, ringer, other_ringer, program, mallet_piece, mallet_instrument_type
 ):
+    later = add_piece(db, program, "Later", 5)
+    later.instrument_types.append(mallet_instrument_type)
+    db.session.commit()
+    # Mallet Piece: 5 green (2 + 3), 1 red. Later: 4 green, 2 red, 1 other.
     _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
-    entry2 = Entry(user_id=other_ringer.id, piece_id=mallet_piece.id, position="P2")
-    db.session.add(entry2)
-    db.session.commit()
-    db.session.add(
-        EntryInstrument(
-            entry_id=entry2.id,
-            instrument_type_id=mallet_instrument_type.id,
-            notes="Green yarn:3,Red yarn:1",
-        )
+    _sign_up_mallets(
+        db, other_ringer, mallet_piece, mallet_instrument_type, "Green yarn:3,Red yarn:1",
+        position="P2",
     )
-    db.session.commit()
+    _sign_up_mallets(
+        db, ringer, later, mallet_instrument_type,
+        "Green yarn:4,Red yarn:2,Other: soft bass:1",
+    )
 
-    result = reports.mallet_requirements(program)
+    assert reports.mallet_max_counts(program) == [
+        ("Red yarn", 2),
+        ("Green yarn", 5),
+        ("Other: soft bass", 1),
+    ]
 
-    assert result == {mallet_piece.id: {"Green yarn": 5, "Red yarn": 1}}
+
+def test_equipment_table_page_lists_mallet_counts(
+    client, db, admin_user, ringer, program, mallet_piece, mallet_instrument_type
+):
+    _sign_up_mallets(db, ringer, mallet_piece, mallet_instrument_type, "Green yarn:2")
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-table").get_data(
+        as_text=True
+    )
+
+    assert "<h2>Mallets</h2>" in body
+    assert "<li>Green yarn: 2</li>" in body
+    assert "Per Piece" not in body
+    assert "Toccata" not in body
 
 
 def test_mallets_stay_out_of_equipment_by_pitch(

@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from sqlalchemy.orm import joinedload, selectinload
 
-from app import pitch
+from app import color, pitch
 from app.models import (
     ALWAYS_LISTED_CASE_TYPES,
     BASS_BELLS,
@@ -441,17 +441,25 @@ def misc_entries(program):
     ]
 
 
-def mallet_requirements(program):
-    """Return {piece_id: {label: total_count}} — mallet colors needed per
-    piece, summed across every ringer's entry for that piece."""
-    result = defaultdict(lambda: defaultdict(int))
+def mallet_max_counts(program):
+    """Return [(label, count), ...]: for each kind of mallet, the most needed
+    on any one piece (every ringer's count on that piece added up), which is
+    how many to bring. Fixed colors in their usual order, then any "Other"
+    mallets by name; a kind nobody signed up for is left out."""
+    per_piece = defaultdict(lambda: defaultdict(int))
     for entry_instrument in _entry_instruments_for_program(program):
         if entry_instrument.instrument_type.selection_mode != "color":
             continue
         piece_id = entry_instrument.entry.piece_id
         for label, count in entry_instrument.color_counts():
-            result[piece_id][label] += count
-    return {piece_id: dict(counts) for piece_id, counts in result.items()}
+            per_piece[label][piece_id] += count
+    order = {label: i for i, label in enumerate(color.MALLET_COLORS)}
+    return [
+        (label, max(per_piece[label].values()))
+        for label in sorted(
+            per_piece, key=lambda label: (order.get(label, len(order)), label)
+        )
+    ]
 
 
 def progress_grid(cycle):
