@@ -349,6 +349,11 @@ EQUIPMENT_TABLE_FOLD_FROM = "D7"
 EQUIPMENT_TABLE_HIGHEST = "C8"
 
 
+# Bell trees are set up on their own, so the equipment table lists them in a
+# section of their own instead of under the pitch sections.
+BELL_TREE_TYPES = {"Bell Tree", "SMB Bell Tree"}
+
+
 def _equipment_table_sections():
     """[(label, lowest pitch index), ...] low to high: one section per treble
     position, named by its notes ("C4/D4") and running up to the next
@@ -369,7 +374,8 @@ def equipment_by_pitch(program):
     matter which position rings it. Pitches from D7 to C8 go in the section
     of the pitch an octave below; higher ones are left out. Main Bells and
     Bass Bells (always set out) and non-pitch types are left out, as are
-    empty sections, so Bass Equipment lists only extras like bass chimes. Types in display order, pitches low to high.
+    empty sections, so Bass Equipment lists only extras like bass chimes.
+    Bell trees are left out too; bell_trees() lists them. Types in display order, pitches low to high.
     """
     sections = _equipment_table_sections()
     lows = [low for _, low in sections]
@@ -381,6 +387,7 @@ def equipment_by_pitch(program):
         if (
             instrument_type.selection_mode != "pitch"
             or instrument_type.name in EQUIPMENT_LIST_EXCLUDED_TYPES
+            or instrument_type.name in BELL_TREE_TYPES
         ):
             continue
         for p in entry_instrument.note_list():
@@ -404,6 +411,24 @@ def equipment_by_pitch(program):
             ],
         )
         for i in sorted(grouped)
+    ]
+
+
+def bell_trees(program):
+    """Return [(instrument_type, [pitch, ...]), ...]: every pitch used on
+    each bell tree type anywhere in the program. Types in display order,
+    pitches low to high; a tree nobody signed up for is left out."""
+    pitches = defaultdict(set)
+    for entry_instrument in _entry_instruments_for_program(program):
+        instrument_type = entry_instrument.instrument_type
+        if instrument_type.name in BELL_TREE_TYPES:
+            pitches[instrument_type].update(entry_instrument.note_list())
+    return [
+        (instrument_type, sorted(notes, key=pitch.pitch_index))
+        for instrument_type, notes in sorted(
+            pitches.items(), key=lambda item: (item[0].display_order, item[0].name)
+        )
+        if notes
     ]
 
 

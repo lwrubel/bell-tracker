@@ -266,6 +266,50 @@ def test_equipment_table_page_lists_pitch_sections(
     assert "<h5>D5/E5</h5>" not in body
 
 
+def test_bell_trees_are_listed_apart_from_the_pitch_sections(
+    db, ringer, other_ringer, program, piece, instrument_type
+):
+    smb_tree = InstrumentType(
+        name="SMB Bell Tree", note_range_low="C5", note_range_high="C#7", display_order=75
+    )
+    tree = InstrumentType(
+        name="Bell Tree", note_range_low="C5", note_range_high="C8", display_order=85
+    )
+    db.session.add_all([smb_tree, tree])
+    db.session.commit()
+    later = add_piece(db, program, "Later", 2)
+    db.session.commit()
+    _assign(db, ringer, piece, "P5", (tree, "E5,C5"), (instrument_type, "C5"))
+    _assign(db, other_ringer, piece, "P6", (smb_tree, "G5"))
+    _assign(db, ringer, later, "P5", (tree, "C5,G6"))
+
+    assert reports.equipment_by_pitch(program) == [
+        ("B4/C5", [(instrument_type, ["C5"])])
+    ]
+    assert reports.bell_trees(program) == [
+        (smb_tree, ["G5"]),
+        (tree, ["C5", "E5", "G6"]),
+    ]
+
+
+def test_equipment_table_page_lists_bell_trees_last(
+    client, db, admin_user, ringer, program, piece
+):
+    tree = InstrumentType(name="Bell Tree", note_range_low="C5", note_range_high="C8")
+    db.session.add(tree)
+    db.session.commit()
+    _assign(db, ringer, piece, "P5", (tree, "E5,C5"))
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-table").get_data(
+        as_text=True
+    )
+
+    assert "<h5>Bell Tree</h5>\n  <p>C5, E5</p>" in body
+    assert body.index("<h2>Bell Trees</h2>") > body.index("Miscellaneous")
+    assert "B4/C5" not in body
+
+
 def test_equipment_table_misc_entries_only_include_nonblank_notes(
     db, ringer, other_ringer, program, piece
 ):

@@ -4,7 +4,6 @@ from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, login
 REPORTS = [
     "equipment-table",
     "equipment-pull-list",
-    "bass-bells",
     "cases-list",
 ]
 
@@ -66,3 +65,16 @@ def test_admin_can_make_a_user_a_manager(client, db, admin_user, ringer):
     db.session.refresh(ringer)
     assert ringer.is_manager is True
     assert ringer.is_admin is False
+
+
+def test_bass_bells_report_is_admin_only(client, manager, admin_user, program):
+    url = f"/programs/{program.id}/reports/bass-bells"
+
+    login(client, manager, RINGER_PASSWORD)
+    assert url not in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 403
+    client.post("/logout")
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    assert url in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 200
