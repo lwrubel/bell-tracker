@@ -10,21 +10,27 @@
   {%- endif -%}
 {%- endmacro %}
 
+{# Each selection, then misc notes, on its own short line for a table cell. #}
+{% macro compact_equipment(selections, misc_notes) %}
+  {% set misc = (misc_notes or "").strip() %}
+  {% for sel in selections %}
+    {# A checkbox row only exists when ticked, so its name says it all. #}
+    {% if sel.instrument_type.selection_mode == "checkbox" %}
+      <div>{{ sel.instrument_type.label_on_form() }}</div>
+    {% else %}
+      <div><strong>{{ sel.instrument_type.name }}:</strong> {{ selection_values(sel) }}</div>
+    {% endif %}
+  {% endfor %}
+  {% if misc %}
+    <div style="white-space: pre-line;"><strong>Misc:</strong> {{ misc }}</div>
+  {% endif %}
+{% endmacro %}
+
 {% macro entry_equipment(entry, compact=False) %}
   {% set selections = entry.sorted_instrument_selections() %}
   {% set misc = (entry.misc_notes or "").strip() %}
   {% if compact %}
-    {% for sel in selections %}
-      {# A checkbox row only exists when ticked, so its name says it all. #}
-      {% if sel.instrument_type.selection_mode == "checkbox" %}
-        <div>{{ sel.instrument_type.label_on_form() }}</div>
-      {% else %}
-        <div><strong>{{ sel.instrument_type.name }}:</strong> {{ selection_values(sel) }}</div>
-      {% endif %}
-    {% endfor %}
-    {% if misc %}
-      <div style="white-space: pre-line;"><strong>Misc:</strong> {{ misc }}</div>
-    {% endif %}
+    {{ compact_equipment(selections, misc) }}
   {% elif selections or misc %}
     <dl class="row mb-0">
       {% for sel in selections %}

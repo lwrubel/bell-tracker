@@ -1,7 +1,15 @@
 from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 
 from app import reports
-from app.models import CHECKED_NOTES, Case, Entry, EntryInstrument, InstrumentType, User
+from app.models import (
+    CHECKED_NOTES,
+    Case,
+    Entry,
+    EntryInstrument,
+    InstrumentType,
+    Program,
+    User,
+)
 
 
 def _sign_up(db, user, piece, instrument_type, notes):
@@ -480,3 +488,153 @@ def test_cover_sheets_route_shows_ringers_and_equipment(
     assert "<strong>Misc:</strong> Bell tree" in body
     assert "Lee Bass" not in body
     assert '<span class="sheet-label">Float</span>Bea Float, Fay Float' in body
+
+
+# --- bass bell cover sheets ------------------------------------------------
+
+
+def _bass_sheet_program(db, program, piece, bass_instrument_type, instrument_type):
+    """Three pieces where bells stay put, move between LB positions, come
+    from a treble position, and come off the floor."""
+    lb1, lb2, p5, mallets = (
+        _ringer(db, name) for name in ("Lee One", "Lou Two", "Pat Five", "Mal Lets")
+    )
+    db.session.commit()
+    second = add_piece(db, program, "Second", 2)
+    third = add_piece(db, program, "Third", 3)
+    mallet_type = InstrumentType(name="Mallets", selection_mode="color")
+    db.session.add(mallet_type)
+    db.session.commit()
+
+    entries = {
+        "first lb1": _assign(db, lb1, piece, "LB1", (bass_instrument_type, "C3,D3")),
+        "first lb2": _assign(db, lb2, piece, "LB2", (bass_instrument_type, "E3")),
+        "first p5": _assign(db, p5, piece, "P5", (instrument_type, "C4")),
+        "second lb1": _assign(
+            db,
+            lb1,
+            second,
+            "LB1",
+            (bass_instrument_type, "E3,C3,G2"),
+            (instrument_type, "C4"),
+            (mallet_type, "Yellow:2"),
+        ),
+        "second lb2": _assign(db, lb2, second, "LB2", (bass_instrument_type, "D3")),
+        "third lb1": _assign(db, lb1, third, "LB1", (bass_instrument_type, "D3")),
+    }
+    return second, third, mallet_type, entries
+
+
+def test_bass_bell_cover_sheets_traces_where_each_bell_comes_from(
+    db, program, piece, bass_instrument_type, instrument_type
+):
+    second, third, mallet_type, entries = _bass_sheet_program(
+        db, program, piece, bass_instrument_type, instrument_type
+    )
+    empty = add_piece(db, program, "No Bass", 4)
+    db.session.commit()
+
+    result = reports.bass_bell_cover_sheets(program)
+    by_piece = {pp.piece: rows for pp, rows in result}
+
+    assert [pp.piece for pp, _ in result] == [piece, second, third, empty]
+    floor = "Coming from Floor"
+    assert by_piece[piece] == [
+        (entries["first lb1"], [(floor, [(bass_instrument_type, ["C3", "D3"])])], []),
+        (entries["first lb2"], [(floor, [(bass_instrument_type, ["E3"])])], []),
+    ]
+    [lb1_row, lb2_row] = by_piece[second]
+    assert lb1_row[0] == entries["second lb1"]
+    assert lb1_row[1] == [
+        ("Already here", [(bass_instrument_type, ["C3"])]),
+        ("Coming from LB2", [(bass_instrument_type, ["E3"])]),
+        ("Coming from P5", [(instrument_type, ["C4"])]),
+        (floor, [(bass_instrument_type, ["G2"])]),
+    ]
+    assert [s.instrument_type for s in lb1_row[2]] == [mallet_type]
+    assert lb2_row[1] == [("Coming from LB1", [(bass_instrument_type, ["D3"])])]
+    # D3 was LB2's on Second, so it moves; nothing waits on the floor.
+    assert by_piece[third] == [
+        (entries["third lb1"], [("Coming from LB2", [(bass_instrument_type, ["D3"])])], [])
+    ]
+    assert by_piece[empty] == []
+
+
+def test_bass_bell_cover_sheets_leaves_unused_bells_where_they_were(
+    db, ringer, other_ringer, program, piece, bass_instrument_type
+):
+    """A bell nobody rings on a piece stays with whoever last used it, even
+    when that position is empty on the piece in between."""
+    second = add_piece(db, program, "Second", 2)
+    third = add_piece(db, program, "Third", 3)
+    db.session.commit()
+    _assign(db, ringer, piece, "LB1", (bass_instrument_type, "C3"))
+    _assign(db, other_ringer, piece, "LB2", (bass_instrument_type, "E3"))
+    _assign(db, ringer, second, "LB1", (bass_instrument_type, "D3"))
+    lb1 = _assign(db, ringer, third, "LB1", (bass_instrument_type, "C3,E3,F3"))
+
+    result = reports.bass_bell_cover_sheets(program)
+
+    assert result[2][1] == [
+        (
+            lb1,
+            [
+                ("Already here", [(bass_instrument_type, ["C3"])]),
+                ("Coming from LB2", [(bass_instrument_type, ["E3"])]),
+                ("Coming from Floor", [(bass_instrument_type, ["F3"])]),
+            ],
+            [],
+        )
+    ]
+
+
+def test_bass_bell_cover_sheets_page(
+    client, db, admin_user, program, piece, bass_instrument_type, instrument_type
+):
+    _bass_sheet_program(db, program, piece, bass_instrument_type, instrument_type)
+    add_piece(db, program, "No Bass", 4)
+    db.session.commit()
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(
+        f"/programs/{program.id}/reports/bass-bell-cover-sheets"
+    ).get_data(as_text=True)
+
+    assert "<h1>Bass Bell Cover Sheets</h1>" in body
+    for label in (
+        "Already here:",
+        "Coming from LB2:",
+        "Coming from P5:",
+        "Coming from Floor:",
+    ):
+        assert f'<span class="sheet-label">{label}</span>' in body
+    assert "<strong>Bass Bells:</strong> C3, D3" in body
+    assert "<strong>Mallets:</strong> Yellow ×2" in body
+    assert "Pat Five" not in body
+    assert "No LB positions." in body
+
+
+def test_bass_bell_cover_sheets_access(
+    client, db, ringer, other_ringer, manager, admin_user, program, piece, cycle
+):
+    url = f"/programs/{program.id}/reports/bass-bell-cover-sheets"
+    other_program = Program(cycle=cycle, name="Other Concert")
+    db.session.add(other_program)
+    db.session.commit()
+    other_piece = add_piece(db, other_program, "Elsewhere", 1)
+    db.session.commit()
+    _assign(db, ringer, piece, "LB2")
+    _assign(db, other_ringer, piece, "P3")
+    _assign(db, other_ringer, other_piece, "LB1")
+
+    for user, password, status in [
+        (ringer, RINGER_PASSWORD, 200),
+        (other_ringer, RINGER_PASSWORD, 403),
+        (manager, RINGER_PASSWORD, 200),
+        (admin_user, ADMIN_PASSWORD, 200),
+    ]:
+        login(client, user, password)
+        assert client.get(url).status_code == status, user.name
+        home = client.get("/").get_data(as_text=True)
+        assert (url in home) == (status == 200), user.name
+        client.post("/logout")

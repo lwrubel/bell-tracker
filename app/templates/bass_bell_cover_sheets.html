@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_entry_equipment.html" import compact_equipment %}
+{% block title %}Bass Bell Cover Sheets - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_cover_sheet_styles.html" %}
+{% endblock %}
+{% block content %}
+<div class="cover-sheets-header">
+  <button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
+  <h1>Bass Bell Cover Sheets</h1>
+  <p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
+</div>
+
+{% if pieces %}
+  {% for program_piece, rows in pieces %}
+    <section class="cover-sheet">
+      <header class="sheet-header">
+        <h2>{{ program_piece.piece.title }}</h2>
+        <div class="sheet-meta">
+          <div class="piece-number">No. {{ program_piece.position }}</div>
+          <div>{{ program.name }}</div>
+          {% if program.datetime %}<div>{{ program.when_label() }}</div>{% endif %}
+        </div>
+      </header>
+      {% if rows %}
+        <table class="sheet-table">
+          <thead>
+            <tr>
+              <th class="col-position">Position</th>
+              <th class="col-name">Ringer Name</th>
+              <th>Equipment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry, sources, other_selections in rows %}
+              <tr>
+                <td class="col-position">{{ position_label(entry.position) }}</td>
+                <td class="col-name">{{ entry.user.name }}</td>
+                <td>
+                  {% for label, bells in sources %}
+                    <div class="bell-source">
+                      <span class="sheet-label">{{ label }}:</span>
+                      {% for instrument_type, pitches in bells %}
+                        <div class="bell-line"><strong>{{ instrument_type.name }}:</strong> {{ pitches | join(", ") }}</div>
+                      {% endfor %}
+                    </div>
+                  {% endfor %}
+                  {% if other_selections or (entry.misc_notes or "").strip() %}
+                    <div class="other-equipment">{{ compact_equipment(other_selections, entry.misc_notes) }}</div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted">No LB positions.</p>
+      {% endif %}
+    </section>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">This program has no pieces yet.</p>
+{% endif %}
+{% endblock %}

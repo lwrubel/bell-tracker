@@ -141,13 +141,9 @@ def bass_bells(program):
     return result
 
 
-def cover_sheets(program):
-    """Return [(program_piece, entries, float_entries), ...]: every piece in
-    program order, its ringers in roster order (P1-P11, then Other), and its
-    Float ringers by first name. LB positions are left out; they get their
-    own cover sheets.
-    """
-    order = {code: i for i, code in enumerate(ROSTER_POSITION_ORDER)}
+def _program_entries_by_piece(program):
+    """{piece_id: [entry, ...]} for every entry on this program's pieces,
+    with each entry's user and selections loaded."""
     entries = (
         Entry.query.join(Piece)
         .options(
@@ -160,6 +156,17 @@ def cover_sheets(program):
     entries_by_piece = defaultdict(list)
     for entry in _program_piece_filter(entries, program).all():
         entries_by_piece[entry.piece_id].append(entry)
+    return entries_by_piece
+
+
+def cover_sheets(program):
+    """Return [(program_piece, entries, float_entries), ...]: every piece in
+    program order, its ringers in roster order (P1-P11, then Other), and its
+    Float ringers by first name. LB positions are left out; they get their
+    own cover sheets (bass_bell_cover_sheets).
+    """
+    order = {code: i for i, code in enumerate(ROSTER_POSITION_ORDER)}
+    entries_by_piece = _program_entries_by_piece(program)
 
     result = []
     for program_piece in program.program_pieces:
@@ -182,6 +189,110 @@ def cover_sheets(program):
             key=lambda e: e.user.first_name.casefold(),
         )
         result.append((program_piece, ringers, floats))
+    return result
+
+
+ALREADY_HERE = "Already here"
+FROM_FLOOR = "Coming from Floor"
+
+
+def _pitch_selections(entry):
+    """The entry's pitch-mode selections that have pitches, in form order."""
+    return [
+        s
+        for s in entry.sorted_instrument_selections()
+        if s.instrument_type.selection_mode == "pitch" and s.note_list()
+    ]
+
+
+def bass_bell_cover_sheets(program):
+    """Return [(program_piece, [(entry, sources, other_selections), ...]), ...]:
+    every piece in program order and its LB entries by position, then first
+    name.
+
+    sources says where each of the entry's pitch-mode bells is waiting when
+    the piece starts, as [(label, [(instrument_type, [pitch, ...]), ...]), ...].
+    A bell stays with the position that last used it, even through pieces
+    where nobody (or no one at that position) rings it, so it is wherever it
+    was last used earlier in the program. The label is "Already here" when
+    that is this position, "Coming from <position>" when it is another
+    position (LB or not), and "Coming from Floor" when no earlier piece used
+    it. Labels run Already here, then positions in roster order, then Floor;
+    types in display order and pitches low to high. When several positions
+    last used a bell on the same piece, this position wins, then the first
+    in roster order.
+
+    other_selections are the entry's non-pitch selections (mallets,
+    percussion, sticks), in form order.
+    """
+    order = {code: i for i, code in enumerate(ROSTER_POSITION_ORDER)}
+
+    def position_key(position):
+        return (order.get(position, len(order)), position)
+
+    entries_by_piece = _program_entries_by_piece(program)
+    result = []
+    # {(instrument_type_id, pitch): {position, ...}}: who last used each bell.
+    bell_locations = {}
+    for program_piece in program.program_pieces:
+        piece_entries = entries_by_piece[program_piece.piece_id]
+
+        rows = []
+        lb_entries = sorted(
+            (e for e in piece_entries if e.position.startswith(BASS_POSITION_PREFIX)),
+            key=lambda e: (e.position, e.user.first_name.casefold()),
+        )
+        for entry in lb_entries:
+            # {label: {instrument_type: [pitch, ...]}}
+            grouped = defaultdict(lambda: defaultdict(list))
+            for selection in _pitch_selections(entry):
+                instrument_type = selection.instrument_type
+                for p in selection.note_list():
+                    holders = bell_locations.get((instrument_type.id, p), set())
+                    if entry.position in holders:
+                        label = ALREADY_HERE
+                    elif holders:
+                        label = f"Coming from {min(holders, key=position_key)}"
+                    else:
+                        label = FROM_FLOOR
+                    grouped[label][instrument_type].append(p)
+
+            def label_key(label):
+                if label == ALREADY_HERE:
+                    return (0, ())
+                if label == FROM_FLOOR:
+                    return (2, ())
+                return (1, position_key(label.removeprefix("Coming from ")))
+
+            sources = [
+                (
+                    label,
+                    [
+                        (instrument_type, sorted(pitches, key=pitch.pitch_index))
+                        for instrument_type, pitches in sorted(
+                            grouped[label].items(),
+                            key=lambda item: (item[0].display_order, item[0].name),
+                        )
+                    ],
+                )
+                for label in sorted(grouped, key=label_key)
+            ]
+            other_selections = [
+                s
+                for s in entry.sorted_instrument_selections()
+                if s.instrument_type.selection_mode != "pitch"
+            ]
+            rows.append((entry, sources, other_selections))
+        result.append((program_piece, rows))
+
+        # Bells rung on this piece end up with whoever rang them; the rest
+        # stay put.
+        used_here = defaultdict(set)
+        for entry in piece_entries:
+            for selection in _pitch_selections(entry):
+                for p in selection.note_list():
+                    used_here[(selection.instrument_type_id, p)].add(entry.position)
+        bell_locations.update(used_here)
     return result
 
 

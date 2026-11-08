@@ -267,6 +267,12 @@ details.instrument-section[open] > summary { margin-bottom: .75rem; }
   font-size: 1.2rem;
   font-weight: 600;
 }
+.program-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .75rem;
+}
 .program-actions {
   display: flex;
   flex-wrap: wrap;
