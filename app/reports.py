@@ -209,9 +209,13 @@ def _pitch_selections(entry):
 
 
 def bass_bell_cover_sheets(program):
-    """Return [(program_piece, [(entry, sources, other_selections), ...]), ...]:
-    every piece in program order and its LB entries by position, then first
-    name.
+    """Return [(program_piece, [(entry, bells, sources, other_selections), ...]),
+    ...]: every piece in program order and its LB entries by position, then
+    first name.
+
+    bells are all of the entry's pitch-mode bells, as
+    [(instrument_type, [pitch, ...]), ...], types in display order and
+    pitches low to high.
 
     sources says where each of the entry's pitch-mode bells is waiting when
     the piece starts, as [(label, [(instrument_type, [pitch, ...]), ...]), ...].
@@ -280,12 +284,16 @@ def bass_bell_cover_sheets(program):
                 )
                 for label in sorted(grouped, key=label_key)
             ]
+            bells = [
+                (s.instrument_type, sorted(s.note_list(), key=pitch.pitch_index))
+                for s in _pitch_selections(entry)
+            ]
             other_selections = [
                 s
                 for s in entry.sorted_instrument_selections()
                 if s.instrument_type.selection_mode != "pitch"
             ]
-            rows.append((entry, sources, other_selections))
+            rows.append((entry, bells, sources, other_selections))
         result.append((program_piece, rows))
 
         # Bells rung on this piece end up with whoever rang them; the rest

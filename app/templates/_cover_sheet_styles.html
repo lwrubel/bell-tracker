@@ -103,7 +103,23 @@
 <style>
   /* Bass bell cover sheets: bells grouped under where they come from. */
   .bell-source + .bell-source { margin-top: .35rem; }
-  .bell-source .sheet-label { display: block; margin: 0; }
+  /* Larger and in normal case than other labels, so "LB1" reads clearly. */
+  .bell-source .sheet-label {
+    display: block;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+    text-transform: none;
+  }
+  @media print {
+    .bell-source .sheet-label { font-size: 12pt; }
+  }
   .bell-source .bell-line { padding-left: .9rem; }
+  /* The full list sits apart from the where-from groups below it. */
+  .bells-needed {
+    padding-bottom: .35rem;
+    border-bottom: 1px dashed var(--rule);
+  }
   .other-equipment { margin-top: .35rem; }
 </style>

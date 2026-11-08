@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% from "_entry_equipment.html" import compact_equipment %}
 {% block title %}Bass Bell Cover Sheets - {{ program.name }}{% endblock %}
+{# Bass bells are what these sheets are about, so their pitches go unlabeled;
+   anything else (chimes) keeps its name. #}
+{% macro bell_line(instrument_type, pitches) -%}
+  <div class="bell-line">{% if instrument_type.name != BASS_BELLS %}<strong>{{ instrument_type.name }}:</strong> {% endif %}{{ pitches | join(", ") }}</div>
+{%- endmacro %}
 {% block head %}
 {% include "_cover_sheet_styles.html" %}
 {% endblock %}
@@ -32,16 +37,24 @@
             </tr>
           </thead>
           <tbody>
-            {% for entry, sources, other_selections in rows %}
+            {% for entry, bells, sources, other_selections in rows %}
               <tr>
                 <td class="col-position">{{ position_label(entry.position) }}</td>
                 <td class="col-name">{{ entry.user.name }}</td>
                 <td>
-                  {% for label, bells in sources %}
+                  {% if bells %}
+                    <div class="bell-source bells-needed">
+                      <span class="sheet-label">Bells needed:</span>
+                      {% for instrument_type, pitches in bells %}
+                        {{ bell_line(instrument_type, pitches) }}
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  {% for label, source_bells in sources %}
                     <div class="bell-source">
                       <span class="sheet-label">{{ label }}:</span>
-                      {% for instrument_type, pitches in bells %}
-                        <div class="bell-line"><strong>{{ instrument_type.name }}:</strong> {{ pitches | join(", ") }}</div>
+                      {% for instrument_type, pitches in source_bells %}
+                        {{ bell_line(instrument_type, pitches) }}
                       {% endfor %}
                     </div>
                   {% endfor %}

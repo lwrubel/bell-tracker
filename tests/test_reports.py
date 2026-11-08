@@ -617,24 +617,29 @@ def test_bass_bell_cover_sheets_traces_where_each_bell_comes_from(
 
     assert [pp.piece for pp, _ in result] == [piece, second, third, empty]
     floor = "Coming from Floor"
+    lb1_first = [(bass_instrument_type, ["C3", "D3"])]
+    lb2_first = [(bass_instrument_type, ["E3"])]
     assert by_piece[piece] == [
-        (entries["first lb1"], [(floor, [(bass_instrument_type, ["C3", "D3"])])], []),
-        (entries["first lb2"], [(floor, [(bass_instrument_type, ["E3"])])], []),
+        (entries["first lb1"], lb1_first, [(floor, lb1_first)], []),
+        (entries["first lb2"], lb2_first, [(floor, lb2_first)], []),
     ]
     [lb1_row, lb2_row] = by_piece[second]
     assert lb1_row[0] == entries["second lb1"]
     assert lb1_row[1] == [
+        (bass_instrument_type, ["G2", "C3", "E3"]),
+        (instrument_type, ["C4"]),
+    ]
+    assert lb1_row[2] == [
         ("Already here", [(bass_instrument_type, ["C3"])]),
         ("Coming from LB2", [(bass_instrument_type, ["E3"])]),
         ("Coming from P5", [(instrument_type, ["C4"])]),
         (floor, [(bass_instrument_type, ["G2"])]),
     ]
-    assert [s.instrument_type for s in lb1_row[2]] == [mallet_type]
-    assert lb2_row[1] == [("Coming from LB1", [(bass_instrument_type, ["D3"])])]
+    assert [s.instrument_type for s in lb1_row[3]] == [mallet_type]
+    assert lb2_row[2] == [("Coming from LB1", [(bass_instrument_type, ["D3"])])]
     # D3 was LB2's on Second, so it moves; nothing waits on the floor.
-    assert by_piece[third] == [
-        (entries["third lb1"], [("Coming from LB2", [(bass_instrument_type, ["D3"])])], [])
-    ]
+    d3 = [(bass_instrument_type, ["D3"])]
+    assert by_piece[third] == [(entries["third lb1"], d3, [("Coming from LB2", d3)], [])]
     assert by_piece[empty] == []
 
 
@@ -656,6 +661,7 @@ def test_bass_bell_cover_sheets_leaves_unused_bells_where_they_were(
     assert result[2][1] == [
         (
             lb1,
+            [(bass_instrument_type, ["C3", "E3", "F3"])],
             [
                 ("Already here", [(bass_instrument_type, ["C3"])]),
                 ("Coming from LB2", [(bass_instrument_type, ["E3"])]),
@@ -679,6 +685,10 @@ def test_bass_bell_cover_sheets_page(
     ).get_data(as_text=True)
 
     assert "<h1>Bass Bell Cover Sheets</h1>" in body
+    assert body.index("Bells needed:") < body.index("Already here:")
+    assert '<div class="bell-line">G2, C3, E3</div>' in body
+    assert '<div class="bell-line"><strong>Chimes:</strong> C4</div>' in body
+    assert "Bass Bells:" not in body
     for label in (
         "Already here:",
         "Coming from LB2:",
@@ -686,7 +696,7 @@ def test_bass_bell_cover_sheets_page(
         "Coming from Floor:",
     ):
         assert f'<span class="sheet-label">{label}</span>' in body
-    assert "<strong>Bass Bells:</strong> C3, D3" in body
+    assert '<div class="bell-line">C3, D3</div>' in body
     assert "<strong>Mallets:</strong> Yellow ×2" in body
     assert "Pat Five" not in body
     assert "No LB positions." in body
