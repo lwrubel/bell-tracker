@@ -14,13 +14,18 @@
     <div class="list-group-item">
       <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap: .5rem 1rem;">
         <div>
-          <div class="program-name">{{ program.name }}</div>
+          <div class="program-title">
+            <span class="program-name">{{ program.name }}</span>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.program_order', program_id=program.id) }}">Program order</a>
+          </div>
           {% if program.datetime %}<div class="text-muted small">{{ program.when_label() }}</div>{% endif %}
         </div>
         <div class="program-actions">
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.my_equipment', program_id=program.id) }}">View my equipment</a>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.program_order', program_id=program.id) }}">Program order</a>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_cover_sheets', program_id=program.id) }}">Cover sheets</a>
+          {% if current_user.can_view_reports or program.id in bass_program_ids %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('routes.report_bass_bell_cover_sheets', program_id=program.id) }}">Bass bell cover sheets</a>
+          {% endif %}
         </div>
       </div>
       {% if current_user.can_view_reports %}

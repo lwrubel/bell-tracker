@@ -4,9 +4,9 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 from sqlalchemy.orm import selectinload
 
-from app import reports
+from app import db, reports
 from app.equipment import equipment_form_for, save_equipment
-from app.models import Cycle, Entry, EntryInstrument, Piece, Program
+from app.models import Cycle, Entry, EntryInstrument, Piece, Program, ProgramPiece
 from app.positions import FLOAT_POSITION
 
 bp = Blueprint("routes", __name__)
@@ -25,10 +25,34 @@ def reports_required(view):
     return wrapped
 
 
+def _bass_program_ids(user, programs):
+    """Ids of the programs, out of `programs`, where `user` rings an LB
+    position on at least one piece."""
+    program_ids = [program.id for program in programs]
+    if not program_ids:
+        return set()
+    rows = (
+        db.session.query(ProgramPiece.program_id)
+        .join(Entry, Entry.piece_id == ProgramPiece.piece_id)
+        .filter(
+            Entry.user_id == user.id,
+            Entry.position.startswith(reports.BASS_POSITION_PREFIX),
+            ProgramPiece.program_id.in_(program_ids),
+        )
+        .distinct()
+    )
+    return {program_id for (program_id,) in rows}
+
+
 @bp.route("/")
 @login_required
 def index():
-    return render_template("home.html", cycle=Cycle.get_active())
+    cycle = Cycle.get_active()
+    return render_template(
+        "home.html",
+        cycle=cycle,
+        bass_program_ids=_bass_program_ids(current_user, cycle.programs if cycle else []),
+    )
 
 
 def _my_entries_by_piece(piece_filter):
@@ -156,6 +180,23 @@ def report_cover_sheets(program_id):
         "cover_sheets.html",
         program=program,
         pieces=reports.cover_sheets(program),
+    )
+
+
+@bp.route("/programs/<int:program_id>/reports/bass-bell-cover-sheets")
+@login_required
+def report_bass_bell_cover_sheets(program_id):
+    """Admins, managers, and anyone ringing an LB position in the program."""
+    program = Program.query.get_or_404(program_id)
+    if not (
+        current_user.can_view_reports
+        or program.id in _bass_program_ids(current_user, [program])
+    ):
+        abort(403)
+    return render_template(
+        "bass_bell_cover_sheets.html",
+        program=program,
+        pieces=reports.bass_bell_cover_sheets(program),
     )
 
 
