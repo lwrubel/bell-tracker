@@ -52,5 +52,13 @@
 {% else %}
 <p class="text-muted">None.</p>
 {% endif %}
+
+{% if bell_trees %}
+<h2>Bell Trees</h2>
+{% for instrument_type, pitches in bell_trees %}
+  <h5>{{ instrument_type.name }}</h5>
+  <p>{{ pitches | join(", ") }}</p>
+{% endfor %}
+{% endif %}
 </div>
 {% endblock %}

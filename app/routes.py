@@ -52,6 +52,19 @@ def _bass_program_ids(user, programs):
     return {program_id for (program_id,) in rows}
 
 
+def admin_required(view):
+    """Admins only."""
+
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 @bp.route("/")
 @login_required
 def index():
@@ -170,7 +183,7 @@ def report_equipment_pull_list(program_id):
 
 
 @bp.route("/programs/<int:program_id>/reports/bass-bells")
-@reports_required
+@admin_required
 def report_bass_bells(program_id):
     program = Program.query.get_or_404(program_id)
     return render_template(
@@ -217,6 +230,7 @@ def report_equipment_table(program_id):
         "equipment_table.html",
         program=program,
         sections=reports.equipment_by_pitch(program),
+        bell_trees=reports.bell_trees(program),
         checkbox_counts=reports.checkbox_max_counts(program),
         used_options=reports.used_options(program),
         mallet_requirements_by_piece=reports.mallet_requirements(program),
