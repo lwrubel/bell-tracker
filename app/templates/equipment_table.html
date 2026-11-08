@@ -2,20 +2,27 @@
 {% from "_ticked_equipment.html" import ticked_equipment %}
 {% block title %}Equipment Table - {{ program.name }}{% endblock %}
 {% block content %}
+<div class="large-print">
+<button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
 <h1>Equipment Table</h1>
 <p class="text-muted">{{ program.name }}</p>
-<p class="text-muted small">Main Bells are not included.</p>
+<p class="text-muted small">Main Bells and Bass Bells are not included.</p>
 
-{% if notes_by_type %}
-  {% for instrument_type, notes in notes_by_type.items() %}
-    <h5>{{ instrument_type.name }}</h5>
-    <p>{{ notes | join(", ") }}</p>
+{% if sections %}
+  {% for label, types in sections %}
+    <h5>{{ label }}</h5>
+    {% for instrument_type, pitches in types %}
+      <div><strong>{{ instrument_type.name }}:</strong> {{ pitches | join(", ") }}</div>
+    {% endfor %}
   {% endfor %}
 {% else %}
-  <p class="text-muted">No notes have been signed up for this program yet.</p>
+  <p class="text-muted">No equipment has been signed up for this program yet.</p>
 {% endif %}
 
+{% if checkbox_counts or used_options %}
+<h2>Percussion and Singing Bell Sticks</h2>
 {{ ticked_equipment(checkbox_counts, used_options) }}
+{% endif %}
 
 <h2>Mallets Needed Per Piece</h2>
 {% set any_mallets = namespace(found=false) %}
@@ -45,4 +52,5 @@
 {% else %}
 <p class="text-muted">None.</p>
 {% endif %}
+</div>
 {% endblock %}

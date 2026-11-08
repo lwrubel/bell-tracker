@@ -22,6 +22,12 @@ def pitch_index(name: str) -> int:
     return octave * 12 + NOTE_NAMES.index(note)
 
 
+def pitch_name(index: int) -> str:
+    """Return the pitch name for an index from pitch_index, e.g. 48 -> "C4"."""
+    octave, note_offset = divmod(index, 12)
+    return f"{NOTE_NAMES[note_offset]}{octave}"
+
+
 def flat_name(name: str) -> str:
     """Return the flat spelling of a (sharp-stored) pitch name, e.g. "C#4" -> "Db4"."""
     octave = int(name[-1])
@@ -33,11 +39,7 @@ def all_pitches(low: str = LOWEST_PITCH, high: str = HIGHEST_PITCH) -> list[str]
     """Return the ordered chromatic pitch names from low to high, inclusive."""
     low_index = pitch_index(low)
     high_index = pitch_index(high)
-    pitches = []
-    for index in range(low_index, high_index + 1):
-        octave, note_offset = divmod(index, 12)
-        pitches.append(f"{NOTE_NAMES[note_offset]}{octave}")
-    return pitches
+    return [pitch_name(index) for index in range(low_index, high_index + 1)]
 
 
 def pitches_in_range(low: str, high: str) -> list[str]:

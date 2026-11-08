@@ -151,39 +151,119 @@ def test_cases_list_puts_main_bells_first_alongside_signed_up_cases(
     assert "B3 (C4-F#4)" in body
 
 
-def test_equipment_table_groups_and_sorts_pitches_per_type(
-    db, ringer, other_ringer, program, piece, instrument_type
-):
-    _sign_up(db, ringer, piece, instrument_type, "E4,C4")
-    entry2 = Entry(user_id=other_ringer.id, piece_id=piece.id, position="P2")
-    db.session.add(entry2)
-    db.session.commit()
-    db.session.add(
-        EntryInstrument(entry_id=entry2.id, instrument_type_id=instrument_type.id, notes="D4")
+def _bass_chimes(db):
+    bass_chimes = InstrumentType(
+        name="Bass Chimes", note_range_low="C2", note_range_high="B3", display_order=15
     )
+    db.session.add(bass_chimes)
     db.session.commit()
-
-    notes_by_type, _, _ = reports.equipment_table(program)
-
-    assert notes_by_type[instrument_type] == ["C4", "D4", "E4"]
+    return bass_chimes
 
 
-def test_equipment_table_leaves_out_main_bells(
+def test_equipment_by_pitch_sorts_pitches_into_sections(
+    db, program, piece, instrument_type, bass_instrument_type
+):
+    bass_chimes = _bass_chimes(db)
+    later = add_piece(db, program, "Later", 2)
+    db.session.commit()
+    users = [_ringer(db, f"Ringer {n}") for n in range(3)]
+    db.session.commit()
+    # Which position rings a pitch doesn't matter, only the pitch. Bass Bells
+    # are always set out, so Bass Equipment lists only the extras.
+    _assign(
+        db,
+        users[0],
+        piece,
+        "LB1",
+        (bass_instrument_type, "D3,E3"),
+        (bass_chimes, "A2"),
+    )
+    _assign(db, users[1], piece, "P8", (instrument_type, "D#4,E4"))
+    _assign(db, users[1], later, "P3", (instrument_type, "C4,F#4,C#7"))
+    _assign(db, users[2], later, "Float", (instrument_type, "C4"))
+
+    assert reports.equipment_by_pitch(program) == [
+        ("Bass Equipment", [(bass_chimes, ["A2"])]),
+        ("C4/D4", [(instrument_type, ["C4", "D#4"])]),
+        ("E4/F4", [(instrument_type, ["E4", "F#4"])]),
+        ("B6/C7", [(instrument_type, ["C#7"])]),
+    ]
+
+
+def test_equipment_by_pitch_leaves_out_bass_bells(
+    db, ringer, program, piece, bass_instrument_type
+):
+    _assign(db, ringer, piece, "LB1", (bass_instrument_type, "G2,C3,C4"))
+
+    assert reports.equipment_by_pitch(program) == []
+
+
+def test_equipment_by_pitch_folds_d7_and_up_an_octave_and_stops_at_c8(
+    db, ringer, program, piece
+):
+    high = InstrumentType(name="Chimes High", note_range_low="C6", note_range_high="C9")
+    db.session.add(high)
+    db.session.commit()
+    _assign(db, ringer, piece, "P11", (high, "D6,D7,E7,F#7,B7,C8,C#8,C9"))
+
+    assert reports.equipment_by_pitch(program) == [
+        ("C6/D6", [(high, ["D6", "D7"])]),
+        ("E6/F6", [(high, ["E7", "F#7"])]),
+        ("B6/C7", [(high, ["B7", "C8"])]),
+    ]
+
+
+def test_equipment_by_pitch_lists_types_in_display_order(
     db, ringer, program, piece, instrument_type
+):
+    bass_chimes = _bass_chimes(db)
+    _assign(db, ringer, piece, "LB1", (instrument_type, "B3"), (bass_chimes, "B3"))
+
+    assert reports.equipment_by_pitch(program) == [
+        ("Bass Equipment", [(bass_chimes, ["B3"]), (instrument_type, ["B3"])])
+    ]
+
+
+def test_equipment_by_pitch_leaves_out_main_bells_and_non_pitch_types(
+    db, ringer, program, piece, instrument_type, mallet_instrument_type
 ):
     main_bells = InstrumentType(
         name="Main Bells", note_range_low="C4", note_range_high="C8"
     )
-    db.session.add(main_bells)
+    sticks = InstrumentType(name="Singing Bell Sticks", selection_mode="checkbox")
+    db.session.add_all([main_bells, sticks])
     db.session.commit()
-    other = add_piece(db, program, "Main Bells piece", 9)
-    db.session.commit()
-    _sign_up(db, ringer, other, main_bells, "C5")
-    _sign_up(db, ringer, piece, instrument_type, "C4")
+    _assign(
+        db,
+        ringer,
+        piece,
+        "P1",
+        (main_bells, "C4,D4"),
+        (instrument_type, "C5"),
+        (mallet_instrument_type, "Green yarn:2"),
+        (sticks, CHECKED_NOTES),
+    )
 
-    notes_by_type, _, _ = reports.equipment_table(program)
+    assert reports.equipment_by_pitch(program) == [
+        ("B4/C5", [(instrument_type, ["C5"])])
+    ]
 
-    assert list(notes_by_type) == [instrument_type]
+
+def test_equipment_table_page_lists_pitch_sections(
+    client, db, admin_user, ringer, program, piece, instrument_type
+):
+    _assign(db, ringer, piece, "P5", (instrument_type, "E4,C4,C#4"))
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-table").get_data(
+        as_text=True
+    )
+
+    assert "By Pitch" not in body
+    assert "<h5>C4/D4</h5>" in body
+    assert "<strong>Chimes:</strong> C4, C#4" in body
+    assert "<h5>E4/F4</h5>" in body
+    assert "<h5>D5/E5</h5>" not in body
 
 
 def test_equipment_table_misc_entries_only_include_nonblank_notes(
@@ -198,9 +278,7 @@ def test_equipment_table_misc_entries_only_include_nonblank_notes(
     db.session.add_all([entry_with_misc, entry_blank])
     db.session.commit()
 
-    _, _, misc_entries = reports.equipment_table(program)
-
-    assert misc_entries == [entry_with_misc]
+    assert reports.misc_entries(program) == [entry_with_misc]
 
 
 def test_cases_list_route_requires_admin(client, ringer, program):

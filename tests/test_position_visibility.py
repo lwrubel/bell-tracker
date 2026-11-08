@@ -223,21 +223,25 @@ def test_position_prefixes_are_derived_from_the_position_codes():
     assert positions.position_prefixes() == ["P", "LB", "Float", "Other"]
 
 
-def test_reports_still_count_a_hidden_types_selections(
-    db, ringer, program, bass_piece, bass_instrument_type
-):
+def test_reports_still_count_a_hidden_types_selections(db, ringer, program, bass_piece):
     # Visibility is presentation only; the equipment table is for the admin
     # laying gear out, so a row hidden from its own ringer still counts.
+    bass_chimes = InstrumentType(
+        name="Bass Chimes",
+        note_range_low="C2",
+        note_range_high="B3",
+        position_prefix="LB",
+    )
+    db.session.add(bass_chimes)
+    bass_piece.instrument_types.append(bass_chimes)
     entry = Entry(user_id=ringer.id, piece_id=bass_piece.id, position="P1")
     db.session.add(entry)
     db.session.commit()
     db.session.add(
-        EntryInstrument(
-            entry_id=entry.id, instrument_type_id=bass_instrument_type.id, notes="C2"
-        )
+        EntryInstrument(entry_id=entry.id, instrument_type_id=bass_chimes.id, notes="C2")
     )
     db.session.commit()
 
-    notes_by_type, _, _ = reports.equipment_table(program)
-
-    assert notes_by_type[bass_instrument_type] == ["C2"]
+    assert reports.equipment_by_pitch(program) == [
+        ("Bass Equipment", [(bass_chimes, ["C2"])])
+    ]

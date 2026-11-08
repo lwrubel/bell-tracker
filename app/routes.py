@@ -204,16 +204,12 @@ def report_bass_bell_cover_sheets(program_id):
 @reports_required
 def report_equipment_table(program_id):
     program = Program.query.get_or_404(program_id)
-    notes_by_type, mallet_counts_by_type, misc_entries = reports.equipment_table(
-        program
-    )
     return render_template(
         "equipment_table.html",
         program=program,
-        notes_by_type=notes_by_type,
-        mallet_counts_by_type=mallet_counts_by_type,
+        sections=reports.equipment_by_pitch(program),
         checkbox_counts=reports.checkbox_max_counts(program),
         used_options=reports.used_options(program),
         mallet_requirements_by_piece=reports.mallet_requirements(program),
-        misc_entries=misc_entries,
+        misc_entries=reports.misc_entries(program),
     )

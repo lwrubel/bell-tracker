@@ -1,3 +1,4 @@
+from bisect import bisect_right
 from collections import defaultdict
 
 from sqlalchemy.orm import joinedload, selectinload
@@ -14,7 +15,7 @@ from app.models import (
     Piece,
     ProgramPiece,
 )
-from app.positions import FLOAT_POSITION, ROSTER_POSITION_ORDER
+from app.positions import FLOAT_POSITION, POSITION_BASE_NOTES, ROSTER_POSITION_ORDER
 
 
 def _program_piece_filter(query, program):
@@ -68,8 +69,10 @@ def cases_list(program):
     }
 
 
-# Instrument types left out of the equipment pull list, by name.
-EQUIPMENT_PULL_LIST_EXCLUDED_TYPES = {MAIN_BELLS, BASS_BELLS}
+# Instrument types left out of the equipment pull list and equipment table,
+# by name: Main Bells are always on the tables and Bass Bells always on the
+# bass tables.
+EQUIPMENT_LIST_EXCLUDED_TYPES = {MAIN_BELLS, BASS_BELLS}
 
 
 def equipment_pull_list(program):
@@ -86,7 +89,7 @@ def equipment_pull_list(program):
     for instrument_type in sorted(
         used_pitches_by_type, key=lambda t: (t.display_order, t.name)
     ):
-        if instrument_type.name in EQUIPMENT_PULL_LIST_EXCLUDED_TYPES:
+        if instrument_type.name in EQUIPMENT_LIST_EXCLUDED_TYPES:
             continue
         used_pitches = sorted(
             used_pitches_by_type[instrument_type], key=pitch.pitch_index
@@ -331,46 +334,78 @@ def used_options(program):
     return result
 
 
-def equipment_table(program):
-    """Return (notes_by_type, mallet_counts_by_type, misc_entries) for laying
-    equipment out for this program.
+# Pitches from D7 up share a section with the pitch an octave below, so E7
+# sits with E6 under E6/F6 and C8 with C7 under B6/C7.
+EQUIPMENT_TABLE_FOLD_FROM = "D7"
+# Pitches above this stay in their cases and are left off the table.
+EQUIPMENT_TABLE_HIGHEST = "C8"
 
-    notes_by_type: {instrument_type: [pitch, ...]} sorted low to high (pitch-mode
-        types other than Main Bells, which are always on the tables).
-    mallet_counts_by_type: {instrument_type: {label: total_count}} (color-mode types).
-    misc_entries: Entry rows with non-empty misc_notes, for attribution.
+
+def _equipment_table_sections():
+    """[(label, lowest pitch index), ...] low to high: one section per treble
+    position, named by its notes ("C4/D4") and running up to the next
+    position's first note, so C4/D4 holds C4, C#4, D4 and D#4. Pitches below
+    the first position go in "Bass Equipment"."""
+    trebles = [
+        ("/".join(notes), pitch.pitch_index(notes[0]))
+        for notes in POSITION_BASE_NOTES.values()
+    ]
+    trebles.sort(key=lambda section: section[1])
+    return [("Bass Equipment", -1)] + trebles
+
+
+def equipment_by_pitch(program):
+    """Return [(label, [(instrument_type, [pitch, ...]), ...]), ...]: every
+    pitch-mode instrument used anywhere in the program, sorted into the
+    equipment table's pitch sections (see _equipment_table_sections), no
+    matter which position rings it. Pitches from D7 to C8 go in the section
+    of the pitch an octave below; higher ones are left out. Main Bells and
+    Bass Bells (always set out) and non-pitch types are left out, as are
+    empty sections, so Bass Equipment lists only extras like bass chimes. Types in display order, pitches low to high.
     """
-    notes_by_type = defaultdict(set)
-    mallet_counts_by_type = defaultdict(lambda: defaultdict(int))
+    sections = _equipment_table_sections()
+    lows = [low for _, low in sections]
+    fold_from = pitch.pitch_index(EQUIPMENT_TABLE_FOLD_FROM)
+    highest = pitch.pitch_index(EQUIPMENT_TABLE_HIGHEST)
+    grouped = defaultdict(lambda: defaultdict(set))
     for entry_instrument in _entry_instruments_for_program(program):
         instrument_type = entry_instrument.instrument_type
-        if instrument_type.selection_mode == "color":
-            for label, count in entry_instrument.color_counts():
-                mallet_counts_by_type[instrument_type][label] += count
-        elif (
-            instrument_type.selection_mode == "pitch"
-            and instrument_type.name != MAIN_BELLS
+        if (
+            instrument_type.selection_mode != "pitch"
+            or instrument_type.name in EQUIPMENT_LIST_EXCLUDED_TYPES
         ):
-            notes_by_type[instrument_type].update(entry_instrument.note_list())
+            continue
+        for p in entry_instrument.note_list():
+            index = pitch.pitch_index(p)
+            if index > highest:
+                continue
+            if index >= fold_from:
+                index -= 12
+            section = bisect_right(lows, index) - 1
+            grouped[section][instrument_type].add(p)
 
-    sorted_notes_by_type = {
-        instrument_type: sorted(notes, key=pitch.pitch_index)
-        for instrument_type, notes in notes_by_type.items()
-        if notes
-    }
-    mallet_counts_by_type = {
-        instrument_type: dict(counts)
-        for instrument_type, counts in mallet_counts_by_type.items()
-        if counts
-    }
+    return [
+        (
+            sections[i][0],
+            [
+                (instrument_type, sorted(notes, key=pitch.pitch_index))
+                for instrument_type, notes in sorted(
+                    grouped[i].items(),
+                    key=lambda item: (item[0].display_order, item[0].name),
+                )
+            ],
+        )
+        for i in sorted(grouped)
+    ]
 
-    misc_entries = [
+
+def misc_entries(program):
+    """Entries in this program with non-blank misc notes, for attribution."""
+    return [
         entry
         for entry in _program_piece_filter(Entry.query.join(Piece), program)
         if entry.misc_notes and entry.misc_notes.strip()
     ]
-
-    return sorted_notes_by_type, mallet_counts_by_type, misc_entries
 
 
 def mallet_requirements(program):
