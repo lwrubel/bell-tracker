@@ -24,21 +24,15 @@
 {{ ticked_equipment(checkbox_counts, used_options) }}
 {% endif %}
 
-<h2>Mallets Needed Per Piece</h2>
-{% set any_mallets = namespace(found=false) %}
-{% for piece in program.pieces %}
-  {% set mallet_needs = mallet_requirements_by_piece.get(piece.id) %}
-  {% if mallet_needs %}
-    {% set any_mallets.found = true %}
-    <h5>{{ piece.title }}</h5>
-    <ul>
-      {% for label, count in mallet_needs.items() %}
-        <li>{{ label }}: {{ count }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-{% endfor %}
-{% if not any_mallets.found %}
+<h2>Mallets</h2>
+{% if mallet_counts %}
+  <p class="text-muted small">The most of each needed on any one piece.</p>
+  <ul>
+    {% for label, count in mallet_counts %}
+      <li>{{ label }}: {{ count }}</li>
+    {% endfor %}
+  </ul>
+{% else %}
   <p class="text-muted">No mallets have been signed up for this program yet.</p>
 {% endif %}
 

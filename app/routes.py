@@ -233,6 +233,6 @@ def report_equipment_table(program_id):
         bell_trees=reports.bell_trees(program),
         checkbox_counts=reports.checkbox_max_counts(program),
         used_options=reports.used_options(program),
-        mallet_requirements_by_piece=reports.mallet_requirements(program),
+        mallet_counts=reports.mallet_max_counts(program),
         misc_entries=reports.misc_entries(program),
     )
