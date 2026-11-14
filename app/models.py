@@ -457,14 +457,27 @@ class Entry(db.Model):
         even with nothing selected."""
         return (
             self.equipment_saved_at is not None
-            or bool(self.instrument_selections)
+            or bool(self.current_instrument_selections())
             or bool(self.misc_notes and self.misc_notes.strip())
         )
 
+    def current_instrument_selections(self):
+        """Selections for instrument types still on the piece.
+
+        Removing a type from a piece leaves the ringer's stored selection in
+        place, so it comes back if the type is added again; until then it
+        doesn't count anywhere.
+        """
+        piece_type_ids = {t.id for t in self.piece.instrument_types}
+        return [
+            s for s in self.instrument_selections
+            if s.instrument_type_id in piece_type_ids
+        ]
+
     def sorted_instrument_selections(self):
-        """Selections in the same order as the equipment form."""
+        """Current selections in the same order as the equipment form."""
         return sorted(
-            self.instrument_selections,
+            self.current_instrument_selections(),
             key=lambda s: (s.instrument_type.display_order, s.instrument_type.name),
         )
 

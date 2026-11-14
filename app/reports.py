@@ -1,6 +1,7 @@
 from bisect import bisect_right
 from collections import defaultdict
 
+from sqlalchemy import and_
 from sqlalchemy.orm import joinedload, selectinload
 
 from app import color, pitch
@@ -14,6 +15,7 @@ from app.models import (
     InstrumentType,
     Piece,
     ProgramPiece,
+    piece_instrument_types,
 )
 from app.positions import FLOAT_POSITION, POSITION_BASE_NOTES, ROSTER_POSITION_ORDER
 
@@ -25,7 +27,20 @@ def _program_piece_filter(query, program):
 
 
 def _entry_instruments_for_program(program):
-    query = EntryInstrument.query.join(Entry).join(Piece)
+    """Selections on this program's pieces, leaving out any instrument type
+    since removed from its piece (see Entry.current_instrument_selections)."""
+    query = (
+        EntryInstrument.query.join(Entry)
+        .join(Piece)
+        .join(
+            piece_instrument_types,
+            and_(
+                piece_instrument_types.c.piece_id == Piece.id,
+                piece_instrument_types.c.instrument_type_id
+                == EntryInstrument.instrument_type_id,
+            ),
+        )
+    )
     return _program_piece_filter(query, program).all()
 
 
