@@ -255,6 +255,10 @@ class InstrumentType(db.Model):
     position_prefix = db.Column(db.String(10), nullable=True)
     # Attach this type to every newly created piece.
     enabled_by_default = db.Column(db.Boolean, nullable=False, default=False)
+    # Set up as one instrument with all its pitches together (bell trees):
+    # the Equipment Tables list its pitches in their own section rather
+    # than sorting each into a position's range.
+    keyboard_type = db.Column(db.Boolean, nullable=False, default=False)
     # Where this type sits on a ringer's equipment form, low to high. The
     # bells are numbered in tens so an admin can slot something between two
     # of them; anything left at the default sorts to the end, which is
