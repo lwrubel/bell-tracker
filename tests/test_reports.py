@@ -278,10 +278,18 @@ def test_bell_trees_are_listed_apart_from_the_pitch_sections(
     db, ringer, other_ringer, program, piece, instrument_type
 ):
     smb_tree = InstrumentType(
-        name="SMB Bell Tree", note_range_low="C5", note_range_high="C#7", display_order=75
+        name="SMB Bell Tree",
+        note_range_low="C5",
+        note_range_high="C#7",
+        display_order=75,
+        keyboard_type=True,
     )
     tree = InstrumentType(
-        name="Bell Tree", note_range_low="C5", note_range_high="C8", display_order=85
+        name="Bell Tree",
+        note_range_low="C5",
+        note_range_high="C8",
+        display_order=85,
+        keyboard_type=True,
     )
     db.session.add_all([smb_tree, tree])
     db.session.commit()
@@ -303,7 +311,9 @@ def test_bell_trees_are_listed_apart_from_the_pitch_sections(
 def test_equipment_table_page_lists_bell_trees_last(
     client, db, admin_user, ringer, program, piece
 ):
-    tree = InstrumentType(name="Bell Tree", note_range_low="C5", note_range_high="C8")
+    tree = InstrumentType(
+        name="Bell Tree", note_range_low="C5", note_range_high="C8", keyboard_type=True
+    )
     db.session.add(tree)
     db.session.commit()
     _assign(db, ringer, piece, "P5", (tree, "E5,C5"))
@@ -795,3 +805,33 @@ def test_reports_leave_out_instruments_removed_from_the_piece(
     assert reports.cases_list(program) == {}
     [(program_piece, [entry], [])] = reports.cover_sheets(program)
     assert entry.sorted_instrument_selections() == []
+
+
+def test_admin_ticks_keyboard_type_to_list_a_new_tree_on_its_own(
+    client, db, admin_user, ringer, program, piece, instrument_type
+):
+    login(client, admin_user, ADMIN_PASSWORD)
+    form = client.get("/admin/instrumenttype/new/").get_data(as_text=True)
+    assert "Keyboard type" in form
+    client.post(
+        "/admin/instrumenttype/new/",
+        data={
+            "display_order": 80,
+            "name": "SMB Bell Tree (Brian's bells)",
+            "form_label": "",
+            "selection_mode": "pitch",
+            "note_range_low": "C5",
+            "note_range_high": "C7",
+            "position_prefix": "",
+            "keyboard_type": "y",
+        },
+    )
+    brians = InstrumentType.query.filter_by(name="SMB Bell Tree (Brian's bells)").one()
+    assert brians.keyboard_type is True
+
+    _assign(db, ringer, piece, "P5", (brians, "G5,C5"), (instrument_type, "C5"))
+
+    assert reports.equipment_by_pitch(program) == [
+        ("B4/C5", [(instrument_type, ["C5"])])
+    ]
+    assert reports.bell_trees(program) == [(brians, ["C5", "G5"])]

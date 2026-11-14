@@ -157,6 +157,7 @@ class InstrumentTypeAdminView(SecureModelView):
         "note_range_high",
         "position_prefix",
         "enabled_by_default",
+        "keyboard_type",
     )
     form_columns = (
         "display_order",
@@ -167,7 +168,9 @@ class InstrumentTypeAdminView(SecureModelView):
         "note_range_high",
         "position_prefix",
         "enabled_by_default",
+        "keyboard_type",
     )
+    column_labels = {"keyboard_type": "Keyboard type"}
     form_overrides = {
         "selection_mode": SelectField,
         "note_range_low": SelectField,
@@ -184,6 +187,14 @@ class InstrumentTypeAdminView(SecureModelView):
                 "What ringers see on their equipment form. Leave blank to use "
                 "the name."
             )
+        },
+        "keyboard_type": {
+            "label": "Keyboard type",
+            "description": (
+                "Set up as one instrument with all its pitches together, like "
+                "a bell tree. The Equipment Tables list its pitches in their "
+                "own section instead of under each position's range."
+            ),
         },
     }
     # What ringers can pick on an options-mode type (Percussion). See

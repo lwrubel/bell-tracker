@@ -366,9 +366,6 @@ EQUIPMENT_TABLE_HIGHEST = "C8"
 
 # Bell trees are set up on their own, so the equipment table lists them in a
 # section of their own instead of under the pitch sections.
-BELL_TREE_TYPES = {"Bell Tree", "SMB Bell Tree"}
-
-
 def _equipment_table_sections():
     """[(label, lowest pitch index), ...] low to high: one section per treble
     position, named by its notes ("C4/D4") and running up to the next
@@ -402,7 +399,7 @@ def equipment_by_pitch(program):
         if (
             instrument_type.selection_mode != "pitch"
             or instrument_type.name in EQUIPMENT_LIST_EXCLUDED_TYPES
-            or instrument_type.name in BELL_TREE_TYPES
+            or instrument_type.keyboard_type
         ):
             continue
         for p in entry_instrument.note_list():
@@ -431,12 +428,12 @@ def equipment_by_pitch(program):
 
 def bell_trees(program):
     """Return [(instrument_type, [pitch, ...]), ...]: every pitch used on
-    each bell tree type anywhere in the program. Types in display order,
+    each keyboard type (bell trees) anywhere in the program. Types in display order,
     pitches low to high; a tree nobody signed up for is left out."""
     pitches = defaultdict(set)
     for entry_instrument in _entry_instruments_for_program(program):
         instrument_type = entry_instrument.instrument_type
-        if instrument_type.name in BELL_TREE_TYPES:
+        if instrument_type.keyboard_type and instrument_type.selection_mode == "pitch":
             pitches[instrument_type].update(entry_instrument.note_list())
     return [
         (instrument_type, sorted(notes, key=pitch.pitch_index))
