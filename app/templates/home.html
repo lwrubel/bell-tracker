@@ -29,17 +29,15 @@
           {% endif %}
         </span>
       </div>
-      {% if current_user.can_view_reports %}
-        <div class="program-reports">
-          <span class="reports-label">Reports:</span>
-          <a href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment table</a>
-          <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
-          {% if current_user.is_admin %}
-            <a href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bell assignments</a>
-          {% endif %}
+      <div class="program-reports">
+        <span class="reports-label">Reports:</span>
+        <a href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment tables</a>
+        <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
+        {% if current_user.can_view_reports %}
+          <a href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bell assignments</a>
           <a href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases used list</a>
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </div>
   {% endfor %}
 </div>

@@ -337,10 +337,10 @@ def test_cases_list_route_accessible_to_admin(client, admin_user, program):
     assert response.status_code == 200
 
 
-def test_equipment_table_route_requires_admin(client, ringer, program):
+def test_equipment_table_route_open_to_ringers(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
     response = client.get(f"/programs/{program.id}/reports/equipment-table")
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 def test_reports_redirect_anonymous_to_login(client, program):
@@ -432,10 +432,10 @@ def test_equipment_pull_list_only_counts_this_programs_pieces(
     assert reports.equipment_pull_list(other_program) == {}
 
 
-def test_equipment_pull_list_route_is_admin_only(client, ringer, program):
+def test_equipment_pull_list_route_open_to_ringers(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
     url = f"/programs/{program.id}/reports/equipment-pull-list"
-    assert client.get(url).status_code == 403
+    assert client.get(url).status_code == 200
 
 
 def test_equipment_pull_list_page(client, db, admin_user, program, piece, instrument_type):
@@ -501,7 +501,7 @@ def test_bass_bells_lists_each_pieces_lb_positions_and_their_bells(
     ]
 
 
-def test_bass_bells_route_is_admin_only(client, ringer, program):
+def test_bass_bells_route_is_closed_to_ringers(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
     url = f"/programs/{program.id}/reports/bass-bells"
     assert client.get(url).status_code == 403

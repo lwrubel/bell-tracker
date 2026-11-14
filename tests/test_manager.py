@@ -6,6 +6,8 @@ REPORTS = [
     "equipment-pull-list",
     "cases-list",
 ]
+# Reports any logged-in ringer can open from the home page.
+RINGER_REPORTS = ["equipment-table", "equipment-pull-list"]
 
 
 @pytest.mark.parametrize("report", REPORTS)
@@ -15,11 +17,26 @@ def test_manager_can_open_every_report(client, manager, program, piece, report):
     assert response.status_code == 200
 
 
-@pytest.mark.parametrize("report", REPORTS)
-def test_ringer_cannot_open_reports(client, ringer, program, report):
+def test_ringer_cannot_open_cases_list(client, ringer, program):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(f"/programs/{program.id}/reports/{report}")
+    response = client.get(f"/programs/{program.id}/reports/cases-list")
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize("report", RINGER_REPORTS)
+def test_ringer_can_open_equipment_reports_from_home(client, ringer, program, report):
+    login(client, ringer, RINGER_PASSWORD)
+    url = f"/programs/{program.id}/reports/{report}"
+
+    assert url in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 200
+
+
+def test_ringer_does_not_see_manager_report_links(client, ringer, program):
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get("/").get_data(as_text=True)
+    assert f"/programs/{program.id}/reports/cases-list" not in body
+    assert f"/programs/{program.id}/reports/bass-bells" not in body
 
 
 def test_ringer_can_open_cover_sheets_from_home(client, ringer, program):
@@ -67,12 +84,14 @@ def test_admin_can_make_a_user_a_manager(client, db, admin_user, ringer):
     assert ringer.is_admin is False
 
 
-def test_bass_bells_report_is_admin_only(client, manager, admin_user, program):
+def test_bass_bells_report_open_to_managers_and_admins(
+    client, manager, admin_user, program
+):
     url = f"/programs/{program.id}/reports/bass-bells"
 
     login(client, manager, RINGER_PASSWORD)
-    assert url not in client.get("/").get_data(as_text=True)
-    assert client.get(url).status_code == 403
+    assert url in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 200
     client.post("/logout")
 
     login(client, admin_user, ADMIN_PASSWORD)
