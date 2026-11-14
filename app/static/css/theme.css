@@ -267,23 +267,39 @@ details.instrument-section[open] > summary { margin-bottom: .75rem; }
   font-size: 1.2rem;
   font-weight: 600;
 }
-.program-title {
+.program-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: .25rem .75rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .5rem 1rem;
 }
-.program-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
-}
+.program-links,
 .program-reports {
   display: flex;
   flex-wrap: wrap;
-  gap: .25rem 1rem;
+  align-items: baseline;
+  gap: .25rem 1.25rem;
   margin-top: .5rem;
   font-size: .9rem;
+}
+.program-links .link-group,
+.program-reports .link-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+}
+.program-links .links-label { color: var(--muted); }
+.program-reports {
+  padding-top: .5rem;
+  border-top: 1px dashed var(--rule);
+}
+/* On a phone the one button the ringer needs spans the card. */
+@media (max-width: 575.98px) {
+  .program-list .list-group-item { padding: .9rem 1rem; }
+  .program-head { flex-direction: column; align-items: stretch; }
+  .program-primary { display: block; width: 100%; padding: .45rem .75rem; font-size: .95rem; }
+  .program-links { margin-top: .65rem; }
 }
 .program-reports .reports-label { color: var(--muted); }
 
