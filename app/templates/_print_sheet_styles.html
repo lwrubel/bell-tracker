@@ -1,0 +1,84 @@
+{# Shared print/mobile layout for the Equipment Table and the Pull List. #}
+<style>
+  /* Equipment Table and Pull List: always printed on US Letter and read
+     off the equipment table, so the type is large and the page is filled
+     edge to edge in two columns. Phones get one column. */
+  @page { size: letter; margin: 0.5in; }
+
+  .print-sheet h1 { margin: 0; }
+  .print-sheet .sheet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    border-bottom: 2px solid var(--oxford);
+    padding-bottom: .35rem;
+  }
+  .print-sheet .sheet-titles {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: .1rem 1rem;
+  }
+  .print-sheet .sheet-program {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--bronze);
+  }
+  .print-sheet .sheet-note { color: var(--muted); font-size: .85em; margin: .3rem 0 0; }
+
+  .print-sheet h2 {
+    font-size: 1.25em;
+    margin: 1.1rem 0 .4rem;
+    padding-bottom: .15rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .print-sheet h5 { font-size: 1.05em; margin: .55rem 0 .1rem; }
+  .print-sheet p, .print-sheet ul { margin-bottom: 0; }
+  .print-sheet ul { padding-left: 1.2em; }
+
+  .print-sheet .sheet-columns { margin-top: .4rem; }
+  .print-sheet .sheet-columns > h5 { break-after: avoid; }
+  .print-sheet .sheet-block { break-inside: avoid; }
+  /* Wrapped pitch lists indent under their label instead of returning
+     to the margin. */
+  .print-sheet .sheet-block > div { padding-left: 1.25em; text-indent: -1.25em; }
+  .print-sheet .two-up > section { break-inside: avoid; }
+
+  /* Phones: a title that fits on one line, and tighter section spacing. */
+  @media (max-width: 575.98px) {
+    .print-sheet h1 { font-size: 1.75rem; }
+    .print-sheet .sheet-program { font-size: 1.15rem; }
+    .print-sheet h2 { font-size: 1.2em; margin-top: 1rem; }
+  }
+
+  @media (min-width: 768px) {
+    .print-sheet .sheet-columns { column-count: 2; column-gap: 2.5rem; }
+    .print-sheet .two-up {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 2.5rem;
+    }
+  }
+
+  @media print {
+    /* Bootstrap forces a 992px-wide page when printing, which the browser
+       then shrinks to fit the paper. Let the sheet be the paper's width. */
+    body, .container { min-width: 0 !important; max-width: none !important; }
+    main.page { padding: 0; }
+
+    .print-sheet { font-size: 17pt; line-height: 1.3; }
+    .print-sheet h1 { font-size: 28pt; }
+    .print-sheet .sheet-program { font-size: 20pt; }
+    .print-sheet .sheet-columns { column-count: 2; column-gap: .45in; }
+    .print-sheet .two-up {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: .45in;
+    }
+    .print-sheet h2 { break-after: avoid; }
+  }
+</style>

@@ -1,32 +1,47 @@
 {% extends "base.html" %}
 {% from "_ticked_equipment.html" import ticked_equipment %}
 {% block title %}Equipment Table - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_print_sheet_styles.html" %}
+{% endblock %}
 {% block content %}
-<div class="large-print">
-<button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
-<h1>Equipment Table</h1>
-<p class="text-muted">{{ program.name }}</p>
-<p class="text-muted small">Main Bells and Bass Bells are not included.</p>
+<div class="print-sheet">
+<header class="sheet-head">
+  <div class="sheet-titles">
+    <h1>Equipment Table</h1>
+    <div class="sheet-program">{{ program.name }}</div>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">Print</button>
+</header>
+<p class="sheet-note">Main Bells and Bass Bells are not included.</p>
 
 {% if sections %}
+<div class="sheet-columns">
   {% for label, types in sections %}
+  <div class="sheet-block">
     <h5>{{ label }}</h5>
     {% for instrument_type, pitches in types %}
       <div><strong>{{ instrument_type.name }}:</strong> {{ pitches | join(", ") }}</div>
     {% endfor %}
+  </div>
   {% endfor %}
+</div>
 {% else %}
   <p class="text-muted">No equipment has been signed up for this program yet.</p>
 {% endif %}
 
+<div class="two-up">
 {% if checkbox_counts or used_options %}
+<section>
 <h2>Percussion and Singing Bell Sticks</h2>
 {{ ticked_equipment(checkbox_counts, used_options) }}
+</section>
 {% endif %}
 
+<section>
 <h2>Mallets</h2>
 {% if mallet_counts %}
-  <p class="text-muted small">The most of each needed on any one piece.</p>
+  <p class="sheet-note">The most of each needed on any one piece.</p>
   <ul>
     {% for label, count in mallet_counts %}
       <li>{{ label }}: {{ count }}</li>
@@ -35,8 +50,10 @@
 {% else %}
   <p class="text-muted">No mallets have been signed up for this program yet.</p>
 {% endif %}
+</section>
+</div>
 
-<h5>Miscellaneous / Other Equipment</h5>
+<h2>Miscellaneous / Other Equipment</h2>
 {% if misc_entries %}
 <ul>
   {% for entry in misc_entries %}
@@ -49,10 +66,14 @@
 
 {% if bell_trees %}
 <h2>Bell Trees</h2>
+<div class="sheet-columns">
 {% for instrument_type, pitches in bell_trees %}
+<div class="sheet-block">
   <h5>{{ instrument_type.name }}</h5>
   <p>{{ pitches | join(", ") }}</p>
+</div>
 {% endfor %}
+</div>
 {% endif %}
 </div>
 {% endblock %}

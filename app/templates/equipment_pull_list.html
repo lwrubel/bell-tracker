@@ -1,26 +1,43 @@
 {% extends "base.html" %}
 {% from "_ticked_equipment.html" import ticked_equipment %}
 {% block title %}Equipment Pull List - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_print_sheet_styles.html" %}
+{% endblock %}
 {% block content %}
-<div class="large-print">
-<button type="button" class="btn btn-outline-secondary btn-sm float-right d-print-none" onclick="window.print()">Print</button>
-<h1>Equipment Pull List</h1>
-<p class="text-muted">{{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}</p>
-<p class="text-muted small">Main Bells and Bass Bells are not included.</p>
+<div class="print-sheet">
+<header class="sheet-head">
+  <div class="sheet-titles">
+    <h1>Equipment Pull List</h1>
+    <div class="sheet-program">{{ program.name }}</div>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">Print</button>
+</header>
+<p class="sheet-note">{% if program.datetime %}{{ program.when_label() }} &middot; {% endif %}Main Bells and Bass Bells are not included.</p>
 
 {% if bells_by_type or checkbox_counts or used_options %}
-  {% for instrument_type, (cases, uncovered) in bells_by_type.items() %}
-    <h5>{{ instrument_type.name }}</h5>
-    <ul>
+  {% if bells_by_type %}
+  <div class="sheet-columns">
+    {% for instrument_type, (cases, uncovered) in bells_by_type.items() %}
+    <div class="sheet-block">
+      <h5>{{ instrument_type.name }}</h5>
       {% for case, bells in cases %}
-        <li><strong>{{ case.case_number }}</strong>: {{ bells | join(", ") }}</li>
+        <div><strong>{{ case.case_number }}:</strong> {{ bells | join(", ") }}</div>
       {% endfor %}
       {% if uncovered %}
-        <li class="text-danger">Not in any case: {{ uncovered | join(", ") }}</li>
+        <div class="text-danger"><strong>Not in any case:</strong> {{ uncovered | join(", ") }}</div>
       {% endif %}
-    </ul>
-  {% endfor %}
-  {{ ticked_equipment(checkbox_counts, used_options) }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if checkbox_counts or used_options %}
+  <h2>Percussion and Singing Bell Sticks</h2>
+  <div class="sheet-columns">
+    {{ ticked_equipment(checkbox_counts, used_options) }}
+  </div>
+  {% endif %}
 {% else %}
   <p class="text-muted">No equipment has been signed up for this program yet.</p>
 {% endif %}
