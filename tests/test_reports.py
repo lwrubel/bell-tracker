@@ -448,8 +448,8 @@ def test_equipment_pull_list_page(client, db, admin_user, program, piece, instru
     )
 
     assert "Equipment Pull List" in body
-    assert "<strong>C1</strong>: C4, D4" in body
-    assert "Not in any case: A6" in body
+    assert "<strong>C1:</strong> C4, D4" in body
+    assert "<strong>Not in any case:</strong> A6" in body
     home = client.get("/").get_data(as_text=True)
     assert f"/programs/{program.id}/reports/equipment-pull-list" in home
 

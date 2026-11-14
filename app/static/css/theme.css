@@ -320,12 +320,4 @@ details.instrument-section[open] > summary { margin-bottom: .75rem; }
   body { background: #fff; }
   .site-header { display: none !important; }
   .card, .table { border-color: #999; }
-
-  /* Reports read off a printout on the equipment table: bigger type. */
-  .large-print { font-size: 15pt; line-height: 1.45; }
-  .large-print h1 { font-size: 26pt; }
-  .large-print h2 { font-size: 21pt; }
-  .large-print h5 { font-size: 18pt; margin-top: 1.1rem; }
-  .large-print .small { font-size: 12pt; }
-  .large-print li + li { margin-top: .2rem; }
 }
