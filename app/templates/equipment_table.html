@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_ticked_equipment.html" import ticked_equipment %}
-{% block title %}Equipment Table - {{ program.name }}{% endblock %}
+{% block title %}Equipment Tables - {{ program.name }}{% endblock %}
 {% block head %}
 {% include "_print_sheet_styles.html" %}
 {% endblock %}
@@ -8,7 +8,7 @@
 <div class="print-sheet">
 <header class="sheet-head">
   <div class="sheet-titles">
-    <h1>Equipment Table</h1>
+    <h1>Equipment Tables</h1>
     <div class="sheet-program">{{ program.name }}</div>
   </div>
   <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">Print</button>
