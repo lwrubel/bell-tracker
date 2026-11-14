@@ -12,7 +12,15 @@ from app.models import (
 )
 
 
+def _on_piece(piece, instrument_type):
+    """Put `instrument_type` on `piece`, as a ringer can only sign up for
+    the piece's own instruments."""
+    if instrument_type not in piece.instrument_types:
+        piece.instrument_types.append(instrument_type)
+
+
 def _sign_up(db, user, piece, instrument_type, notes):
+    _on_piece(piece, instrument_type)
     entry = Entry(user_id=user.id, piece_id=piece.id, position="P1")
     db.session.add(entry)
     db.session.commit()
@@ -462,6 +470,7 @@ def _assign(db, user, piece, position, *selections):
     db.session.add(entry)
     db.session.commit()
     for instrument_type, notes in selections:
+        _on_piece(piece, instrument_type)
         db.session.add(
             EntryInstrument(
                 entry_id=entry.id, instrument_type_id=instrument_type.id, notes=notes
@@ -587,6 +596,7 @@ def test_cover_sheets_route_shows_ringers_and_equipment(
         selection_mode="checkbox",
     )
     db.session.add(stick_type)
+    piece.instrument_types.append(stick_type)
     ann = entries["Ann Two"]
     ann.misc_notes = "Bell tree"
     db.session.add_all(
@@ -770,3 +780,18 @@ def test_bass_bell_cover_sheets_access(
         home = client.get("/").get_data(as_text=True)
         assert (url in home) == (status == 200), user.name
         client.post("/logout")
+
+
+def test_reports_leave_out_instruments_removed_from_the_piece(
+    client, db, admin_user, ringer, program, piece, instrument_type
+):
+    _case(db, instrument_type, "C1", "C4", "C6")
+    _sign_up(db, ringer, piece, instrument_type, "C4,D4")
+    piece.instrument_types.remove(instrument_type)
+    db.session.commit()
+
+    assert reports.equipment_by_pitch(program) == []
+    assert reports.equipment_pull_list(program) == {}
+    assert reports.cases_list(program) == {}
+    [(program_piece, [entry], [])] = reports.cover_sheets(program)
+    assert entry.sorted_instrument_selections() == []

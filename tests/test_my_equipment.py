@@ -35,6 +35,7 @@ def test_404s_for_unknown_program(client, ringer):
 def test_lists_position_and_equipment_per_piece(
     client, db, ringer, program, piece, instrument_type, mallet_instrument_type
 ):
+    piece.instrument_types.append(mallet_instrument_type)
     entry = Entry(
         user_id=ringer.id, piece_id=piece.id, position="P3", misc_notes="Bell tree"
     )
@@ -98,3 +99,38 @@ def test_only_shows_own_pieces(client, db, ringer, other_ringer, program, piece)
     assert "Ode to Joy" in body
     assert "Carol of the Bells" not in body
     assert "Someone else" not in body
+
+
+def test_instrument_removed_from_piece_drops_off_equipment(
+    client, db, ringer, program, piece, instrument_type, mallet_instrument_type
+):
+    piece.instrument_types.append(mallet_instrument_type)
+    entry = Entry(user_id=ringer.id, piece_id=piece.id, position="P3")
+    db.session.add(entry)
+    db.session.add_all(
+        [
+            EntryInstrument(
+                entry=entry, instrument_type_id=instrument_type.id, notes="C4,D#4"
+            ),
+            EntryInstrument(
+                entry=entry,
+                instrument_type_id=mallet_instrument_type.id,
+                notes="Red yarn:2",
+            ),
+        ]
+    )
+    db.session.commit()
+
+    piece.instrument_types.remove(mallet_instrument_type)
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(_url(program)).get_data(as_text=True)
+    assert "C4, D#4" in body
+    assert "Red yarn" not in body
+
+    # Kept, not deleted: putting the instrument back brings the picks back.
+    piece.instrument_types.append(mallet_instrument_type)
+    db.session.commit()
+    body = client.get(_url(program)).get_data(as_text=True)
+    assert "Red yarn ×2" in body
