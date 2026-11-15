@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Starting Placement - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_print_sheet_styles.html" %}
+{% endblock %}
+{% block content %}
+<div class="print-sheet">
+<header class="sheet-head">
+  <div class="sheet-titles">
+    <h1>Starting Placement</h1>
+    <div class="sheet-program">{{ program.name }}</div>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">Print</button>
+</header>
+<p class="sheet-note">{% if program.datetime %}{{ program.when_label() }} &middot; {% endif %}Each item is set out at the position that first uses it. Main Bells, Bass Bells and Bass Chimes are not included.</p>
+
+{% if positions %}
+<div class="sheet-columns">
+  {% for label, types in positions %}
+  <div class="sheet-block">
+    <h5>{{ label }}</h5>
+    {% for instrument_type, items in types %}
+      {% if instrument_type.selection_mode == "checkbox" %}
+        <div><strong>{{ instrument_type.label_on_form() }}</strong></div>
+      {% else %}
+        <div><strong>{{ instrument_type.name }}:</strong> {{ items | join(", ") }}</div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="text-muted">No equipment has been signed up for this program yet.</p>
+{% endif %}
+</div>
+{% endblock %}

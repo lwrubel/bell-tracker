@@ -209,6 +209,20 @@ def report_bass_bell_cover_sheets(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/reports/starting-placement")
+@login_required
+def report_starting_placement(program_id):
+    """Only for programs set to have it."""
+    program = Program.query.get_or_404(program_id)
+    if not program.starting_placement:
+        abort(404)
+    return render_template(
+        "starting_placement.html",
+        program=program,
+        positions=reports.starting_placement(program),
+    )
+
+
 @bp.route("/programs/<int:program_id>/reports/equipment-table")
 @login_required
 def report_equipment_table(program_id):

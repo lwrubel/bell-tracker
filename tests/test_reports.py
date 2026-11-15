@@ -6,6 +6,7 @@ from app.models import (
     Case,
     Entry,
     EntryInstrument,
+    InstrumentOption,
     InstrumentType,
     Program,
     User,
@@ -835,3 +836,198 @@ def test_admin_ticks_keyboard_type_to_list_a_new_tree_on_its_own(
         ("B4/C5", [(instrument_type, ["C5"])])
     ]
     assert reports.bell_trees(program) == [(brians, ["C5", "G5"])]
+
+
+# --- starting placement --------------------------------------------------
+
+
+def _type(db, name, **kwargs):
+    instrument_type = InstrumentType(name=name, **kwargs)
+    db.session.add(instrument_type)
+    db.session.commit()
+    return instrument_type
+
+
+def _placement(program):
+    """starting_placement with types and items flattened to names."""
+    return [
+        (label, [(t.name, items) for t, items in types])
+        for label, types in reports.starting_placement(program)
+    ]
+
+
+def test_starting_placement_puts_each_bell_where_it_is_first_used(
+    db, program, piece, instrument_type
+):
+    users = [_ringer(db, f"Ringer {n}") for n in range(3)]
+    later = add_piece(db, program, "Later", 2)
+    db.session.commit()
+    # Ode to Joy first: P5 uses C5 and D5. Later, P8 also uses C5 (stays
+    # at P5) and adds C6.
+    _assign(db, users[0], piece, "P5", (instrument_type, "D5,C5"))
+    _assign(db, users[1], later, "P8", (instrument_type, "C5,C6"))
+    # Same piece, same pitch: the lower position gets it.
+    _assign(db, users[2], piece, "P6", (instrument_type, "D5,E5"))
+
+    assert _placement(program) == [
+        ("P5 - D5/E5", [("Chimes", ["C5", "D5"])]),
+        ("P6 - F5/G5", [("Chimes", ["E5"])]),
+        ("P8 - C6/D6", [("Chimes", ["C6"])]),
+    ]
+
+
+def test_starting_placement_leaves_out_main_and_bass_bells_and_bass_chimes(
+    db, program, piece, instrument_type, bass_instrument_type
+):
+    main = _type(db, "Main Bells", note_range_low="C4", note_range_high="C8")
+    bass_chimes = _type(db, "Bass Chimes", note_range_low="C2", note_range_high="B3")
+    users = [_ringer(db, f"Ringer {n}") for n in range(2)]
+    db.session.commit()
+    _assign(db, users[0], piece, "P1", (main, "C4"), (instrument_type, "D4"))
+    _assign(
+        db, users[1], piece, "LB1", (bass_instrument_type, "C3"), (bass_chimes, "A2")
+    )
+
+    assert _placement(program) == [("P1 - C4/D4", [("Chimes", ["D4"])])]
+
+
+def test_starting_placement_puts_a_whole_bell_tree_at_its_first_user(
+    db, program, piece
+):
+    tree = _type(
+        db, "Bell Tree", note_range_low="C5", note_range_high="C8", keyboard_type=True
+    )
+    users = [_ringer(db, f"Ringer {n}") for n in range(2)]
+    later = add_piece(db, program, "Later", 2)
+    db.session.commit()
+    _assign(db, users[0], piece, "P7", (tree, "E5"))
+    _assign(db, users[1], later, "P3", (tree, "C5,G6"))
+
+    assert _placement(program) == [("P7 - A5/B5", [("Bell Tree", ["C5", "E5", "G6"])])]
+
+
+def test_starting_placement_counts_mallets_and_sticks_per_position(
+    db, program, piece, mallet_instrument_type
+):
+    sticks = _type(
+        db,
+        "Singing Bell Sticks",
+        form_label="Singing Bell Stick",
+        selection_mode="checkbox",
+    )
+    percussion = _type(db, "Percussion", selection_mode="options")
+    percussion.options = [InstrumentOption(name=n) for n in ("Triangle", "Slap Stick")]
+    db.session.commit()
+    ids = {o.name: str(o.id) for o in percussion.options}
+    triangle, slap = ids["Triangle"], ids["Slap Stick"]
+    users = [_ringer(db, f"Ringer {n}") for n in range(3)]
+    later = add_piece(db, program, "Later", 2)
+    db.session.commit()
+    _assign(
+        db,
+        users[0],
+        piece,
+        "P3",
+        (mallet_instrument_type, "Red yarn:2"),
+        (sticks, CHECKED_NOTES),
+        (percussion, triangle),
+    )
+    _assign(
+        db,
+        users[1],
+        piece,
+        "P5",
+        (mallet_instrument_type, "Red yarn:1"),
+        (sticks, CHECKED_NOTES),
+        (percussion, triangle),
+    )
+    # Already placed on Ode to Joy, so the later piece adds only Slap Stick.
+    _assign(
+        db,
+        users[2],
+        later,
+        "P9",
+        (mallet_instrument_type, "Red yarn:3"),
+        (sticks, CHECKED_NOTES),
+        (percussion, f"{triangle},{slap}"),
+    )
+
+    assert _placement(program) == [
+        (
+            "P3 - G4/A4",
+            [
+                ("Mallets", ["Red yarn\u00a0×2"]),
+                ("Percussion", ["Triangle"]),
+                ("Singing Bell Sticks", []),
+            ],
+        ),
+        ("P5 - D5/E5", [("Mallets", ["Red yarn\u00a0×1"]), ("Singing Bell Sticks", [])]),
+        ("P9 - E6/F6", [("Percussion", ["Slap Stick"])]),
+    ]
+
+
+def test_starting_placement_lists_other_spots_after_p11(
+    db, program, piece, instrument_type
+):
+    users = [_ringer(db, f"Ringer {n}") for n in range(4)]
+    db.session.commit()
+    _assign(db, users[0], piece, "Float", (instrument_type, "C4"))
+    _assign(db, users[1], piece, "LB2", (instrument_type, "D4"))
+    _assign(db, users[2], piece, "P11", (instrument_type, "E4"))
+    _assign(db, users[3], piece, "Other", (instrument_type, "F4"))
+
+    assert [label for label, _ in _placement(program)] == [
+        "P11 - B6/C7",
+        "LB2",
+        "Other",
+        "Float",
+    ]
+
+
+def test_starting_placement_ignores_instruments_removed_from_the_piece(
+    db, ringer, program, piece, instrument_type
+):
+    _assign(db, ringer, piece, "P1", (instrument_type, "C4"))
+    piece.instrument_types.remove(instrument_type)
+    db.session.commit()
+
+    assert reports.starting_placement(program) == []
+
+
+def test_starting_placement_page_only_for_programs_that_have_it(
+    client, db, ringer, program, piece, instrument_type
+):
+    _assign(db, ringer, piece, "P1", (instrument_type, "C4,D4"))
+    url = f"/programs/{program.id}/reports/starting-placement"
+    login(client, ringer, RINGER_PASSWORD)
+
+    assert url not in client.get("/").get_data(as_text=True)
+    assert client.get(url).status_code == 404
+
+    program.starting_placement = True
+    db.session.commit()
+    home = client.get("/").get_data(as_text=True)
+    assert url in home
+    assert home.index(url) < home.index("reports/equipment-table")
+    body = client.get(url).get_data(as_text=True)
+    assert "<h1>Starting Placement</h1>" in body
+    assert "<h5>P1 - C4/D4</h5>" in body
+    assert "<strong>Chimes:</strong> C4, D4" in body
+
+
+def test_admin_turns_on_starting_placement(client, db, admin_user, cycle, program):
+    login(client, admin_user, ADMIN_PASSWORD)
+    url = f"/admin/program/edit/?id={program.id}"
+    assert "Starting placement report" in client.get(url).get_data(as_text=True)
+
+    client.post(
+        url,
+        data={
+            "cycle": cycle.id,
+            "name": program.name,
+            "datetime": "",
+            "starting_placement": "y",
+        },
+    )
+    db.session.expire_all()
+    assert program.starting_placement is True

@@ -23,6 +23,7 @@ CHECKED_NOTES = "yes"
 # optional; the equipment form labels the type that way.
 MAIN_BELLS = "Main Bells"
 BASS_BELLS = "Bass Bells"
+BASS_CHIMES = "Bass Chimes"
 # Every case of these types goes on the cases used list, whatever was
 # signed up for.
 ALWAYS_LISTED_CASE_TYPES = {MAIN_BELLS, BASS_BELLS}
@@ -140,6 +141,9 @@ class Program(db.Model):
     # Nullable because programs carried over from the old concerts table
     # had no date.
     datetime = db.Column(db.DateTime, nullable=True)
+    # Whether this program gets the Starting placement report (where each
+    # piece of equipment is set out before the first piece).
+    starting_placement = db.Column(db.Boolean, nullable=False, default=False)
 
     cycle = db.relationship("Cycle", back_populates="programs")
     program_pieces = db.relationship(

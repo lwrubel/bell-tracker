@@ -8,6 +8,7 @@ from app import color, pitch
 from app.models import (
     ALWAYS_LISTED_CASE_TYPES,
     BASS_BELLS,
+    BASS_CHIMES,
     MAIN_BELLS,
     Case,
     Entry,
@@ -17,7 +18,12 @@ from app.models import (
     ProgramPiece,
     piece_instrument_types,
 )
-from app.positions import FLOAT_POSITION, POSITION_BASE_NOTES, ROSTER_POSITION_ORDER
+from app.positions import (
+    FLOAT_POSITION,
+    POSITION_BASE_NOTES,
+    ROSTER_POSITION_ORDER,
+    position_label,
+)
 
 
 def _program_piece_filter(query, program):
@@ -512,3 +518,123 @@ def progress_grid(cycle):
         for position in positions
     ]
     return pieces, rows, {pid: tuple(c) for pid, c in counts.items()}
+
+
+# Starting placement leaves out the bells always set out at their own spots.
+STARTING_PLACEMENT_EXCLUDED_TYPES = {MAIN_BELLS, BASS_BELLS, BASS_CHIMES}
+# The trebles low to high, then everyone else.
+STARTING_PLACEMENT_ORDER = list(POSITION_BASE_NOTES) + [
+    "LB3",
+    "LB2",
+    "LB1",
+    "Other",
+    FLOAT_POSITION,
+]
+
+
+def starting_placement(program):
+    """Return [(position_label, [(instrument_type, [item, ...]), ...]), ...]:
+    where each piece of equipment is set out before the program starts,
+    which is the position that first uses it in program order.
+
+    Positions run P1-P11, then LB3-LB1, Other and Float, leaving out any
+    with nothing to set out; types are in display order. Items are text:
+
+    - Each pitch of a pitch-mode type, low to high. A pitch first used by
+      several positions on the same piece goes to the first of them.
+    - A keyboard type (bell tree) goes whole to the first position using
+      any of its pitches, with every pitch used anywhere in the program.
+    - Percussion options, like pitches, go to the first position to use them.
+    - Mallets ("Red yarn ×2", with a non-breaking space) and singing bell sticks (no items; the type's
+      form label says it) are counted, so every position using them on the
+      piece where they're first used gets its own.
+
+    Main Bells, Bass Bells and Bass Chimes are left out, as are misc notes.
+    """
+    order = {code: i for i, code in enumerate(STARTING_PLACEMENT_ORDER)}
+
+    def position_key(position):
+        return (order.get(position, len(order)), position)
+
+    entries_by_piece = _program_entries_by_piece(program)
+    # {position: {instrument_type: [item, ...]}}
+    placed = defaultdict(lambda: defaultdict(list))
+    # {instrument_type: position} for keyboard types, and every pitch used.
+    tree_positions = {}
+    tree_pitches = defaultdict(set)
+    seen = set()  # items already placed on an earlier piece
+    for program_piece in program.program_pieces:
+        entries = sorted(
+            entries_by_piece[program_piece.piece_id],
+            key=lambda e: position_key(e.position),
+        )
+        placed_here = set()  # single items placed on this piece
+        counted_here = set()  # counted items first used on this piece
+
+        def place_once(key, position, instrument_type, item):
+            if key in seen or key in placed_here:
+                return
+            placed_here.add(key)
+            placed[position][instrument_type].append(item)
+
+        for entry in entries:
+            position = entry.position
+            for selection in entry.sorted_instrument_selections():
+                instrument_type = selection.instrument_type
+                if instrument_type.name in STARTING_PLACEMENT_EXCLUDED_TYPES:
+                    continue
+                mode = instrument_type.selection_mode
+                if mode == "pitch" and instrument_type.keyboard_type:
+                    if selection.note_list():
+                        tree_positions.setdefault(instrument_type, position)
+                        tree_pitches[instrument_type].update(selection.note_list())
+                elif mode == "pitch":
+                    for p in selection.note_list():
+                        place_once((instrument_type.id, p), position, instrument_type, p)
+                elif mode == "options":
+                    for option in selection.selected_options():
+                        place_once(
+                            (instrument_type.id, option.id),
+                            position,
+                            instrument_type,
+                            option.name,
+                        )
+                elif mode == "checkbox":
+                    key = (instrument_type.id,)
+                    if key not in seen:
+                        counted_here.add(key)
+                        placed[position][instrument_type]  # listed by name; no items
+                elif mode == "color":
+                    for label, count in selection.color_counts():
+                        key = (instrument_type.id, label)
+                        if key not in seen:
+                            counted_here.add(key)
+                            placed[position][instrument_type].append(
+                                # Non-breaking, so "×2" never wraps alone.
+                                f"{label}\u00a0×{count}"
+                            )
+        seen |= placed_here | counted_here
+
+    for instrument_type, position in tree_positions.items():
+        placed[position][instrument_type] = list(tree_pitches[instrument_type])
+
+    result = []
+    for position in sorted(placed, key=position_key):
+        types = []
+        for instrument_type, items in sorted(
+            placed[position].items(),
+            key=lambda item: (item[0].display_order, item[0].name),
+        ):
+            if instrument_type.selection_mode == "pitch":
+                items = sorted(set(items), key=pitch.pitch_index)
+            elif instrument_type.selection_mode == "options":
+                option_order = [o.name for o in instrument_type.options]
+                items = sorted(
+                    set(items),
+                    key=lambda name: (
+                        option_order.index(name) if name in option_order else len(option_order)
+                    ),
+                )
+            types.append((instrument_type, items))
+        result.append((position_label(position), types))
+    return result
