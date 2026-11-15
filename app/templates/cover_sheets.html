@@ -32,11 +32,21 @@
             </tr>
           </thead>
           <tbody>
-            {% for entry in entries %}
+            {% for entry, coming_from in entries %}
               <tr>
                 <td class="col-position">{{ position_label(entry.position) }}</td>
                 <td class="col-name">{{ entry.user.name }}</td>
-                <td>{{ entry_equipment(entry, compact=True) }}</td>
+                <td>
+                  {{ entry_equipment(entry, compact=True) }}
+                  {% for source, source_types in coming_from %}
+                    <div class="bell-source coming-from">
+                      <span class="sheet-label">Coming from {{ source }}:</span>
+                      {% for instrument_type, items in source_types %}
+                        <div class="bell-line"><strong>{{ instrument_type.name }}:</strong> {{ items | join(", ") }}</div>
+                      {% endfor %}
+                    </div>
+                  {% endfor %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
