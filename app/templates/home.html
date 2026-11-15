@@ -31,6 +31,9 @@
       </div>
       <div class="program-reports">
         <span class="reports-label">Reports:</span>
+        {% if program.starting_placement %}
+          <a href="{{ url_for('routes.report_starting_placement', program_id=program.id) }}">Starting placement</a>
+        {% endif %}
         <a href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment tables</a>
         <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
         {% if current_user.can_view_reports %}

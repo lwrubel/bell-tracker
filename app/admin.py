@@ -114,9 +114,18 @@ class CycleAdminView(SecureModelView):
 
 
 class ProgramAdminView(SecureModelView):
-    column_list = ("cycle", "name", "datetime")
-    form_columns = ("cycle", "name", "datetime")
-    column_labels = {"datetime": "Date and time"}
+    column_list = ("cycle", "name", "datetime", "starting_placement")
+    form_columns = ("cycle", "name", "datetime", "starting_placement")
+    column_labels = {
+        "datetime": "Date and time",
+        "starting_placement": "Starting placement report",
+    }
+    form_args = {
+        "starting_placement": {
+            "label": "Starting placement report",
+            "description": "Show the Starting placement report for this program.",
+        }
+    }
     # The pieces this program plays, numbered in program order. See
     # CycleAdminView for why "id" is listed.
     # "Position" means a ringer's spot in a piece everywhere else, so the
