@@ -38,14 +38,18 @@
                 <td class="col-name">{{ entry.user.name }}</td>
                 <td>
                   {{ entry_equipment(entry, compact=True) }}
-                  {% for source, source_types in coming_from %}
-                    <div class="bell-source coming-from">
-                      <span class="sheet-label">Coming from {{ source }}:</span>
-                      {% for instrument_type, items in source_types %}
-                        <div class="bell-line"><strong>{{ instrument_type.name }}:</strong> {{ items | join(", ") }}</div>
+                  {% if coming_from %}
+                    <div class="coming-from">
+                      {% for source, source_types in coming_from %}
+                        <div class="bell-source">
+                          <span class="sheet-label">Coming from {{ source }}:</span>
+                          {% for instrument_type, items in source_types %}
+                            <div class="bell-line"><strong>{{ instrument_type.name }}:</strong> {{ items | join(", ") }}</div>
+                          {% endfor %}
+                        </div>
                       {% endfor %}
                     </div>
-                  {% endfor %}
+                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
