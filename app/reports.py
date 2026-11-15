@@ -184,13 +184,21 @@ def _program_entries_by_piece(program):
 
 
 def cover_sheets(program):
-    """Return [(program_piece, entries, float_entries), ...]: every piece in
-    program order, its ringers in roster order (P1-P11, then Other), and its
-    Float ringers by first name. LB positions are left out; they get their
-    own cover sheets (bass_bell_cover_sheets).
+    """Return [(program_piece, [(entry, coming_from), ...], float_entries),
+    ...]: every piece in program order, its ringers in roster order (P1-P11,
+    then Other), and its Float ringers by first name. LB positions are left
+    out; they get their own cover sheets (bass_bell_cover_sheets).
+
+    coming_from is empty unless the program has a Starting placement report.
+    Then it lists the bells, bell trees and percussion the ringer needs that
+    are waiting at another position, as [(position, [(instrument_type,
+    [item, ...]), ...]), ...] (see _coming_from).
     """
     order = {code: i for i, code in enumerate(ROSTER_POSITION_ORDER)}
     entries_by_piece = _program_entries_by_piece(program)
+    coming_from = (
+        _coming_from(program, entries_by_piece) if program.starting_placement else {}
+    )
 
     result = []
     for program_piece in program.program_pieces:
@@ -212,7 +220,13 @@ def cover_sheets(program):
             (e for e in piece_entries if e.position == FLOAT_POSITION),
             key=lambda e: e.user.first_name.casefold(),
         )
-        result.append((program_piece, ringers, floats))
+        result.append(
+            (
+                program_piece,
+                [(e, coming_from.get(e.id, [])) for e in ringers],
+                floats,
+            )
+        )
     return result
 
 
@@ -250,6 +264,10 @@ def bass_bell_cover_sheets(program):
     last used a bell on the same piece, this position wins, then the first
     in roster order.
 
+    In a program with a Starting placement report, bells on it start at
+    their starting placement position instead of the Floor; Bass Bells and
+    Bass Chimes still come from the Floor.
+
     other_selections are the entry's non-pitch selections (mallets,
     percussion, sticks), in form order.
     """
@@ -262,6 +280,16 @@ def bass_bell_cover_sheets(program):
     result = []
     # {(instrument_type_id, pitch): {position, ...}}: who last used each bell.
     bell_locations = {}
+    if program.starting_placement:
+        locations = _starting_locations(program, entries_by_piece)
+        for entries in entries_by_piece.values():
+            for entry in entries:
+                for selection in entry.sorted_instrument_selections():
+                    for key, instrument_type, item in _tracked_items(selection):
+                        if instrument_type.selection_mode == "pitch":
+                            bell_locations[(instrument_type.id, item)] = {
+                                locations[key]
+                            }
     for program_piece in program.program_pieces:
         piece_entries = entries_by_piece[program_piece.piece_id]
 
@@ -530,6 +558,114 @@ STARTING_PLACEMENT_ORDER = list(POSITION_BASE_NOTES) + [
     "Other",
     FLOAT_POSITION,
 ]
+_PLACEMENT_INDEX = {code: i for i, code in enumerate(STARTING_PLACEMENT_ORDER)}
+
+
+def _placement_key(position):
+    return (_PLACEMENT_INDEX.get(position, len(_PLACEMENT_INDEX)), position)
+
+
+def _type_key(instrument_type):
+    return (instrument_type.display_order, instrument_type.name)
+
+
+def _tracked_items(selection):
+    """Yield (key, instrument_type, item) for each single item `selection`
+    uses that starting placement sets out and that then moves with whoever
+    rings it: each pitch, a keyboard type (bell tree) as one item whatever
+    pitches are used on it, and each percussion option. Items are pitches or
+    option names. Mallets, singing bell sticks and the excluded types yield
+    nothing.
+    """
+    instrument_type = selection.instrument_type
+    if instrument_type.name in STARTING_PLACEMENT_EXCLUDED_TYPES:
+        return
+    if instrument_type.selection_mode == "pitch":
+        for p in selection.note_list():
+            if instrument_type.keyboard_type:
+                yield (instrument_type.id, "tree"), instrument_type, p
+            else:
+                yield (instrument_type.id, p), instrument_type, p
+    elif instrument_type.selection_mode == "options":
+        for option in selection.selected_options():
+            yield (instrument_type.id, option.id), instrument_type, option.name
+
+
+def _sorted_items(instrument_type, items):
+    """Pitches low to high, options in the type's order, without repeats;
+    anything else as given."""
+    if instrument_type.selection_mode == "pitch":
+        return sorted(set(items), key=pitch.pitch_index)
+    if instrument_type.selection_mode == "options":
+        order = [o.name for o in instrument_type.options]
+        return sorted(
+            set(items), key=lambda name: order.index(name) if name in order else len(order)
+        )
+    return items
+
+
+def _starting_locations(program, entries_by_piece):
+    """{item key: position} for every tracked item (see _tracked_items): the
+    position that first uses it in program order, the lowest in
+    STARTING_PLACEMENT_ORDER when several first use it on the same piece."""
+    locations = {}
+    for program_piece in program.program_pieces:
+        for entry in sorted(
+            entries_by_piece[program_piece.piece_id],
+            key=lambda e: _placement_key(e.position),
+        ):
+            for selection in entry.sorted_instrument_selections():
+                for key, _, _ in _tracked_items(selection):
+                    locations.setdefault(key, entry.position)
+    return locations
+
+
+def _coming_from(program, entries_by_piece):
+    """{entry id: [(position, [(instrument_type, [item, ...]), ...]), ...]}:
+    for each entry, the tracked items it uses that are waiting at another
+    position when its piece starts, grouped by that position.
+
+    Items start at their starting placement position and stay with the
+    position that last used them. When several positions last used an item
+    on the same piece, the entry's own position wins, then the first in
+    placement order. Positions in placement order, types in display order.
+    """
+    holders = {
+        key: {position}
+        for key, position in _starting_locations(program, entries_by_piece).items()
+    }
+    result = {}
+    for program_piece in program.program_pieces:
+        entries = entries_by_piece[program_piece.piece_id]
+        for entry in entries:
+            # {source position: {instrument_type: [item, ...]}}
+            grouped = defaultdict(lambda: defaultdict(list))
+            for selection in entry.sorted_instrument_selections():
+                for key, instrument_type, item in _tracked_items(selection):
+                    here = holders.get(key, set())
+                    if here and entry.position not in here:
+                        source = min(here, key=_placement_key)
+                        grouped[source][instrument_type].append(item)
+            result[entry.id] = [
+                (
+                    source,
+                    [
+                        (instrument_type, _sorted_items(instrument_type, items))
+                        for instrument_type, items in sorted(
+                            grouped[source].items(), key=lambda kv: _type_key(kv[0])
+                        )
+                    ],
+                )
+                for source in sorted(grouped, key=_placement_key)
+            ]
+        # Items rung on this piece end up with whoever rang them.
+        used_here = defaultdict(set)
+        for entry in entries:
+            for selection in entry.sorted_instrument_selections():
+                for key, _, _ in _tracked_items(selection):
+                    used_here[key].add(entry.position)
+        holders.update(used_here)
+    return result
 
 
 def starting_placement(program):
@@ -545,66 +681,33 @@ def starting_placement(program):
     - A keyboard type (bell tree) goes whole to the first position using
       any of its pitches, with every pitch used anywhere in the program.
     - Percussion options, like pitches, go to the first position to use them.
-    - Mallets ("Red yarn ×2", with a non-breaking space) and singing bell sticks (no items; the type's
-      form label says it) are counted, so every position using them on the
-      piece where they're first used gets its own.
+    - Mallets ("Red yarn ×2", with a non-breaking space) and singing bell
+      sticks (no items; the type's form label says it) are counted, so
+      every position using them on the piece where they're first used gets
+      its own.
 
     Main Bells, Bass Bells and Bass Chimes are left out, as are misc notes.
     """
-    order = {code: i for i, code in enumerate(STARTING_PLACEMENT_ORDER)}
-
-    def position_key(position):
-        return (order.get(position, len(order)), position)
-
     entries_by_piece = _program_entries_by_piece(program)
+    locations = _starting_locations(program, entries_by_piece)
     # {position: {instrument_type: [item, ...]}}
     placed = defaultdict(lambda: defaultdict(list))
-    # {instrument_type: position} for keyboard types, and every pitch used.
-    tree_positions = {}
-    tree_pitches = defaultdict(set)
-    seen = set()  # items already placed on an earlier piece
+    seen = set()  # counted items first used on an earlier piece
     for program_piece in program.program_pieces:
-        entries = sorted(
-            entries_by_piece[program_piece.piece_id],
-            key=lambda e: position_key(e.position),
-        )
-        placed_here = set()  # single items placed on this piece
-        counted_here = set()  # counted items first used on this piece
-
-        def place_once(key, position, instrument_type, item):
-            if key in seen or key in placed_here:
-                return
-            placed_here.add(key)
-            placed[position][instrument_type].append(item)
-
-        for entry in entries:
+        counted_here = set()
+        for entry in entries_by_piece[program_piece.piece_id]:
             position = entry.position
             for selection in entry.sorted_instrument_selections():
+                # Single items go wherever they start, whoever uses them.
+                for key, instrument_type, item in _tracked_items(selection):
+                    placed[locations[key]][instrument_type].append(item)
                 instrument_type = selection.instrument_type
-                if instrument_type.name in STARTING_PLACEMENT_EXCLUDED_TYPES:
-                    continue
-                mode = instrument_type.selection_mode
-                if mode == "pitch" and instrument_type.keyboard_type:
-                    if selection.note_list():
-                        tree_positions.setdefault(instrument_type, position)
-                        tree_pitches[instrument_type].update(selection.note_list())
-                elif mode == "pitch":
-                    for p in selection.note_list():
-                        place_once((instrument_type.id, p), position, instrument_type, p)
-                elif mode == "options":
-                    for option in selection.selected_options():
-                        place_once(
-                            (instrument_type.id, option.id),
-                            position,
-                            instrument_type,
-                            option.name,
-                        )
-                elif mode == "checkbox":
+                if instrument_type.selection_mode == "checkbox":
                     key = (instrument_type.id,)
                     if key not in seen:
                         counted_here.add(key)
                         placed[position][instrument_type]  # listed by name; no items
-                elif mode == "color":
+                elif instrument_type.selection_mode == "color":
                     for label, count in selection.color_counts():
                         key = (instrument_type.id, label)
                         if key not in seen:
@@ -613,28 +716,17 @@ def starting_placement(program):
                                 # Non-breaking, so "×2" never wraps alone.
                                 f"{label}\u00a0×{count}"
                             )
-        seen |= placed_here | counted_here
+        seen |= counted_here
 
-    for instrument_type, position in tree_positions.items():
-        placed[position][instrument_type] = list(tree_pitches[instrument_type])
-
-    result = []
-    for position in sorted(placed, key=position_key):
-        types = []
-        for instrument_type, items in sorted(
-            placed[position].items(),
-            key=lambda item: (item[0].display_order, item[0].name),
-        ):
-            if instrument_type.selection_mode == "pitch":
-                items = sorted(set(items), key=pitch.pitch_index)
-            elif instrument_type.selection_mode == "options":
-                option_order = [o.name for o in instrument_type.options]
-                items = sorted(
-                    set(items),
-                    key=lambda name: (
-                        option_order.index(name) if name in option_order else len(option_order)
-                    ),
+    return [
+        (
+            position_label(position),
+            [
+                (instrument_type, _sorted_items(instrument_type, items))
+                for instrument_type, items in sorted(
+                    placed[position].items(), key=lambda kv: _type_key(kv[0])
                 )
-            types.append((instrument_type, items))
-        result.append((position_label(position), types))
-    return result
+            ],
+        )
+        for position in sorted(placed, key=_placement_key)
+    ]

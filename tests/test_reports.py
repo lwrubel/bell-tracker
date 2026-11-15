@@ -581,7 +581,11 @@ def test_cover_sheets_orders_by_roster_and_leaves_out_lb(db, program, piece):
     [(program_piece, ringers, floats)] = reports.cover_sheets(program)
 
     assert program_piece.piece == piece
-    assert ringers == [entries["Ann Two"], entries["Pat Ten"], entries["Olive Other"]]
+    assert ringers == [
+        (entries["Ann Two"], []),
+        (entries["Pat Ten"], []),
+        (entries["Olive Other"], []),
+    ]
     assert floats == [entries["Bea Float"], entries["Fay Float"]]
 
 
@@ -804,7 +808,7 @@ def test_reports_leave_out_instruments_removed_from_the_piece(
     assert reports.equipment_by_pitch(program) == []
     assert reports.equipment_pull_list(program) == {}
     assert reports.cases_list(program) == {}
-    [(program_piece, [entry], [])] = reports.cover_sheets(program)
+    [(program_piece, [(entry, [])], [])] = reports.cover_sheets(program)
     assert entry.sorted_instrument_selections() == []
 
 
@@ -1031,3 +1035,131 @@ def test_admin_turns_on_starting_placement(client, db, admin_user, cycle, progra
     )
     db.session.expire_all()
     assert program.starting_placement is True
+
+
+# --- coming from (cover sheets, starting placement programs) -------------
+
+
+def _rows(program):
+    """{(piece title, position): [(source, [(type name, items)])]} from the
+    cover sheets."""
+    return {
+        (pp.piece.title, entry.position): [
+            (source, [(t.name, items) for t, items in types])
+            for source, types in coming_from
+        ]
+        for pp, ringers, _ in reports.cover_sheets(program)
+        for entry, coming_from in ringers
+    }
+
+
+def _three_pieces(db, program, piece):
+    second = add_piece(db, program, "Second", 2)
+    third = add_piece(db, program, "Third", 3)
+    program.starting_placement = True
+    db.session.commit()
+    return piece, second, third
+
+
+def test_cover_sheets_show_where_a_moved_bell_is_coming_from(
+    db, program, piece, instrument_type
+):
+    first, second, third = _three_pieces(db, program, piece)
+    users = [_ringer(db, f"Ringer {n}") for n in range(6)]
+    db.session.commit()
+    _assign(db, users[0], first, "P4", (instrument_type, "C5,D5"))
+    _assign(db, users[1], second, "P5", (instrument_type, "C5"))
+    _assign(db, users[2], second, "P4", (instrument_type, "D5"))
+    # Back to P4 for the third piece: C5 is now at P5.
+    _assign(db, users[3], third, "P4", (instrument_type, "C5,D5"))
+
+    rows = _rows(program)
+    assert rows[("Ode to Joy", "P4")] == []
+    assert rows[("Second", "P5")] == [("P4", [("Chimes", ["C5"])])]
+    assert rows[("Second", "P4")] == []
+    assert rows[("Third", "P4")] == [("P5", [("Chimes", ["C5"])])]
+
+
+def test_cover_sheets_coming_from_ties_trees_percussion_and_lb(
+    db, program, piece, instrument_type, mallet_instrument_type
+):
+    first, second, third = _three_pieces(db, program, piece)
+    tree = _type(
+        db, "Bell Tree", note_range_low="C5", note_range_high="C8", keyboard_type=True
+    )
+    percussion = _type(db, "Percussion", selection_mode="options")
+    percussion.options = [InstrumentOption(name="Triangle")]
+    db.session.commit()
+    triangle = str(percussion.options[0].id)
+    users = [_ringer(db, f"Ringer {n}") for n in range(6)]
+    db.session.commit()
+    # Same piece, same chime: P3 starts with it, so P5 takes it from P3.
+    _assign(db, users[0], first, "P3", (instrument_type, "C5"), (tree, "E5"))
+    _assign(
+        db,
+        users[1],
+        first,
+        "P5",
+        (instrument_type, "C5"),
+        (mallet_instrument_type, "Red yarn:1"),
+    )
+    _assign(db, users[2], first, "LB1", (percussion, triangle))
+    # The tree moves whole: P7 uses other pitches on it.
+    _assign(
+        db,
+        users[3],
+        second,
+        "P7",
+        (tree, "C6,G5"),
+        (percussion, triangle),
+        (mallet_instrument_type, "Red yarn:1"),
+    )
+
+    rows = _rows(program)
+    assert rows[("Ode to Joy", "P3")] == []
+    assert rows[("Ode to Joy", "P5")] == [("P3", [("Chimes", ["C5"])])]
+    assert rows[("Second", "P7")] == [
+        ("P3", [("Bell Tree", ["G5", "C6"])]),
+        ("LB1", [("Percussion", ["Triangle"])]),
+    ]
+
+
+def test_cover_sheets_have_no_coming_from_without_starting_placement(
+    client, db, admin_user, program, piece, instrument_type
+):
+    second = add_piece(db, program, "Second", 2)
+    db.session.commit()
+    users = [_ringer(db, f"Ringer {n}") for n in range(2)]
+    db.session.commit()
+    _assign(db, users[0], piece, "P4", (instrument_type, "C5"))
+    _assign(db, users[1], second, "P5", (instrument_type, "C5"))
+
+    assert all(coming == [] for coming in _rows(program).values())
+    login(client, admin_user, ADMIN_PASSWORD)
+    url = f"/programs/{program.id}/reports/cover-sheets"
+    assert "Coming from P4:" not in client.get(url).get_data(as_text=True)
+
+    program.starting_placement = True
+    db.session.commit()
+    body = client.get(url).get_data(as_text=True)
+    assert "Coming from P4:" in body
+    assert "<strong>Chimes:</strong> C5" in body
+
+
+def test_bass_cover_sheets_start_placed_bells_at_their_position(
+    db, program, piece, instrument_type, bass_instrument_type
+):
+    program.starting_placement = True
+    low = _ringer(db, "Low One")
+    db.session.commit()
+    lb1 = _assign(
+        db, low, piece, "LB1",
+        (bass_instrument_type, "C3"), (instrument_type, "C4"),
+    )
+
+    [(_, [(entry, _, sources, _)])] = reports.bass_bell_cover_sheets(program)
+    assert entry == lb1
+    assert sources == [
+        ("Already here", [(instrument_type, ["C4"])]),
+        ("Coming from Floor", [(bass_instrument_type, ["C3"])]),
+    ]
