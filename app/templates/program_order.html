@@ -10,7 +10,18 @@
   {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
 </p>
 
-{% if program.program_pieces %}
+{% if program.has_sets %}
+  {% for program_pieces in program.sets() %}
+  <h2 class="h5 mt-3">Set {{ program_pieces[0].set_number }}</h2>
+  <ol class="list-group">
+    {% for pp in program_pieces %}
+      <li class="list-group-item">
+        {{ pp.position }}. {{ pp.piece.title }}
+      </li>
+    {% endfor %}
+  </ol>
+  {% endfor %}
+{% elif program.program_pieces %}
 <ol class="list-group">
   {% for pp in program.program_pieces %}
     <li class="list-group-item">

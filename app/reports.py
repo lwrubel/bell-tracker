@@ -569,16 +569,16 @@ def _type_key(instrument_type):
     return (instrument_type.display_order, instrument_type.name)
 
 
-def _tracked_items(selection):
+def _tracked_items(selection, excluded=STARTING_PLACEMENT_EXCLUDED_TYPES):
     """Yield (key, instrument_type, item) for each single item `selection`
     uses that starting placement sets out and that then moves with whoever
     rings it: each pitch, a keyboard type (bell tree) as one item whatever
     pitches are used on it, and each percussion option. Items are pitches or
-    option names. Mallets, singing bell sticks and the excluded types yield
-    nothing.
+    option names. Mallets, singing bell sticks and the `excluded` types (by
+    name) yield nothing.
     """
     instrument_type = selection.instrument_type
-    if instrument_type.name in STARTING_PLACEMENT_EXCLUDED_TYPES:
+    if instrument_type.name in excluded:
         return
     if instrument_type.selection_mode == "pitch":
         for p in selection.note_list():
@@ -604,20 +604,28 @@ def _sorted_items(instrument_type, items):
     return items
 
 
-def _starting_locations(program, entries_by_piece):
-    """{item key: position} for every tracked item (see _tracked_items): the
-    position that first uses it in program order, the lowest in
-    STARTING_PLACEMENT_ORDER when several first use it on the same piece."""
+def _first_locations(
+    program_pieces, entries_by_piece, excluded=STARTING_PLACEMENT_EXCLUDED_TYPES
+):
+    """{item key: position} for every tracked item (see _tracked_items) used
+    on `program_pieces`: the position that first uses it in program order,
+    the lowest in STARTING_PLACEMENT_ORDER when several first use it on the
+    same piece."""
     locations = {}
-    for program_piece in program.program_pieces:
+    for program_piece in program_pieces:
         for entry in sorted(
             entries_by_piece[program_piece.piece_id],
             key=lambda e: _placement_key(e.position),
         ):
             for selection in entry.sorted_instrument_selections():
-                for key, _, _ in _tracked_items(selection):
+                for key, _, _ in _tracked_items(selection, excluded):
                     locations.setdefault(key, entry.position)
     return locations
+
+
+def _starting_locations(program, entries_by_piece):
+    """_first_locations over the whole program."""
+    return _first_locations(program.program_pieces, entries_by_piece)
 
 
 def _coming_from(program, entries_by_piece):
@@ -729,4 +737,277 @@ def starting_placement(program):
             ],
         )
         for position in sorted(placed, key=_placement_key)
+    ]
+
+
+# --- sets and resets -------------------------------------------------------
+
+# Main Bells are always out; everything else is set out and put away at the
+# Resets between sets.
+RESET_EXCLUDED_TYPES = {MAIN_BELLS}
+
+
+class _SetSummary:
+    """What one set of a program uses, for working out its Resets.
+
+    - first: {item key: position} where each single item (see
+      _tracked_items) is first used in the set - where it's put out.
+    - last: {item key: position} the position holding each single item at
+      the end of the set - who takes it off. That's the last position to
+      ring it, the lowest in placement order when several do on the same
+      piece.
+    - items: {item key: (instrument_type, [item, ...])} the item's text; a
+      bell tree's lists every pitch used on it in the set.
+    - need: {position: {(instrument_type, label): count}} for counted items,
+      the most of each kind the position uses on any one piece of the set.
+      label is the mallet color, or None for singing bell sticks (count 1).
+    """
+
+    def __init__(self, program_pieces=(), entries_by_piece=None):
+        self.program_pieces = list(program_pieces)
+        self.first = (
+            _first_locations(self.program_pieces, entries_by_piece, RESET_EXCLUDED_TYPES)
+            if self.program_pieces
+            else {}
+        )
+        self.last = {}
+        self.items = {}
+        self.need = defaultdict(dict)
+        for program_piece in self.program_pieces:
+            used_here = defaultdict(set)
+            for entry in entries_by_piece[program_piece.piece_id]:
+                position = entry.position
+                for selection in entry.sorted_instrument_selections():
+                    for key, instrument_type, item in _tracked_items(
+                        selection, RESET_EXCLUDED_TYPES
+                    ):
+                        used_here[key].add(position)
+                        self.items.setdefault(key, (instrument_type, []))[1].append(item)
+                    instrument_type = selection.instrument_type
+                    if instrument_type.name in RESET_EXCLUDED_TYPES:
+                        continue
+                    if instrument_type.selection_mode == "checkbox":
+                        kinds = [((instrument_type, None), 1)]
+                    elif instrument_type.selection_mode == "color":
+                        kinds = [
+                            ((instrument_type, label), count)
+                            for label, count in selection.color_counts()
+                        ]
+                    else:
+                        kinds = []
+                    for kind, count in kinds:
+                        need = self.need[position]
+                        need[kind] = max(need.get(kind, 0), count)
+            for key, positions in used_here.items():
+                self.last[key] = min(positions, key=_placement_key)
+
+    def changes(self, other, locations):
+        """What this set uses that `other` doesn't, as
+        [(position, [(instrument_type, [item, ...]), ...]), ...]: single
+        items at their position in `locations` (self.first or self.last),
+        and counted items by how many more this set needs at each position.
+        Positions in placement order, types in display order.
+        """
+        placed = defaultdict(lambda: defaultdict(list))
+        for key, (instrument_type, items) in self.items.items():
+            if key not in other.items:
+                placed[locations[key]][instrument_type].extend(items)
+        mallet_order = {label: i for i, label in enumerate(color.MALLET_COLORS)}
+        for position, kinds in self.need.items():
+            other_need = other.need.get(position, {})
+            for (instrument_type, label), count in sorted(
+                kinds.items(),
+                key=lambda kv: (
+                    mallet_order.get(kv[0][1], len(mallet_order)),
+                    kv[0][1] or "",
+                ),
+            ):
+                extra = count - other_need.get((instrument_type, label), 0)
+                if extra <= 0:
+                    continue
+                if label is None:
+                    placed[position][instrument_type]  # listed by name; no items
+                else:
+                    # Non-breaking, so "×2" never wraps alone.
+                    placed[position][instrument_type].append(f"{label}\u00a0×{extra}")
+        return [
+            (
+                position,
+                [
+                    (instrument_type, _sorted_items(instrument_type, items))
+                    for instrument_type, items in sorted(
+                        placed[position].items(), key=lambda kv: _type_key(kv[0])
+                    )
+                ],
+            )
+            for position in sorted(placed, key=_placement_key)
+        ]
+
+
+class Reset:
+    """One changeover in a program with sets: before the first set, or
+    between two sets.
+
+    - title: "Before Set 1" or "Reset after Set 1".
+    - ended: the program pieces of the set just finished (empty before the
+      first set), whose last piece decides who takes off what.
+    - started: the program pieces of the set about to start, whose first
+      piece decides who puts out what.
+    - take_off, put_out: [(position, [(instrument_type, [item, ...]), ...]),
+      ...] by position code, in placement order.
+    """
+
+    def __init__(self, title, ended, started, take_off, put_out):
+        self.title = title
+        self.ended = ended
+        self.started = started
+        self.take_off = take_off
+        self.put_out = put_out
+
+    @property
+    def ended_set_number(self):
+        """The finished set's number, or None before the first set."""
+        return self.ended[0].set_number if self.ended else None
+
+    @property
+    def started_set_number(self):
+        return self.started[0].set_number
+
+    @property
+    def ended_piece(self):
+        """The finished set's last piece, whose ringers take off; None
+        before the first set."""
+        return self.ended[-1].piece if self.ended else None
+
+    @property
+    def started_piece(self):
+        """The next set's first piece, whose ringers put out."""
+        return self.started[0].piece
+
+    def by_position(self):
+        """[(position, take_off, put_out), ...]: each position with anything
+        to do, in placement order, and its two lists of
+        [(instrument_type, [item, ...]), ...]."""
+        take_off, put_out = dict(self.take_off), dict(self.put_out)
+        return [
+            (position, take_off.get(position, []), put_out.get(position, []))
+            for position in sorted({*take_off, *put_out}, key=_placement_key)
+        ]
+
+
+def resets(program, entries_by_piece=None):
+    """Return [Reset, ...]: what to put out before the first set, then at
+    each Reset what to take off at the end of the set just finished and put
+    out for the next. Nothing after the last set; everything goes away then.
+    Empty for a program without sets.
+
+    Single items (each pitch, a bell tree as one item, each percussion
+    option) are put out where they're first used in the set, unless the set
+    before also used them, so they're already out. They're taken off at the
+    end of a set by the position holding them then - the last to ring them -
+    unless the next set uses them too. Mallets and singing bell sticks are
+    counted per position: a position puts out however many more of each
+    kind it needs than it had in the set before, and takes off however many
+    more it had than it needs in the next. Main Bells are left out.
+    """
+    sets = program.sets()
+    if not sets:
+        return []
+    if entries_by_piece is None:
+        entries_by_piece = _program_entries_by_piece(program)
+    summaries = [_SetSummary(pieces, entries_by_piece) for pieces in sets]
+    result = []
+    for i, current in enumerate(summaries):
+        number = sets[i][0].set_number
+        if i == 0:
+            result.append(
+                Reset(
+                    f"Before Set {number}",
+                    [],
+                    current.program_pieces,
+                    [],
+                    current.changes(_SetSummary(), current.first),
+                )
+            )
+            continue
+        previous = summaries[i - 1]
+        result.append(
+            Reset(
+                f"Reset after Set {sets[i - 1][0].set_number}",
+                previous.program_pieces,
+                current.program_pieces,
+                previous.changes(current, previous.last),
+                current.changes(previous, current.first),
+            )
+        )
+    return result
+
+
+def _position_on(program_piece, entries):
+    """The user's position on `program_piece`, or None if they aren't on it."""
+    if program_piece is None:
+        return None
+    entry = entries.get(program_piece.piece_id)
+    return entry.position if entry is not None else None
+
+
+def my_resets(program, user):
+    """Return [(reset, end_position, take_off, start_position, put_out),
+    ...]: one row per Reset (see resets), for one ringer.
+
+    end_position is where they finish the set just ended and take_off what
+    that position takes off; start_position is where they start the next set
+    and put_out what that position puts out. The two are looked up apart,
+    since a ringer can come back from a Reset at a different position.
+    Equipment belongs to the position, so whoever is there takes it off or
+    puts it out. take_off and put_out are [(instrument_type, [item, ...]),
+    ...].
+
+    Only whoever starts a set puts out and only whoever finishes it takes
+    off: start_position is the ringer's position on the next set's first
+    piece and end_position on the finished set's last piece. Either is None
+    (and its list empty) when they aren't on that piece, since someone else
+    sees to it then; end_position is also None before the first set.
+    """
+    entries_by_piece = _program_entries_by_piece(program)
+    return _my_reset_rows(user.id, resets(program, entries_by_piece), entries_by_piece)
+
+
+def _my_reset_rows(user_id, program_resets, entries_by_piece):
+    """my_resets for one user, from already-worked-out resets."""
+    mine = {
+        piece_id: entry
+        for piece_id, entries in entries_by_piece.items()
+        for entry in entries
+        if entry.user_id == user_id
+    }
+    result = []
+    for reset in program_resets:
+        end_position = _position_on(reset.ended[-1] if reset.ended else None, mine)
+        start_position = _position_on(reset.started[0], mine)
+        result.append(
+            (
+                reset,
+                end_position,
+                dict(reset.take_off).get(end_position, []),
+                start_position,
+                dict(reset.put_out).get(start_position, []),
+            )
+        )
+    return result
+
+
+def everyones_resets(program):
+    """Return [(user, my_resets rows), ...] for everyone assigned to a piece
+    in the program, by name, for printing each ringer's page."""
+    entries_by_piece = _program_entries_by_piece(program)
+    program_resets = resets(program, entries_by_piece)
+    users = {
+        entry.user.id: entry.user
+        for entries in entries_by_piece.values()
+        for entry in entries
+    }
+    return [
+        (user, _my_reset_rows(user.id, program_resets, entries_by_piece))
+        for user in sorted(users.values(), key=lambda u: (u.name.casefold(), u.id))
     ]

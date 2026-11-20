@@ -1,0 +1,14 @@
+{# One position's list of equipment to put out or take off at a Reset:
+   [(instrument_type, [item, ...]), ...] from reports.resets. One bullet
+   per instrument type, so each list reads down the page. #}
+{% macro reset_items(types) %}
+<ul class="reset-items">
+  {% for instrument_type, items in types %}
+    {% if instrument_type.selection_mode == "checkbox" %}
+      <li><strong>{{ instrument_type.label_on_form() }}</strong></li>
+    {% else %}
+      <li><strong>{{ instrument_type.name }}:</strong> {{ items | join(", ") }}</li>
+    {% endif %}
+  {% endfor %}
+</ul>
+{% endmacro %}

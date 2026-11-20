@@ -21,6 +21,9 @@
       </div>
       <div class="program-links">
         <a href="{{ url_for('routes.program_order', program_id=program.id) }}">Program order</a>
+        {% if program.has_sets %}
+          <a href="{{ url_for('routes.my_resets', program_id=program.id) }}">My resets</a>
+        {% endif %}
         <span class="link-group">
           <span class="links-label">Cover sheets:</span>
           <a href="{{ url_for('routes.report_cover_sheets', program_id=program.id) }}">Standard</a>
@@ -37,6 +40,10 @@
         <a href="{{ url_for('routes.report_equipment_table', program_id=program.id) }}">Equipment tables</a>
         <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
         {% if current_user.can_view_reports %}
+          {% if program.has_sets %}
+            <a href="{{ url_for('routes.report_resets', program_id=program.id) }}">Resets</a>
+            <a href="{{ url_for('routes.report_everyones_resets', program_id=program.id) }}">Everyone's resets</a>
+          {% endif %}
           <a href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bell assignments</a>
           <a href="{{ url_for('routes.report_cases_list', program_id=program.id) }}">Cases used list</a>
         {% endif %}
