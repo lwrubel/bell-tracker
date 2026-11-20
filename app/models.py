@@ -158,6 +158,27 @@ class Program(db.Model):
         """The program's pieces in program order."""
         return [pp.piece for pp in self.program_pieces]
 
+    def sets(self):
+        """`[[program_piece, ...], ...]`: the program's pieces grouped into
+        sets by set number, in program order. Empty when no piece has a set
+        number, as in most programs. The admin keeps set numbers on every
+        piece or none, never decreasing, so each set is one run of pieces.
+        """
+        if not self.has_sets:
+            return []
+        groups = []
+        for program_piece in self.program_pieces:
+            if groups and groups[-1][0].set_number == program_piece.set_number:
+                groups[-1].append(program_piece)
+            else:
+                groups.append([program_piece])
+        return groups
+
+    @property
+    def has_sets(self):
+        """Whether the program is split into sets (and so has Resets)."""
+        return any(pp.set_number is not None for pp in self.program_pieces)
+
     def when_label(self):
         """e.g. "Sat, May 9, 2026, 7:30 PM", or "" with no date set."""
         dt = self.datetime
@@ -185,6 +206,10 @@ class ProgramPiece(db.Model):
     program_id = db.Column(db.Integer, db.ForeignKey("programs.id"), nullable=False)
     piece_id = db.Column(db.Integer, db.ForeignKey("pieces.id"), nullable=False)
     position = db.Column(db.Integer, nullable=False)
+    # Which set of the program the piece is in (1, 2, ...), for programs
+    # split into sets with a Reset between them. Null when the program
+    # has no sets.
+    set_number = db.Column(db.Integer, nullable=True)
 
     program = db.relationship("Program", back_populates="program_pieces")
     piece = db.relationship("Piece", back_populates="program_pieces")

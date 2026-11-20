@@ -1,0 +1,34 @@
+{# A ringer's Reset cards, from reports.my_resets rows. Shared by My
+   resets and the printable everyone's resets. #}
+{% from "_reset_items.html" import reset_items %}
+{% macro reset_cards(resets) %}
+  {% for reset, end_position, take_off, start_position, put_out in resets %}
+    <div class="card mb-3" style="break-inside: avoid;">
+      <div class="card-body">
+        <h5 class="card-title mb-2">{{ reset.title }}</h5>
+        {% if not loop.first %}
+        <div class="reset-step">
+          <h6 class="mb-1">Take off{% if end_position %} <span class="fw-normal text-muted">(you end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }})</span>{% endif %}</h6>
+          {% if not end_position %}
+            <div class="text-muted">Nothing to take off; you aren't on {{ reset.ended_piece.title }}, the last piece of Set {{ reset.ended_set_number }}.</div>
+          {% elif take_off %}
+            {{ reset_items(take_off) }}
+          {% else %}
+            <div class="text-muted">Nothing to take off.</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="reset-step">
+          <h6 class="mb-1">Put out{% if start_position %} <span class="fw-normal text-muted">(you start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }})</span>{% endif %}</h6>
+          {% if not start_position %}
+            <div class="text-muted">Nothing to put out; you aren't on {{ reset.started_piece.title }}, the first piece of Set {{ reset.started_set_number }}.</div>
+          {% elif put_out %}
+            {{ reset_items(put_out) }}
+          {% else %}
+            <div class="text-muted">Nothing to put out.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endmacro %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_reset_cards.html" import reset_cards %}
+{% block title %}Everyone's resets - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_reset_cards_styles.html" %}
+<style>
+  /* Each ringer's My resets on a letter page of its own, so the whole
+     thing prints (or saves as a PDF) one ringer per page. */
+  @page { size: letter; margin: 0.6in; }
+  .ringer-resets + .ringer-resets {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--rule);
+  }
+  @media print {
+    body, main.page { min-width: 0 !important; }
+    main.page { padding: 0; margin: 0; max-width: none; width: auto; }
+    .everyones-resets-header { display: none; }
+    .ringer-resets { break-after: page; }
+    .ringer-resets + .ringer-resets { margin-top: 0; padding-top: 0; border-top: 0; }
+    .ringer-resets:last-child { break-after: auto; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="everyones-resets-header mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <a href="{{ url_for('routes.index') }}">&larr; Back to home</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print</button>
+  </div>
+  <h1>Everyone's resets</h1>
+  <p class="text-muted mb-0">
+    {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
+    &middot; {{ ringers | length }} ringer{{ "" if ringers | length == 1 else "s" }}, one per printed page.
+    To make a PDF, choose Print and then Save as PDF.
+  </p>
+</div>
+
+{% if ringers %}
+<div>
+  {% for user, resets in ringers %}
+  <section class="ringer-resets">
+    <h1>{{ user.name }}</h1>
+    <p class="text-muted">
+      My resets &middot; {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
+    </p>
+    <p class="text-muted small">Main Bells are always out and aren't listed.</p>
+    {{ reset_cards(resets) }}
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="text-muted">No one has been assigned to this program's pieces yet.</p>
+{% endif %}
+{% endblock %}

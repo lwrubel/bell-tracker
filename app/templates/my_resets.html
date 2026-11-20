@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_reset_cards.html" import reset_cards %}
+{% block title %}My resets - {{ program.name }} - Bell Tracker{% endblock %}
+{% block head %}
+{% include "_reset_cards_styles.html" %}
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2 d-print-none">
+  <a href="{{ url_for('routes.index') }}">&larr; Back to home</a>
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print</button>
+</div>
+<h1>My resets</h1>
+<p class="text-muted">
+  {{ current_user.name }} &middot; {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
+</p>
+<p class="text-muted small">Main Bells are always out and aren't listed.</p>
+
+{% if assigned %}
+  {{ reset_cards(resets) }}
+{% else %}
+  <p class="text-muted">You haven't been assigned to any pieces in this program yet.</p>
+{% endif %}
+{% endblock %}

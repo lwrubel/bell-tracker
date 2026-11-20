@@ -134,8 +134,15 @@ class ProgramAdminView(SecureModelView):
         (
             ProgramPiece,
             {
-                "form_columns": ["id", "piece", "position"],
-                "form_args": {"position": {"label": "Order"}},
+                "form_columns": ["id", "piece", "position", "set_number"],
+                "form_args": {
+                    "position": {"label": "Order"},
+                    "set_number": {
+                        "label": "Set",
+                        "description": "For programs split into sets: 1, 2, ... "
+                        "Number every piece or none.",
+                    },
+                },
             },
         )
     ]
@@ -149,6 +156,28 @@ class ProgramAdminView(SecureModelView):
                     f"{model.cycle.name}; a program can only play its own "
                     "cycle's pieces."
                 )
+        _check_set_numbers(model.program_pieces)
+
+
+def _check_set_numbers(program_pieces):
+    """Every piece has a set number or none does, and they never go down in
+    program order, so each set is one run of pieces (Program.sets)."""
+    numbered = [pp.set_number is not None for pp in program_pieces]
+    if not any(numbered):
+        return
+    if not all(numbered):
+        raise Exception(
+            "Give every piece a set number, or leave them all blank for a "
+            "program without sets."
+        )
+    previous = None
+    for program_piece in sorted(program_pieces, key=lambda pp: pp.position or 0):
+        if previous is not None and program_piece.set_number < previous:
+            raise Exception(
+                "Set numbers must not go down in program order; each set's "
+                "pieces should come together."
+            )
+        previous = program_piece.set_number
 
 
 class PieceAdminView(SecureModelView):

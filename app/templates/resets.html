@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_reset_items.html" import reset_items %}
+{% block title %}Resets - {{ program.name }}{% endblock %}
+{% block head %}
+{% include "_print_sheet_styles.html" %}
+<style>
+  .print-sheet .reset-items { margin: 0 0 .1rem; padding-left: 1.4em; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="print-sheet">
+<header class="sheet-head">
+  <div class="sheet-titles">
+    <h1>Resets</h1>
+    <div class="sheet-program">{{ program.name }}</div>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">Print</button>
+</header>
+<p class="sheet-note">{% if program.datetime %}{{ program.when_label() }} &middot; {% endif %}Take off goes by where each ringer ends the set; put out by where they start the next one. Main Bells are not included.</p>
+
+{% for reset in resets %}
+  <h2>{{ reset.title }}</h2>
+  {% set positions = reset.by_position() %}
+  {% if positions %}
+  <div class="sheet-columns">
+    {% for position, take_off, put_out in positions %}
+    <div class="sheet-block">
+      <h5>{{ position_label(position) }}</h5>
+      {% if take_off %}
+        <div><em>Take off</em></div>
+        {{ reset_items(take_off) }}
+      {% endif %}
+      {% if put_out %}
+        <div{% if take_off %} class="mt-1"{% endif %}><em>Put out</em></div>
+        {{ reset_items(put_out) }}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="text-muted">Nothing to {% if reset.ended %}change{% else %}put out{% endif %}.</p>
+  {% endif %}
+{% endfor %}
+</div>
+{% endblock %}

@@ -223,6 +223,54 @@ def report_starting_placement(program_id):
     )
 
 
+@bp.route("/programs/<int:program_id>/my-resets")
+@login_required
+def my_resets(program_id):
+    """What the current user puts out and takes off at each Reset. Only for
+    programs split into sets."""
+    program = Program.query.get_or_404(program_id)
+    if not program.has_sets:
+        abort(404)
+    resets = reports.my_resets(program, current_user)
+    return render_template(
+        "my_resets.html",
+        program=program,
+        resets=resets,
+        assigned=bool(
+            _my_entries_by_piece(
+                Piece.id.in_([pp.piece_id for pp in program.program_pieces])
+            )
+        ),
+    )
+
+
+@bp.route("/programs/<int:program_id>/reports/resets")
+@reports_required
+def report_resets(program_id):
+    """Every position's Resets. Only for programs split into sets."""
+    program = Program.query.get_or_404(program_id)
+    if not program.has_sets:
+        abort(404)
+    return render_template(
+        "resets.html", program=program, resets=reports.resets(program)
+    )
+
+
+@bp.route("/programs/<int:program_id>/reports/everyones-resets")
+@reports_required
+def report_everyones_resets(program_id):
+    """Every ringer's My resets, one per printed page. Only for programs
+    split into sets."""
+    program = Program.query.get_or_404(program_id)
+    if not program.has_sets:
+        abort(404)
+    return render_template(
+        "everyones_resets.html",
+        program=program,
+        ringers=reports.everyones_resets(program),
+    )
+
+
 @bp.route("/programs/<int:program_id>/reports/equipment-table")
 @login_required
 def report_equipment_table(program_id):
