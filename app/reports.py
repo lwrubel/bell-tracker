@@ -848,7 +848,7 @@ class Reset:
     """One changeover in a program with sets: before the first set, or
     between two sets.
 
-    - title: "Before Set 1" or "Reset after Set 1".
+    - title: "Before Set 1" or "Reset between Sets 1 and 2".
     - ended: the program pieces of the set just finished (empty before the
       first set), whose last piece decides who takes off what.
     - started: the program pieces of the set about to start, whose first
@@ -933,7 +933,7 @@ def resets(program, entries_by_piece=None):
         previous = summaries[i - 1]
         result.append(
             Reset(
-                f"Reset after Set {sets[i - 1][0].set_number}",
+                f"Reset between Sets {sets[i - 1][0].set_number} and {number}",
                 previous.program_pieces,
                 current.program_pieces,
                 previous.changes(current, previous.last),
