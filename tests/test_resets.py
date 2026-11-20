@@ -148,7 +148,7 @@ def test_reset_takes_off_what_the_next_set_skips_and_puts_out_whats_new(
     _assign(db, users[2], three, "P3", (instrument_type, "C5,E5"))
 
     assert _resets(program)[1] == (
-        "Reset after Set 1",
+        "Reset between Sets 1 and 2",
         [("P7", [("Chimes", ["D5"])])],
         [("P3", [("Chimes", ["E5"])])],
     )
@@ -163,7 +163,7 @@ def test_no_reset_after_the_last_set(db, program, instrument_type):
 
     assert [title for title, _, _ in _resets(program)] == [
         "Before Set 1",
-        "Reset after Set 1",
+        "Reset between Sets 1 and 2",
     ]
 
 
@@ -267,11 +267,11 @@ def test_my_resets_use_start_and_end_positions_across_a_reset(
 
     assert _mine(program, me) == [
         ("Before Set 1", None, [], "P1", [("Chimes", ["C4"])]),
-        ("Reset after Set 1", "P5", [("Chimes", ["D5"])], "P2", [("Chimes", ["E4"])]),
+        ("Reset between Sets 1 and 2", "P5", [("Chimes", ["D5"])], "P2", [("Chimes", ["E4"])]),
     ]
     assert _mine(program, other) == [
         ("Before Set 1", None, [], "P5", [("Chimes", ["D5"])]),
-        ("Reset after Set 1", None, [], None, []),
+        ("Reset between Sets 1 and 2", None, [], None, []),
     ]
 
 
@@ -291,7 +291,7 @@ def test_my_resets_put_out_nothing_when_not_on_the_sets_first_piece(
 
     assert _mine(program, me) == [
         ("Before Set 1", None, [], None, []),
-        ("Reset after Set 1", "P4", [("Chimes", ["C5"])], None, []),
+        ("Reset between Sets 1 and 2", "P4", [("Chimes", ["C5"])], None, []),
     ]
     # The other ringer sat out Set 1's last piece, so takes nothing off.
     assert _mine(program, other)[1][1:] == (None, [], "P6", [("Chimes", ["D5"])])
@@ -344,7 +344,7 @@ def test_my_resets_page(client, db, ringer, program, instrument_type):
     assert f"/programs/{program.id}/my-resets" in home
     assert "reports/resets" not in home
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
-    assert "Reset after Set 1" in body
+    assert "Reset between Sets 1 and 2" in body
     assert "you end Set 1 at P5 - D5/E5 on Piece 1" in body
     assert "you start Set 2 at P2 - E4/F4 on Piece 2" in body
     assert "<strong>Chimes:</strong> E4" in body
@@ -372,7 +372,7 @@ def test_resets_report_page(client, db, manager, ringer, program, instrument_typ
     )
     body = client.get(f"/programs/{program.id}/reports/resets").get_data(as_text=True)
     assert "<h2>Before Set 1</h2>" in body
-    assert "<h2>Reset after Set 1</h2>" in body
+    assert "<h2>Reset between Sets 1 and 2</h2>" in body
     assert "<h5>P5 - D5/E5</h5>" in body
     assert "<em>Take off</em>" in body
 
