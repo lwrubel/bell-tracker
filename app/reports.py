@@ -1011,3 +1011,78 @@ def everyones_resets(program):
         (user, _my_reset_rows(user.id, program_resets, entries_by_piece))
         for user in sorted(users.values(), key=lambda u: (u.name.casefold(), u.id))
     ]
+
+
+# --- equipment conflicts ---------------------------------------------------
+
+# There are enough Main Bells and Bass Bells for every position to have its
+# own, so only other instruments can be claimed twice.
+CONFLICT_EXCLUDED_TYPES = {MAIN_BELLS, BASS_BELLS}
+
+
+def equipment_conflicts(cycle):
+    """Return [(piece, [(instrument_type, item, [entry, ...]), ...]), ...]:
+    each piece in the cycle (by title) where more than one position signed
+    up for the same instrument, which can't be in two places at once.
+
+    An instrument is a single item as in _tracked_items: each pitch, each
+    percussion option, or a whole bell tree (whose item is then its name),
+    leaving out Main Bells and Bass Bells. Mallets and singing bell sticks
+    are counted, not single instruments, so they never conflict. Items are
+    in display order, pitches low to high and options in the type's order;
+    each item's entries are in placement order.
+    """
+    entries = (
+        Entry.query.join(Piece)
+        .filter(Piece.cycle_id == cycle.id)
+        .options(
+            joinedload(Entry.user),
+            selectinload(Entry.instrument_selections).joinedload(
+                EntryInstrument.instrument_type
+            ),
+        )
+        .all()
+    )
+    # {piece_id: {item key: {entry id: entry}}}
+    claims = defaultdict(lambda: defaultdict(dict))
+    # {item key: (instrument_type, item text, sort value)}
+    items = {}
+    for entry in entries:
+        for selection in entry.sorted_instrument_selections():
+            for key, instrument_type, item in _tracked_items(
+                selection, CONFLICT_EXCLUDED_TYPES
+            ):
+                claims[entry.piece_id][key][entry.id] = entry
+                if instrument_type.keyboard_type:
+                    items[key] = (instrument_type, instrument_type.name, -1)
+                elif instrument_type.selection_mode == "pitch":
+                    items[key] = (instrument_type, item, pitch.pitch_index(item))
+                else:
+                    option_ids = [o.id for o in instrument_type.options]
+                    items[key] = (instrument_type, item, option_ids.index(key[1]))
+
+    result = []
+    for piece in cycle.pieces:
+        conflicts = [
+            (
+                items[key],
+                sorted(
+                    claimants.values(),
+                    key=lambda e: (_placement_key(e.position), e.user.first_name.casefold()),
+                ),
+            )
+            for key, claimants in claims[piece.id].items()
+            if len(claimants) > 1
+        ]
+        if conflicts:
+            conflicts.sort(key=lambda c: (_type_key(c[0][0]), c[0][2]))
+            result.append(
+                (
+                    piece,
+                    [
+                        (instrument_type, item, claimants)
+                        for (instrument_type, item, _), claimants in conflicts
+                    ],
+                )
+            )
+    return result

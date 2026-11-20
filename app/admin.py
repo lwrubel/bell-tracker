@@ -465,6 +465,25 @@ class ProgressReportView(AdminAccessMixin, BaseView):
         )
 
 
+class EquipmentConflictsView(AdminAccessMixin, BaseView):
+    """Pieces where two positions signed up for the same instrument, so
+    an admin can sort it out with the ringers."""
+
+    @expose("/")
+    def index(self):
+        cycles = Cycle.query.order_by(Cycle.id.desc()).all()
+        cycle_id = request.args.get("cycle_id", type=int)
+        cycle = (
+            db.session.get(Cycle, cycle_id) if cycle_id else Cycle.get_active()
+        ) or (cycles[0] if cycles else None)
+        return self.render(
+            "admin/equipment_conflicts.html",
+            cycles=cycles,
+            cycle=cycle,
+            conflicts=reports.equipment_conflicts(cycle) if cycle else [],
+        )
+
+
 def init_admin(app):
     admin = Admin(
         app,
@@ -484,5 +503,10 @@ def init_admin(app):
     )
     admin.add_view(
         ProgressReportView(name="Progress report", endpoint="progress_report")
+    )
+    admin.add_view(
+        EquipmentConflictsView(
+            name="Equipment conflicts", endpoint="equipment_conflicts"
+        )
     )
     return admin
