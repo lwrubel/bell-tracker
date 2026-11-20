@@ -1,0 +1,68 @@
+{% extends "admin/master.html" %}
+{% block head_css %}
+{{ super() }}
+<style>
+  .conflicts-table td, .conflicts-table th { font-size: .9rem; vertical-align: top; }
+  .conflicts-table .claimants { list-style: none; margin: 0; padding: 0; }
+</style>
+{% endblock %}
+{% block body %}
+<h2>Equipment conflicts</h2>
+
+{% if not cycle %}
+<p class="text-muted">There are no cycles yet.</p>
+{% else %}
+<form method="get" class="form-inline mb-3">
+  <label for="cycle_id" class="mr-2">Cycle</label>
+  <select class="form-control mr-2" id="cycle_id" name="cycle_id" onchange="this.form.submit()">
+    {% for c in cycles %}
+      <option value="{{ c.id }}"{% if c.id == cycle.id %} selected{% endif %}>{{ c.name }}{% if c.active %} (active){% endif %}</option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit" class="btn btn-outline-secondary">Show</button></noscript>
+</form>
+
+<p class="text-muted">
+  An instrument can only be in one place at a time, so each one should be
+  signed up for by just one position on a piece. A bell tree counts as one
+  instrument. Main Bells, Bass Bells, mallets and singing bell sticks aren't
+  checked.
+</p>
+
+{% if conflicts %}
+<div class="table-responsive">
+  <table class="table table-sm table-bordered conflicts-table">
+    <thead>
+      <tr>
+        <th>Piece</th>
+        <th>Instrument</th>
+        <th>Signed up by</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for piece, rows in conflicts %}
+        {% for instrument_type, item, entries in rows %}
+          <tr>
+            {% if loop.first %}<th scope="row" rowspan="{{ rows | length }}">{{ piece.title }}</th>{% endif %}
+            <td>{% if instrument_type.keyboard_type %}{{ item }}{% else %}{{ instrument_type.name }}: {{ item }}{% endif %}</td>
+            <td>
+              <ul class="claimants">
+                {% for entry in entries %}
+                  <li>
+                    {{ position_label(entry.position) }} &middot; {{ entry.user.name }}
+                    <a href="{{ url_for('entry.equipment_view', id=entry.id, url=request.full_path) }}" title="Edit instrument selections">edit</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </td>
+          </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-success">No conflicts in {{ cycle.name }}.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

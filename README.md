@@ -196,6 +196,17 @@ roster spreadsheet, with a check by each ringer who has saved their
 equipment and an entered/expected count per piece. Float ringers aren't
 counted.
 
+### Equipment conflicts
+
+An instrument can only be in one place at a time. `/admin/` → **Equipment
+conflicts** lists, for a cycle, each piece where more than one position
+signed up for the same instrument: a pitch, a percussion option, or a bell
+tree (one instrument, whichever pitches each ringer uses). Each ringer has an
+**edit** link to their selections. Main Bells and Bass Bells (every position
+has its own), mallets and singing bell sticks (counted, not single
+instruments) aren't checked. Nothing stops a ringer saving a clash; this page
+is how you find them.
+
 ### Importing positions from a spreadsheet
 
 For a whole cycle at once, use `/admin/` → **Import positions**. Pick the
