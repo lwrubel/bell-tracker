@@ -17,6 +17,7 @@ from app.models import (
     InstrumentType,
     Piece,
     Program,
+    ProgramKeepOut,
     ProgramPiece,
     User,
 )
@@ -144,7 +145,25 @@ class ProgramAdminView(SecureModelView):
                     },
                 },
             },
-        )
+        ),
+        # Instrument types left on the table at a Reset for one more set
+        # (reports.resets).
+        (
+            ProgramKeepOut,
+            {
+                "form_columns": ["id", "instrument_type", "after_set"],
+                "form_label": "Leave on table",
+                "form_args": {
+                    "instrument_type": {"label": "Leave on table"},
+                    "after_set": {
+                        "label": "After set",
+                        "description": "Leave this instrument type on the "
+                        "table at the Reset after this set, so it stays out "
+                        "for one more set.",
+                    },
+                },
+            },
+        ),
     ]
 
     def on_model_change(self, form, model, is_created):
@@ -157,6 +176,27 @@ class ProgramAdminView(SecureModelView):
                     "cycle's pieces."
                 )
         _check_set_numbers(model.program_pieces)
+        _check_keep_outs(model)
+
+
+def _check_keep_outs(program):
+    """Each keep-out is after one of the program's sets other than the
+    last, since there's no next set to leave things out for."""
+    numbers = sorted(
+        {pp.set_number for pp in program.program_pieces if pp.set_number is not None}
+    )
+    for keep_out in program.keep_outs:
+        if keep_out.after_set not in numbers[:-1]:
+            if not numbers:
+                problem = "this program has no sets"
+            elif keep_out.after_set == numbers[-1]:
+                problem = f"Set {keep_out.after_set} is the last set"
+            else:
+                problem = f"this program has no Set {keep_out.after_set}"
+            raise Exception(
+                f"Can't leave things on the table after Set {keep_out.after_set}: "
+                f"{problem}."
+            )
 
 
 def _check_set_numbers(program_pieces):

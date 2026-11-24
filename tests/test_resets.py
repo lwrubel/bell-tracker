@@ -2,7 +2,7 @@ from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 from test_reports import _assign, _ringer, _type
 
 from app import reports
-from app.models import CHECKED_NOTES, InstrumentOption, Program
+from app.models import CHECKED_NOTES, InstrumentOption, Program, ProgramKeepOut
 
 
 def _sets(db, program, *set_numbers):
@@ -246,7 +246,7 @@ def test_mallets_sticks_and_percussion(db, program, mallet_instrument_type):
 def _mine(program, user):
     return [
         (r.title, end, [(t.name, i) for t, i in off], start, [(t.name, i) for t, i in out])
-        for r, end, off, start, out in reports.my_resets(program, user)
+        for r, end, off, _, start, out in reports.my_resets(program, user)
     ]
 
 
@@ -398,11 +398,11 @@ def test_everyones_resets_gives_each_ringer_their_own_rows(
     ringers = reports.everyones_resets(program)
     assert [user.name for user, _ in ringers] == ["Amy", "Zoe"]
     (_, amy_rows), (_, zoe_rows) = ringers
-    assert [(end, start) for _, end, _, start, _ in amy_rows] == [
+    assert [(end, start) for _, end, _, _, start, _ in amy_rows] == [
         (None, None),
         (None, "P2"),
     ]
-    assert [(end, start) for _, end, _, start, _ in zoe_rows] == [
+    assert [(end, start) for _, end, _, _, start, _ in zoe_rows] == [
         (None, "P5"),
         ("P5", None),
     ]
@@ -434,3 +434,167 @@ def test_everyones_resets_404_without_sets(client, db, admin_user, program, piec
     login(client, admin_user, ADMIN_PASSWORD)
     url = f"/programs/{program.id}/reports/everyones-resets"
     assert client.get(url).status_code == 404
+
+
+# --- leave on table --------------------------------------------------------
+
+
+def _keep_out(db, program, instrument_type, after_set):
+    db.session.add(
+        ProgramKeepOut(
+            program_id=program.id,
+            instrument_type_id=instrument_type.id,
+            after_set=after_set,
+        )
+    )
+    db.session.commit()
+    db.session.refresh(program)
+
+
+def _leave_on(program):
+    return [(r.title, _flat(r.leave_on)) for r in reports.resets(program)]
+
+
+def test_keep_out_leaves_a_type_on_the_table_for_one_more_set(
+    db, program, instrument_type
+):
+    handbells = _type(db, "Handbells", note_range_low="C4", note_range_high="C8")
+    one, two, three = _sets(db, program, 1, 2, 3)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"), (handbells, "C6"))
+    _assign(db, other, two, "P2", (handbells, "E5"))
+    _assign(db, other, three, "P2", (handbells, "E5"))
+    _keep_out(db, program, instrument_type, 1)
+
+    assert _resets(program)[1:] == [
+        (
+            "Reset between Sets 1 and 2",
+            # Chimes stay; Handbells weren't kept, so they come off as usual.
+            [("P5", [("Handbells", ["C6"])])],
+            [("P2", [("Handbells", ["E5"])])],
+        ),
+        (
+            "Reset between Sets 2 and 3",
+            # The position that left them on takes them off a Reset later.
+            [("P5", [("Chimes", ["D5"])])],
+            [],
+        ),
+    ]
+    assert _leave_on(program) == [
+        ("Before Set 1", []),
+        ("Reset between Sets 1 and 2", [("P5", [("Chimes", ["D5"])])]),
+        ("Reset between Sets 2 and 3", []),
+    ]
+
+
+def test_keep_out_only_leaves_on_what_the_next_set_doesnt_use(
+    db, program, instrument_type
+):
+    one, two, three = _sets(db, program, 1, 2, 3)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5,E5"))
+    _assign(db, other, two, "P2", (instrument_type, "E5"))
+    _keep_out(db, program, instrument_type, 1)
+
+    assert _leave_on(program)[1] == (
+        "Reset between Sets 1 and 2",
+        [("P5", [("Chimes", ["D5"])])],
+    )
+    # E5 moves to P2 in Set 2, so P2 takes it off; D5 stayed at P5.
+    assert _resets(program)[2][1] == [
+        ("P2", [("Chimes", ["E5"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+
+
+def test_keep_outs_in_a_row_leave_a_type_out_for_two_more_sets(
+    db, program, instrument_type
+):
+    one, two, three, four = _sets(db, program, 1, 2, 3, 4)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, other, two, "P2", (instrument_type, "C4"))
+    _keep_out(db, program, instrument_type, 1)
+    _keep_out(db, program, instrument_type, 2)
+
+    assert _leave_on(program)[1:] == [
+        ("Reset between Sets 1 and 2", [("P5", [("Chimes", ["D5"])])]),
+        (
+            "Reset between Sets 2 and 3",
+            [("P2", [("Chimes", ["C4"])]), ("P5", [("Chimes", ["D5"])])],
+        ),
+        ("Reset between Sets 3 and 4", []),
+    ]
+    assert _resets(program)[3][1] == [
+        ("P2", [("Chimes", ["C4"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+
+
+def test_my_resets_page_shows_leave_on_table(
+    client, db, ringer, manager, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    _assign(db, ringer, two, "P5", (instrument_type, "E4"))
+    _keep_out(db, program, instrument_type, 1)
+    login(client, ringer, RINGER_PASSWORD)
+
+    body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
+    reset = body[body.index("Reset between Sets 1 and 2"):]
+    assert "Leave on table" in reset
+    assert "(stays out for Set 2)" in reset
+    assert "<strong>Chimes:</strong> D5" in reset
+    assert "Nothing to take off." not in reset
+    client.post("/logout")
+
+    login(client, manager, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/resets").get_data(as_text=True)
+    assert "Leave on table for Set 2" in body
+
+
+def _post_keep_out(client, program, instrument_type, after_set):
+    data = {"cycle": program.cycle_id, "name": program.name}
+    for i, program_piece in enumerate(program.program_pieces):
+        data[f"program_pieces-{i}-id"] = program_piece.id
+        data[f"program_pieces-{i}-piece"] = program_piece.piece_id
+        data[f"program_pieces-{i}-position"] = program_piece.position
+        data[f"program_pieces-{i}-set_number"] = program_piece.set_number or ""
+    data["keep_outs-0-instrument_type"] = instrument_type.id
+    data["keep_outs-0-after_set"] = after_set
+    return client.post(
+        f"/admin/program/edit/?id={program.id}", data=data, follow_redirects=True
+    ).get_data(as_text=True)
+
+
+def test_admin_adds_a_keep_out(client, db, admin_user, program, instrument_type):
+    _sets(db, program, 1, 2)
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    assert "Leave on table" in client.get(
+        f"/admin/program/edit/?id={program.id}"
+    ).get_data(as_text=True)
+    _post_keep_out(client, program, instrument_type, 1)
+
+    db.session.expire_all()
+    program = db.session.get(Program, program.id)
+    assert [(k.instrument_type.name, k.after_set) for k in program.keep_outs] == [
+        ("Chimes", 1)
+    ]
+
+
+def test_admin_rejects_keep_out_after_the_last_set(
+    client, db, admin_user, program, instrument_type
+):
+    _sets(db, program, 1, 2)
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    assert "Set 2 is the last set" in _post_keep_out(client, program, instrument_type, 2)
+    assert "this program has no Set 5" in _post_keep_out(
+        client, program, instrument_type, 5
+    )
+    db.session.expire_all()
+    assert db.session.get(Program, program.id).keep_outs == []

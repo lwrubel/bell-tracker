@@ -152,6 +152,12 @@ class Program(db.Model):
         order_by="ProgramPiece.position",
         cascade="all, delete-orphan",
     )
+    keep_outs = db.relationship(
+        "ProgramKeepOut",
+        back_populates="program",
+        order_by="(ProgramKeepOut.after_set, ProgramKeepOut.id)",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def pieces(self):
@@ -216,6 +222,34 @@ class ProgramPiece(db.Model):
 
     def __repr__(self):
         return f"<ProgramPiece program={self.program_id} piece={self.piece_id} #{self.position}>"
+
+
+class ProgramKeepOut(db.Model):
+    """An instrument type left on the table at the Reset after one set of a
+    program, so it stays out for the next set instead of being taken off.
+    One row per Reset; two rows in a row keep it out for two more sets."""
+
+    __tablename__ = "program_keep_outs"
+    __table_args__ = (
+        db.UniqueConstraint("program_id", "instrument_type_id", "after_set"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey("programs.id"), nullable=False)
+    instrument_type_id = db.Column(
+        db.Integer, db.ForeignKey("instrument_types.id"), nullable=False
+    )
+    # The set at whose end the type stays out.
+    after_set = db.Column(db.Integer, nullable=False)
+
+    program = db.relationship("Program", back_populates="keep_outs")
+    instrument_type = db.relationship("InstrumentType", back_populates="keep_outs")
+
+    def __repr__(self):
+        return (
+            f"<ProgramKeepOut program={self.program_id} "
+            f"type={self.instrument_type_id} after set {self.after_set}>"
+        )
 
 
 piece_instrument_types = db.Table(
@@ -305,6 +339,9 @@ class InstrumentType(db.Model):
         back_populates="instrument_type",
         cascade="all, delete-orphan",
         order_by="InstrumentOption.name",
+    )
+    keep_outs = db.relationship(
+        "ProgramKeepOut", back_populates="instrument_type", cascade="all, delete-orphan"
     )
 
     def label_on_form(self):

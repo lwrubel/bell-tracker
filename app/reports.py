@@ -830,18 +830,40 @@ class _SetSummary:
                 else:
                     # Non-breaking, so "×2" never wraps alone.
                     placed[position][instrument_type].append(f"{label}\u00a0×{extra}")
-        return [
-            (
-                position,
-                [
-                    (instrument_type, _sorted_items(instrument_type, items))
-                    for instrument_type, items in sorted(
-                        placed[position].items(), key=lambda kv: _type_key(kv[0])
-                    )
-                ],
-            )
-            for position in sorted(placed, key=_placement_key)
-        ]
+        return _by_position(placed)
+
+    def carry(self, following, type_ids):
+        """Leave this set's single items of the instrument types in
+        `type_ids` on the table for `following`, the next set, where it
+        doesn't use them itself. They stay with the position holding them
+        at the end of this set, which takes them off at the end of
+        `following` (unless they're carried again). Return what's left on,
+        as changes() does."""
+        placed = defaultdict(lambda: defaultdict(list))
+        for key, (instrument_type, items) in self.items.items():
+            if instrument_type.id in type_ids and key not in following.items:
+                following.items[key] = (instrument_type, items)
+                following.last[key] = self.last[key]
+                placed[self.last[key]][instrument_type].extend(items)
+        return _by_position(placed)
+
+
+def _by_position(placed):
+    """{position: {instrument_type: [item, ...]}} as [(position,
+    [(instrument_type, [item, ...]), ...]), ...], positions in placement
+    order and types in display order."""
+    return [
+        (
+            position,
+            [
+                (instrument_type, _sorted_items(instrument_type, items))
+                for instrument_type, items in sorted(
+                    placed[position].items(), key=lambda kv: _type_key(kv[0])
+                )
+            ],
+        )
+        for position in sorted(placed, key=_placement_key)
+    ]
 
 
 class Reset:
@@ -853,16 +875,19 @@ class Reset:
       first set), whose last piece decides who takes off what.
     - started: the program pieces of the set about to start, whose first
       piece decides who puts out what.
-    - take_off, put_out: [(position, [(instrument_type, [item, ...]), ...]),
-      ...] by position code, in placement order.
+    - take_off, put_out, leave_on: [(position, [(instrument_type, [item,
+      ...]), ...]), ...] by position code, in placement order. leave_on is
+      what the finished set's last ringers leave on the table for the next
+      set (ProgramKeepOut) rather than taking off.
     """
 
-    def __init__(self, title, ended, started, take_off, put_out):
+    def __init__(self, title, ended, started, take_off, put_out, leave_on=()):
         self.title = title
         self.ended = ended
         self.started = started
         self.take_off = take_off
         self.put_out = put_out
+        self.leave_on = list(leave_on)
 
     @property
     def ended_set_number(self):
@@ -885,13 +910,21 @@ class Reset:
         return self.started[0].piece
 
     def by_position(self):
-        """[(position, take_off, put_out), ...]: each position with anything
-        to do, in placement order, and its two lists of
+        """[(position, take_off, put_out, leave_on), ...]: each position
+        with anything to do, in placement order, and its three lists of
         [(instrument_type, [item, ...]), ...]."""
         take_off, put_out = dict(self.take_off), dict(self.put_out)
+        leave_on = dict(self.leave_on)
         return [
-            (position, take_off.get(position, []), put_out.get(position, []))
-            for position in sorted({*take_off, *put_out}, key=_placement_key)
+            (
+                position,
+                take_off.get(position, []),
+                put_out.get(position, []),
+                leave_on.get(position, []),
+            )
+            for position in sorted(
+                {*take_off, *put_out, *leave_on}, key=_placement_key
+            )
         ]
 
 
@@ -909,6 +942,11 @@ def resets(program, entries_by_piece=None):
     counted per position: a position puts out however many more of each
     kind it needs than it had in the set before, and takes off however many
     more it had than it needs in the next. Main Bells are left out.
+
+    The program's keep-outs (ProgramKeepOut) leave an instrument type's
+    single items on the table at the Reset after a set, for the next set:
+    the position holding them takes them off a Reset later instead. Each
+    Reset's leave_on lists them. Counted items aren't carried.
     """
     sets = program.sets()
     if not sets:
@@ -916,6 +954,14 @@ def resets(program, entries_by_piece=None):
     if entries_by_piece is None:
         entries_by_piece = _program_entries_by_piece(program)
     summaries = [_SetSummary(pieces, entries_by_piece) for pieces in sets]
+    keep_outs = defaultdict(set)  # {set number: {instrument type id, ...}}
+    for keep_out in program.keep_outs:
+        keep_outs[keep_out.after_set].add(keep_out.instrument_type_id)
+    # In set order, so items carried into a set can be carried again.
+    leave_on = [[]] + [
+        previous.carry(current, keep_outs[pieces[0].set_number])
+        for previous, current, pieces in zip(summaries, summaries[1:], sets)
+    ]
     result = []
     for i, current in enumerate(summaries):
         number = sets[i][0].set_number
@@ -938,6 +984,7 @@ def resets(program, entries_by_piece=None):
                 current.program_pieces,
                 previous.changes(current, previous.last),
                 current.changes(previous, current.first),
+                leave_on[i],
             )
         )
     return result
@@ -952,22 +999,24 @@ def _position_on(program_piece, entries):
 
 
 def my_resets(program, user):
-    """Return [(reset, end_position, take_off, start_position, put_out),
-    ...]: one row per Reset (see resets), for one ringer.
+    """Return [(reset, end_position, take_off, leave_on, start_position,
+    put_out), ...]: one row per Reset (see resets), for one ringer.
 
-    end_position is where they finish the set just ended and take_off what
-    that position takes off; start_position is where they start the next set
+    end_position is where they finish the set just ended, take_off what
+    that position takes off and leave_on what it leaves on the table for
+    the next set; start_position is where they start the next set
     and put_out what that position puts out. The two are looked up apart,
     since a ringer can come back from a Reset at a different position.
     Equipment belongs to the position, so whoever is there takes it off or
-    puts it out. take_off and put_out are [(instrument_type, [item, ...]),
-    ...].
+    puts it out. take_off, leave_on and put_out are [(instrument_type,
+    [item, ...]), ...].
 
     Only whoever starts a set puts out and only whoever finishes it takes
     off: start_position is the ringer's position on the next set's first
     piece and end_position on the finished set's last piece. Either is None
     (and its list empty) when they aren't on that piece, since someone else
     sees to it then; end_position is also None before the first set.
+    leave_on is empty whenever end_position is None.
     """
     entries_by_piece = _program_entries_by_piece(program)
     return _my_reset_rows(user.id, resets(program, entries_by_piece), entries_by_piece)
@@ -990,6 +1039,7 @@ def _my_reset_rows(user_id, program_resets, entries_by_piece):
                 reset,
                 end_position,
                 dict(reset.take_off).get(end_position, []),
+                dict(reset.leave_on).get(end_position, []),
                 start_position,
                 dict(reset.put_out).get(start_position, []),
             )

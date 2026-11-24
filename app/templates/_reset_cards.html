@@ -2,7 +2,7 @@
    resets and the printable everyone's resets. #}
 {% from "_reset_items.html" import reset_items %}
 {% macro reset_cards(resets) %}
-  {% for reset, end_position, take_off, start_position, put_out in resets %}
+  {% for reset, end_position, take_off, leave_on, start_position, put_out in resets %}
     <div class="card mb-3" style="break-inside: avoid;">
       <div class="card-body">
         <h5 class="card-title mb-2">{{ reset.title }}</h5>
@@ -13,10 +13,16 @@
             <div class="text-muted">Nothing to take off; you aren't on {{ reset.ended_piece.title }}, the last piece of Set {{ reset.ended_set_number }}.</div>
           {% elif take_off %}
             {{ reset_items(take_off) }}
-          {% else %}
+          {% elif not leave_on %}
             <div class="text-muted">Nothing to take off.</div>
           {% endif %}
         </div>
+        {% if leave_on %}
+        <div class="reset-step">
+          <h6 class="mb-1">Leave on table <span class="fw-normal text-muted">(stays out for Set {{ reset.started_set_number }})</span></h6>
+          {{ reset_items(leave_on) }}
+        </div>
+        {% endif %}
         {% endif %}
         <div class="reset-step">
           <h6 class="mb-1">Put out{% if start_position %} <span class="fw-normal text-muted">(you start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }})</span>{% endif %}</h6>
