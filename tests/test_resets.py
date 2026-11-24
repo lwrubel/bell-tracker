@@ -348,6 +348,7 @@ def test_my_resets_page(client, db, ringer, program, instrument_type):
     assert "you end Set 1 at P5 - D5/E5 on Piece 1" in body
     assert "you start Set 2 at P2 - E4/F4 on Piece 2" in body
     assert "<strong>Chimes:</strong> E4" in body
+    assert 'id="print-date-footer"' in body
     assert client.get(f"/programs/{program.id}/reports/resets").status_code == 403
 
 
@@ -425,6 +426,7 @@ def test_everyones_resets_page(client, db, manager, ringer, program, instrument_
     body = client.get(url).get_data(as_text=True)
     assert body.count('<section class="ringer-resets">') == 2
     assert body.index("<h1>Ringer One</h1>") < body.index("<h1>Zed Ringer</h1>")
+    assert 'id="print-date-footer"' in body
     assert "you start Set 2 at P2 - E4/F4 on Piece 2" in body
 
 

@@ -1,0 +1,20 @@
+{# Prints today's date in the bottom-right page margin of every printed
+   page. Uses the viewer's local date (the server runs in UTC), set when
+   the page loads and again just before printing in case it was left open
+   overnight. Page margin boxes print in Chrome and Edge. #}
+<style id="print-date-footer"></style>
+<script>
+  (function () {
+    var style = document.getElementById("print-date-footer");
+    function setPrintDate() {
+      var date = new Date().toLocaleDateString("en-US", {
+        year: "numeric", month: "long", day: "numeric"
+      });
+      style.textContent =
+        '@page { @bottom-right { content: "Printed ' + date + '";' +
+        ' font-family: Figtree, sans-serif; font-size: 9pt; color: #6c757d; } }';
+    }
+    setPrintDate();
+    window.addEventListener("beforeprint", setPrintDate);
+  })();
+</script>
