@@ -741,6 +741,51 @@ def test_bass_bell_cover_sheets_leaves_unused_bells_where_they_were(
     ]
 
 
+def _skip_cover_sheet(db, program, piece):
+    for program_piece in program.program_pieces:
+        if program_piece.piece_id == piece.id:
+            program_piece.cover_sheet = False
+    db.session.commit()
+
+
+def test_cover_sheets_leave_out_pieces_without_one(
+    client, db, admin_user, program, piece
+):
+    skipped = add_piece(db, program, "No Sheet Piece", 2)
+    db.session.commit()
+    _skip_cover_sheet(db, program, skipped)
+
+    assert [pp.piece for pp, _, _ in reports.cover_sheets(program)] == [piece]
+
+    login(client, admin_user, ADMIN_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/cover-sheets").get_data(
+        as_text=True
+    )
+    assert piece.title in body
+    assert "No Sheet Piece" not in body
+    # It's still in the program everywhere else.
+    order = client.get(f"/programs/{program.id}/order").get_data(as_text=True)
+    assert "No Sheet Piece" in order
+
+
+def test_bass_bell_cover_sheets_skip_a_piece_but_still_follow_its_bells(
+    db, program, piece, bass_instrument_type, instrument_type
+):
+    second, third, _, entries = _bass_sheet_program(
+        db, program, piece, bass_instrument_type, instrument_type
+    )
+    _skip_cover_sheet(db, program, second)
+
+    result = reports.bass_bell_cover_sheets(program)
+
+    assert [pp.piece for pp, _ in result] == [piece, third]
+    # D3 still moved to LB2 on the skipped second piece.
+    d3 = [(bass_instrument_type, ["D3"])]
+    assert dict((pp.piece, rows) for pp, rows in result)[third] == [
+        (entries["third lb1"], d3, [("Coming from LB2", d3)], [])
+    ]
+
+
 def test_bass_bell_cover_sheets_page(
     client, db, admin_user, program, piece, bass_instrument_type, instrument_type
 ):

@@ -222,6 +222,12 @@ class ProgramPiece(db.Model):
     # split into sets with a Reset between them. Null when the program
     # has no sets.
     set_number = db.Column(db.Integer, nullable=True)
+    # Whether the piece gets a page on the cover sheets (standard and bass
+    # bells). Off for a piece that needs none; it still counts everywhere
+    # else, including where bells are coming from on later cover sheets.
+    cover_sheet = db.Column(
+        db.Boolean, nullable=False, default=True, server_default=db.true()
+    )
 
     program = db.relationship("Program", back_populates="program_pieces")
     piece = db.relationship("Piece", back_populates="program_pieces")
