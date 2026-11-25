@@ -13,6 +13,11 @@ would change without touching the database, so an admin can preview it;
 unknown position, a name that matches no ringer or several - is reported
 and makes the plan unappliable, so a bad sheet never half-applies.
 
+A ringer can be listed under more than one position for a piece, and gets
+an entry for each. When a ringer's positions on a piece change, their
+existing entries are moved to the new positions (keeping their equipment)
+before any new ones are added.
+
 Importing only adds and updates. Assignments not in the sheet are left
 alone, as is any equipment a ringer has already saved.
 """
@@ -23,7 +28,7 @@ from dataclasses import dataclass, field
 
 from app import db
 from app.models import Entry, Piece, User
-from app.positions import POSITION_CODES
+from app.positions import POSITION_CODES, position_sort_key
 
 EMPTY_CELL_VALUES = {"", "-"}
 
@@ -106,8 +111,10 @@ def plan_import(cycle, csv_text):
 
     positions_by_key = {code.casefold(): code for code in POSITION_CODES}
 
-    # (piece key, user id) -> position, to catch a ringer placed twice.
+    # (piece key, user id) -> [position, ...] in sheet order.
     placed = {}
+    # (piece key, title, user, position) in sheet order.
+    placements = []
     for row in body:
         raw_position = row[0].strip() if row else ""
         position = positions_by_key.get(raw_position.casefold())
@@ -141,29 +148,57 @@ def plan_import(cycle, csv_text):
                     )
                     continue
                 user = matches[0]
-                if (piece_key, user.id) in placed:
+                positions = placed.setdefault((piece_key, user.id), [])
+                if position in positions:
                     plan.errors.append(
-                        f"{title}: {user.name} is listed at both "
-                        f"{placed[(piece_key, user.id)]} and {position}."
+                        f"{title}: {user.name} is listed at {position} twice."
                     )
                     continue
-                placed[(piece_key, user.id)] = position
-                plan.assignments.append(
-                    _assignment(existing_pieces.get(piece_key), title, user, position)
-                )
+                positions.append(position)
+                placements.append((piece_key, title, user, position))
+
+    planned = {}
+    for (piece_key, user_id), positions in placed.items():
+        planned.update(
+            _assignments_for(
+                existing_pieces.get(piece_key), piece_key, user_id, positions
+            )
+        )
+    for piece_key, title, user, position in placements:
+        action, old_position = planned[(piece_key, user.id, position)]
+        plan.assignments.append(
+            Assignment(title, user, position, action, old_position=old_position)
+        )
 
     return plan
 
 
-def _assignment(piece, title, user, position):
-    entry = None
+def _assignments_for(piece, piece_key, user_id, positions):
+    """{(piece key, user id, position): (action, old position)} for one
+    ringer's positions on one piece, given in sheet order.
+
+    Positions they already have are unchanged. Each new position takes
+    over one of their existing entries the sheet no longer lists, in
+    position order, so its equipment is kept; any left over are added.
+    """
+    existing = []
     if piece is not None:
-        entry = Entry.query.filter_by(piece_id=piece.id, user_id=user.id).first()
-    if entry is None:
-        return Assignment(title, user, position, ADD)
-    if entry.position == position:
-        return Assignment(title, user, position, UNCHANGED)
-    return Assignment(title, user, position, UPDATE, old_position=entry.position)
+        existing = [
+            entry.position
+            for entry in Entry.query.filter_by(piece_id=piece.id, user_id=user_id)
+        ]
+    freed = sorted(
+        (p for p in existing if p not in positions), key=position_sort_key
+    )
+    result = {}
+    for position in positions:
+        if position in existing:
+            result[(piece_key, user_id, position)] = (UNCHANGED, None)
+        elif freed:
+            result[(piece_key, user_id, position)] = (UPDATE, freed.pop(0))
+        else:
+            result[(piece_key, user_id, position)] = (ADD, None)
+    return result
 
 
 def apply_import(cycle, plan):
@@ -183,10 +218,14 @@ def apply_import(cycle, plan):
         if assignment.action == UNCHANGED:
             continue
         piece = pieces[_normalize(assignment.piece_title)]
-        entry = Entry.query.filter_by(
-            piece_id=piece.id, user_id=assignment.user.id
-        ).first()
-        if entry is None:
+        if assignment.action == UPDATE:
+            entry = Entry.query.filter_by(
+                piece_id=piece.id,
+                user_id=assignment.user.id,
+                position=assignment.old_position,
+            ).one()
+            entry.position = assignment.position
+        else:
             db.session.add(
                 Entry(
                     piece_id=piece.id,
@@ -194,6 +233,4 @@ def apply_import(cycle, plan):
                     position=assignment.position,
                 )
             )
-        else:
-            entry.position = assignment.position
     db.session.commit()

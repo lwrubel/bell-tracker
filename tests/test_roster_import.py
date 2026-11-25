@@ -118,6 +118,63 @@ def test_updates_changed_positions_and_keeps_equipment(
     assert entry.misc_notes == "Tree"
 
 
+def test_ringer_listed_at_two_positions_gets_an_entry_for_each(
+    db, cycle, piece, sample_ringers
+):
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Nora\nP5,Nora\n")
+    assert plan.errors == []
+    assert [(a.position, a.action) for a in plan.assignments] == [
+        ("P1", roster_import.ADD),
+        ("P5", roster_import.ADD),
+    ]
+    roster_import.apply_import(cycle, plan)
+
+    nora = sample_ringers["Nora"]
+    entries = Entry.query.filter_by(piece_id=piece.id, user_id=nora.id).all()
+    assert sorted(e.position for e in entries) == ["P1", "P5"]
+
+
+def test_adding_a_second_position_keeps_the_first(db, cycle, piece, sample_ringers):
+    nora = sample_ringers["Nora"]
+    entry = Entry(user_id=nora.id, piece_id=piece.id, position="P1", misc_notes="Tree")
+    db.session.add(entry)
+    db.session.commit()
+
+    plan = _plan(cycle, "Position,Ode to Joy\nP1,Nora\nP5,Nora\n")
+    assert [(a.position, a.action) for a in plan.assignments] == [
+        ("P1", roster_import.UNCHANGED),
+        ("P5", roster_import.ADD),
+    ]
+    roster_import.apply_import(cycle, plan)
+
+    db.session.refresh(entry)
+    assert (entry.position, entry.misc_notes) == ("P1", "Tree")
+    assert Entry.query.filter_by(piece_id=piece.id, user_id=nora.id).count() == 2
+
+
+def test_changed_position_moves_an_entry_the_sheet_no_longer_lists(
+    db, cycle, piece, sample_ringers
+):
+    nora = sample_ringers["Nora"]
+    p1 = Entry(user_id=nora.id, piece_id=piece.id, position="P1", misc_notes="Tree")
+    p2 = Entry(user_id=nora.id, piece_id=piece.id, position="P2")
+    db.session.add_all([p1, p2])
+    db.session.commit()
+
+    # P2 stays; P1 is gone from the sheet, so its entry becomes P3.
+    plan = _plan(cycle, "Position,Ode to Joy\nP2,Nora\nP3,Nora\n")
+    by_position = {a.position: a for a in plan.assignments}
+    assert by_position["P2"].action == roster_import.UNCHANGED
+    assert by_position["P3"].action == roster_import.UPDATE
+    assert by_position["P3"].old_position == "P1"
+    roster_import.apply_import(cycle, plan)
+
+    db.session.refresh(p1)
+    db.session.refresh(p2)
+    assert (p1.position, p1.misc_notes) == ("P3", "Tree")
+    assert p2.position == "P2"
+
+
 def test_never_removes_assignments_missing_from_sheet(
     db, cycle, piece, sample_ringers
 ):
@@ -147,7 +204,7 @@ def test_nothing_to_change_cannot_apply(db, cycle, piece, sample_ringers):
         ("Position,Ode to Joy\nP99,Nora\n", 'Unknown position "P99"'),
         ("Position,Ode to Joy\nAux,Nora\n", 'Unknown position "Aux"'),
         ("Position,Ode to Joy\nP1,Zelda\n", 'no ringer named "Zelda"'),
-        ("Position,Ode to Joy\nP1,Nora\nP2,Nora\n", "listed at both P1 and P2"),
+        ('Position,Ode to Joy\nP1,"Nora, Nora"\n', "listed at P1 twice"),
         ("Position,Ode to Joy,ode to joy\nP1,Nora,Clara\n", "more than one column"),
         ("", "The file is empty."),
         ("Position\nP1\n", "should list the piece titles"),

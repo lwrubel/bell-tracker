@@ -1,17 +1,17 @@
 {# A ringer's Reset cards, from reports.my_resets rows. Shared by My
-   resets and the printable everyone's resets. #}
+   resets and the printable everyone's resets. A ringer with more than one
+   position on a set's first or last piece gets a step for each. #}
 {% from "_reset_items.html" import reset_items %}
 {% macro reset_cards(resets) %}
-  {% for reset, end_position, take_off, leave_on, start_position, put_out in resets %}
+  {% for reset, ends, starts in resets %}
     <div class="card mb-3" style="break-inside: avoid;">
       <div class="card-body">
         <h5 class="card-title mb-2">{{ reset.title }}</h5>
         {% if not loop.first %}
+        {% for end_position, take_off, leave_on in ends %}
         <div class="reset-step">
-          <h6 class="mb-1">Take off{% if end_position %} <span class="fw-normal text-muted">(you end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }})</span>{% endif %}</h6>
-          {% if not end_position %}
-            <div class="text-muted">Nothing to take off; you aren't on {{ reset.ended_piece.title }}, the last piece of Set {{ reset.ended_set_number }}.</div>
-          {% elif take_off %}
+          <h6 class="mb-1">Take off <span class="fw-normal text-muted">(you end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }})</span></h6>
+          {% if take_off %}
             {{ reset_items(take_off) }}
           {% elif not leave_on %}
             <div class="text-muted">Nothing to take off.</div>
@@ -19,21 +19,32 @@
         </div>
         {% if leave_on %}
         <div class="reset-step">
-          <h6 class="mb-1">Leave on table <span class="fw-normal text-muted">(stays out for Set {{ reset.started_set_number }})</span></h6>
+          <h6 class="mb-1">Leave on table <span class="fw-normal text-muted">(stays out for Set {{ reset.started_set_number }}{% if ends | length > 1 %}, from {{ position_label(end_position) }}{% endif %})</span></h6>
           {{ reset_items(leave_on) }}
         </div>
         {% endif %}
-        {% endif %}
+        {% else %}
         <div class="reset-step">
-          <h6 class="mb-1">Put out{% if start_position %} <span class="fw-normal text-muted">(you start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }})</span>{% endif %}</h6>
-          {% if not start_position %}
-            <div class="text-muted">Nothing to put out; you aren't on {{ reset.started_piece.title }}, the first piece of Set {{ reset.started_set_number }}.</div>
-          {% elif put_out %}
+          <h6 class="mb-1">Take off</h6>
+          <div class="text-muted">Nothing to take off; you aren't on {{ reset.ended_piece.title }}, the last piece of Set {{ reset.ended_set_number }}.</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% for start_position, put_out in starts %}
+        <div class="reset-step">
+          <h6 class="mb-1">Put out <span class="fw-normal text-muted">(you start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }})</span></h6>
+          {% if put_out %}
             {{ reset_items(put_out) }}
           {% else %}
             <div class="text-muted">Nothing to put out.</div>
           {% endif %}
         </div>
+        {% else %}
+        <div class="reset-step">
+          <h6 class="mb-1">Put out</h6>
+          <div class="text-muted">Nothing to put out; you aren't on {{ reset.started_piece.title }}, the first piece of Set {{ reset.started_set_number }}.</div>
+        </div>
+        {% endfor %}
       </div>
     </div>
   {% endfor %}

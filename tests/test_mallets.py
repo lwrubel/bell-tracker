@@ -1,11 +1,11 @@
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, entry_url, login
 
 from app import color, reports
 from app.models import Entry, EntryInstrument, Piece
 
 
 def _entry_url(piece):
-    return f"/pieces/{piece.id}/entry"
+    return entry_url(piece)
 
 
 def _color_field(mallet_instrument_type, label):
@@ -330,6 +330,6 @@ def test_ringer_views_do_not_show_other_ringers_mallets(
     assert "Red yarn" not in program
     assert "&times;2" not in program
 
-    form = client.get(_entry_url(mallet_piece)).get_data(as_text=True)
+    form = client.get(entry_url(mallet_piece, ringer)).get_data(as_text=True)
     assert "Red yarn &times;7" not in form
     assert "all ringers" not in form

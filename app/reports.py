@@ -990,33 +990,37 @@ def resets(program, entries_by_piece=None):
     return result
 
 
-def _position_on(program_piece, entries):
-    """The user's position on `program_piece`, or None if they aren't on it."""
+def _positions_on(program_piece, entries):
+    """The user's positions on `program_piece` in placement order, or []
+    if they aren't on it."""
     if program_piece is None:
-        return None
-    entry = entries.get(program_piece.piece_id)
-    return entry.position if entry is not None else None
+        return []
+    return sorted(
+        (e.position for e in entries.get(program_piece.piece_id, [])),
+        key=_placement_key,
+    )
 
 
 def my_resets(program, user):
-    """Return [(reset, end_position, take_off, leave_on, start_position,
-    put_out), ...]: one row per Reset (see resets), for one ringer.
+    """Return [(reset, ends, starts), ...]: one row per Reset (see resets),
+    for one ringer.
 
-    end_position is where they finish the set just ended, take_off what
-    that position takes off and leave_on what it leaves on the table for
-    the next set; start_position is where they start the next set
-    and put_out what that position puts out. The two are looked up apart,
-    since a ringer can come back from a Reset at a different position.
-    Equipment belongs to the position, so whoever is there takes it off or
-    puts it out. take_off, leave_on and put_out are [(instrument_type,
-    [item, ...]), ...].
+    ends is [(position, take_off, leave_on), ...]: each position they finish
+    the set just ended at, what that position takes off and what it leaves
+    on the table for the next set. starts is [(position, put_out), ...]:
+    each position they start the next set at and what it puts out. The two
+    are looked up apart, since a ringer can come back from a Reset at a
+    different position. Equipment belongs to the position, so whoever is
+    there takes it off or puts it out. take_off, leave_on and put_out are
+    [(instrument_type, [item, ...]), ...].
 
     Only whoever starts a set puts out and only whoever finishes it takes
-    off: start_position is the ringer's position on the next set's first
-    piece and end_position on the finished set's last piece. Either is None
-    (and its list empty) when they aren't on that piece, since someone else
-    sees to it then; end_position is also None before the first set.
-    leave_on is empty whenever end_position is None.
+    off: starts are the ringer's positions on the next set's first piece
+    and ends their positions on the finished set's last piece. Usually
+    there's at most one of each, but a ringer can hold more than one
+    position on a piece. Either is empty when they aren't on that piece,
+    since someone else sees to it then; ends is also empty before the
+    first set.
     """
     entries_by_piece = _program_entries_by_piece(program)
     return _my_reset_rows(user.id, resets(program, entries_by_piece), entries_by_piece)
@@ -1024,26 +1028,26 @@ def my_resets(program, user):
 
 def _my_reset_rows(user_id, program_resets, entries_by_piece):
     """my_resets for one user, from already-worked-out resets."""
-    mine = {
-        piece_id: entry
-        for piece_id, entries in entries_by_piece.items()
-        for entry in entries
-        if entry.user_id == user_id
-    }
+    mine = defaultdict(list)
+    for piece_id, entries in entries_by_piece.items():
+        for entry in entries:
+            if entry.user_id == user_id:
+                mine[piece_id].append(entry)
     result = []
     for reset in program_resets:
-        end_position = _position_on(reset.ended[-1] if reset.ended else None, mine)
-        start_position = _position_on(reset.started[0], mine)
-        result.append(
-            (
-                reset,
-                end_position,
-                dict(reset.take_off).get(end_position, []),
-                dict(reset.leave_on).get(end_position, []),
-                start_position,
-                dict(reset.put_out).get(start_position, []),
+        take_off, leave_on = dict(reset.take_off), dict(reset.leave_on)
+        put_out = dict(reset.put_out)
+        ends = [
+            (position, take_off.get(position, []), leave_on.get(position, []))
+            for position in _positions_on(
+                reset.ended[-1] if reset.ended else None, mine
             )
-        )
+        ]
+        starts = [
+            (position, put_out.get(position, []))
+            for position in _positions_on(reset.started[0], mine)
+        ]
+        result.append((reset, ends, starts))
     return result
 
 

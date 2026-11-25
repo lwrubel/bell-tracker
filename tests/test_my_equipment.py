@@ -134,3 +134,14 @@ def test_instrument_removed_from_piece_drops_off_equipment(
     db.session.commit()
     body = client.get(_url(program)).get_data(as_text=True)
     assert "Red yarn ×2" in body
+
+
+def test_lists_each_position_on_a_piece(client, db, ringer, program, piece):
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P5"))
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/my-equipment").get_data(as_text=True)
+    assert body.index("P1 - C4/D4") < body.index("P5 - D5/E5")
+    assert body.count(piece.title) == 2

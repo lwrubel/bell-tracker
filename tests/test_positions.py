@@ -1,5 +1,5 @@
 import pytest
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, entry_url, login
 
 from app.models import Entry
 from app.positions import POSITION_CODES, position_label
@@ -38,7 +38,7 @@ def test_ringer_pages_show_position_label(client, db, ringer, program, piece):
 
     for url in (
         f"/cycles/{program.cycle_id}",
-        f"/pieces/{piece.id}/entry",
+        entry_url(piece),
         f"/programs/{program.id}/my-equipment",
     ):
         assert "P2 - E4/F4" in client.get(url).get_data(as_text=True), url

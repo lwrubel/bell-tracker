@@ -1,7 +1,7 @@
 import re
 
 import pytest
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, entry_url, login
 
 from app import reports
 from app.models import CHECKED_NOTES, Entry, EntryInstrument, InstrumentType, User
@@ -21,7 +21,7 @@ def stick_type(db):
 
 
 def _entry_url(piece):
-    return f"/pieces/{piece.id}/entry"
+    return entry_url(piece)
 
 
 def _field(stick_type):

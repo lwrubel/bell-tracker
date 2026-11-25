@@ -4,7 +4,15 @@ import pytest
 
 from app import create_app
 from app import db as _db
-from app.models import Cycle, InstrumentType, Piece, Program, ProgramPiece, User
+from app.models import (
+    Cycle,
+    Entry,
+    InstrumentType,
+    Piece,
+    Program,
+    ProgramPiece,
+    User,
+)
 
 RINGER_PASSWORD = "ringerpass123"
 ADMIN_PASSWORD = "adminPassword456"
@@ -167,6 +175,17 @@ def mallet_piece(db, program, mallet_instrument_type):
     p.instrument_types.append(mallet_instrument_type)
     db.session.commit()
     return p
+
+
+def entry_url(piece, user=None, position=None):
+    """The equipment form for the one entry on `piece` (narrowed by user
+    and position when given)."""
+    query = Entry.query.filter_by(piece_id=piece.id)
+    if user is not None:
+        query = query.filter_by(user_id=user.id)
+    if position is not None:
+        query = query.filter_by(position=position)
+    return f"/entries/{query.one().id}/equipment"
 
 
 def login(client, user, password):

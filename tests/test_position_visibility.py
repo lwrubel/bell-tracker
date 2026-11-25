@@ -1,5 +1,5 @@
 import pytest
-from conftest import RINGER_PASSWORD, add_piece, login
+from conftest import RINGER_PASSWORD, add_piece, entry_url, login
 
 from app import positions, reports
 from app.models import Entry, EntryInstrument, InstrumentType, Piece
@@ -17,7 +17,7 @@ def bass_piece(db, program, instrument_type, bass_instrument_type):
 
 
 def _entry_url(piece):
-    return f"/pieces/{piece.id}/entry"
+    return entry_url(piece)
 
 
 def _open_entry_as(client, db, ringer, program, piece, position):

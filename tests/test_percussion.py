@@ -1,7 +1,7 @@
 import re
 
 import pytest
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, entry_url, login
 
 from app import reports
 from app.models import Entry, EntryInstrument, InstrumentOption, InstrumentType, User
@@ -84,7 +84,7 @@ def test_form_shows_a_checkbox_per_option(client, db, ringer, program, percussio
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    body = client.get(f"/pieces/{piece.id}/entry").get_data(as_text=True)
+    body = client.get(entry_url(piece)).get_data(as_text=True)
 
     assert "<summary>Percussion</summary>" in body
     for option in percussion.options:
@@ -104,16 +104,16 @@ def test_picking_options_saves_and_reloads(client, db, ringer, program, percussi
     triangle = _option(percussion, "Triangle")
 
     login(client, ringer, RINGER_PASSWORD)
-    client.post(f"/pieces/{piece.id}/entry", data={_field(percussion): [triangle.id]})
+    client.post(entry_url(piece), data={_field(percussion): [triangle.id]})
 
     db.session.expire_all()
     (selection,) = entry.instrument_selections
     assert selection.selected_options() == [triangle]
 
-    body = client.get(f"/pieces/{piece.id}/entry").get_data(as_text=True)
+    body = client.get(entry_url(piece)).get_data(as_text=True)
     assert re.search(rf'<input checked[^>]*value="{triangle.id}"', body)
 
-    client.post(f"/pieces/{piece.id}/entry", data={})
+    client.post(entry_url(piece), data={})
     db.session.expire_all()
     assert entry.instrument_selections == []
 

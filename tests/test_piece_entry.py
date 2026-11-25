@@ -1,16 +1,27 @@
-from conftest import RINGER_PASSWORD, login
+from conftest import RINGER_PASSWORD, entry_url, login
 
 from app.models import Entry, EntryInstrument
 
 
 def _entry_url(piece):
-    return f"/pieces/{piece.id}/entry"
+    return entry_url(piece)
 
 
-def test_entry_form_404s_when_ringer_has_no_entry(client, ringer, program, piece):
+def test_entry_form_404s_for_a_missing_entry(client, ringer, program, piece):
     login(client, ringer, RINGER_PASSWORD)
-    response = client.get(_entry_url(piece))
+    response = client.get("/entries/999999/equipment")
     assert response.status_code == 404
+
+
+def test_entry_form_404s_for_someone_elses_entry(
+    client, db, ringer, other_ringer, program, piece
+):
+    db.session.add(Entry(user_id=other_ringer.id, piece_id=piece.id, position="P1"))
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    assert client.get(_entry_url(piece)).status_code == 404
+    assert client.post(_entry_url(piece), data={"misc_notes": "x"}).status_code == 404
 
 
 def test_entry_form_404s_for_float_position(client, db, ringer, program, piece):
@@ -137,3 +148,32 @@ def test_ringer_cannot_fill_in_another_ringers_entry(
     login(client, ringer, RINGER_PASSWORD)
     response = client.get(_entry_url(piece))
     assert response.status_code == 404
+
+
+def test_two_positions_on_a_piece_each_get_their_own_form(
+    client, db, ringer, program, piece, instrument_type
+):
+    p1 = Entry(user_id=ringer.id, piece_id=piece.id, position="P1")
+    p5 = Entry(user_id=ringer.id, piece_id=piece.id, position="P5")
+    db.session.add_all([p1, p5])
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    cycle_page = client.get(f"/cycles/{program.cycle_id}").get_data(as_text=True)
+    p1_url, p5_url = (
+        entry_url(piece, position="P1"),
+        entry_url(piece, position="P5"),
+    )
+    assert cycle_page.index(p1_url) < cycle_page.index(p5_url)
+    assert cycle_page.count(piece.title) == 2
+
+    assert "P5 - D5/E5" in client.get(p5_url).get_data(as_text=True)
+    client.post(
+        p5_url,
+        data={f"instrument_{instrument_type.id}": ["D5"], "misc_notes": ""},
+    )
+
+    db.session.refresh(p1)
+    db.session.refresh(p5)
+    assert p1.instrument_selections == []
+    assert p5.instrument_selections[0].notes == "D5"
