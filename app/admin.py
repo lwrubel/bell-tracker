@@ -136,9 +136,22 @@ class ProgramAdminView(SecureModelView):
         (
             ProgramPiece,
             {
-                "form_columns": ["id", "piece", "position", "set_number"],
+                "form_columns": [
+                    "id",
+                    "piece",
+                    "position",
+                    "set_number",
+                    "cover_sheet",
+                ],
                 "form_args": {
                     "position": {"label": "Order"},
+                    "cover_sheet": {
+                        "label": "Cover sheet",
+                        "description": "Untick for a piece that needs no cover "
+                        "sheet; it's left off the Standard and Bass bells cover "
+                        "sheets.",
+                        "default": True,
+                    },
                     "set_number": {
                         "label": "Set",
                         "description": "For programs split into sets: 1, 2, ... "

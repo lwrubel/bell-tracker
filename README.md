@@ -118,6 +118,11 @@ to these pages, all printable:
 | **Bass bell assignments** | Admins and managers | Each piece's LB positions and their bells. |
 | **Cases used list** | Admins and managers | The cases to bring. |
 
+A piece that needs no cover sheet can have **Cover sheet** unticked on its
+row in the Program admin. It's left off both kinds of cover sheet but still
+counts everywhere else, including where bells are coming from on the bass
+bell cover sheets for later pieces.
+
 In programs with a Starting placement report, the standard cover sheets also
 say which equipment is **coming from** another position.
 

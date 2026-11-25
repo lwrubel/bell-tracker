@@ -185,7 +185,7 @@ def _program_entries_by_piece(program):
 
 def cover_sheets(program):
     """Return [(program_piece, [(entry, coming_from), ...], float_entries),
-    ...]: every piece in program order, its ringers in roster order (P1-P11,
+    ...]: every piece in program order that gets a cover sheet, its ringers in roster order (P1-P11,
     then Other), and its Float ringers by first name. LB positions are left
     out; they get their own cover sheets (bass_bell_cover_sheets).
 
@@ -202,6 +202,8 @@ def cover_sheets(program):
 
     result = []
     for program_piece in program.program_pieces:
+        if not program_piece.cover_sheet:
+            continue
         piece_entries = entries_by_piece[program_piece.piece_id]
         ringers = sorted(
             (
@@ -245,8 +247,9 @@ def _pitch_selections(entry):
 
 def bass_bell_cover_sheets(program):
     """Return [(program_piece, [(entry, bells, sources, other_selections), ...]),
-    ...]: every piece in program order and its LB entries by position, then
-    first name.
+    ...]: every piece in program order that gets a cover sheet and its LB
+    entries by position, then first name. Pieces without a cover sheet still
+    move bells, so they count toward where bells are coming from.
 
     bells are all of the entry's pitch-mode bells, as
     [(instrument_type, [pitch, ...]), ...], types in display order and
@@ -343,7 +346,8 @@ def bass_bell_cover_sheets(program):
                 if s.instrument_type.selection_mode != "pitch"
             ]
             rows.append((entry, bells, sources, other_selections))
-        result.append((program_piece, rows))
+        if program_piece.cover_sheet:
+            result.append((program_piece, rows))
 
         # Bells rung on this piece end up with whoever rang them; the rest
         # stay put.

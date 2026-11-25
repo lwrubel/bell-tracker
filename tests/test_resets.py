@@ -70,6 +70,27 @@ def _post_program(client, program, rows):
     ).get_data(as_text=True)
 
 
+def test_admin_unticks_cover_sheet(client, db, admin_user, program):
+    _sets(db, program, None, None)
+    first, second = program.program_pieces
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    form = client.get(f"/admin/program/edit/?id={program.id}").get_data(as_text=True)
+    assert "Cover sheet" in form
+    data = {"cycle": program.cycle_id, "name": program.name}
+    for i, program_piece in enumerate([first, second]):
+        data[f"program_pieces-{i}-id"] = program_piece.id
+        data[f"program_pieces-{i}-piece"] = program_piece.piece_id
+        data[f"program_pieces-{i}-position"] = program_piece.position
+        data[f"program_pieces-{i}-set_number"] = ""
+    data["program_pieces-0-cover_sheet"] = "y"  # the second is left unticked
+    client.post(f"/admin/program/edit/?id={program.id}", data=data)
+
+    db.session.expire_all()
+    program = db.session.get(Program, program.id)
+    assert [pp.cover_sheet for pp in program.program_pieces] == [True, False]
+
+
 def test_admin_sets_set_numbers(client, db, admin_user, program):
     _sets(db, program, None, None)
     first, second = program.program_pieces
