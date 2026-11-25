@@ -152,6 +152,18 @@ How the reports work it out (`resets()` in `app/reports.py`):
   piece takes off**. A ringer who sits out either piece has nothing to do
   for that side, and one who ends a set at P5 and starts the next at P2 takes
   off P5's items and puts out P2's.
+- **Leave on table** (Program admin): an instrument type and a set. That
+  set's items of the type stay out through the next Reset instead of coming
+  off, and the position holding them takes them off a Reset later.
+- **Put out early** (Program admin): an instrument type and a set. Before
+  that set, everything of the type that the set *or the next one* uses is
+  put out, the next set's items at the position that first uses them there.
+  For example, Chimes before Set 1 puts out every chime Sets 1 and 2 use
+  before Set 1, and none come off or go out at the Reset between them. Use
+  it with Leave on table after the same set to keep Set 1's chimes out
+  through Set 2 as well.
+- Both apply only to single items (bells, percussion options, bell trees),
+  not to mallets or singing bell sticks, and neither can name the last set.
 
 ## Assigning ringers to pieces and positions (admin)
 

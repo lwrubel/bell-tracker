@@ -17,6 +17,7 @@ from app.models import (
     InstrumentType,
     Piece,
     Program,
+    ProgramEarlyPutOut,
     ProgramKeepOut,
     ProgramPiece,
     User,
@@ -164,6 +165,24 @@ class ProgramAdminView(SecureModelView):
                 },
             },
         ),
+        # Instrument types whose next-set items are put out a set early
+        # (reports.resets).
+        (
+            ProgramEarlyPutOut,
+            {
+                "form_columns": ["id", "instrument_type", "before_set"],
+                "form_label": "Put out early",
+                "form_args": {
+                    "instrument_type": {"label": "Put out early"},
+                    "before_set": {
+                        "label": "Before set",
+                        "description": "Put out everything of this instrument "
+                        "type that this set or the next one uses before this "
+                        "set starts.",
+                    },
+                },
+            },
+        ),
     ]
 
     def on_model_change(self, form, model, is_created):
@@ -180,23 +199,26 @@ class ProgramAdminView(SecureModelView):
 
 
 def _check_keep_outs(program):
-    """Each keep-out is after one of the program's sets other than the
-    last, since there's no next set to leave things out for."""
+    """Each keep-out and early put-out names one of the program's sets
+    other than the last, since there's no next set to leave things out for
+    or put things out early for."""
     numbers = sorted(
         {pp.set_number for pp in program.program_pieces if pp.set_number is not None}
     )
-    for keep_out in program.keep_outs:
-        if keep_out.after_set not in numbers[:-1]:
+    checks = [
+        (k.after_set, "leave things on the table after") for k in program.keep_outs
+    ] + [
+        (e.before_set, "put things out early before") for e in program.early_put_outs
+    ]
+    for number, action in checks:
+        if number not in numbers[:-1]:
             if not numbers:
                 problem = "this program has no sets"
-            elif keep_out.after_set == numbers[-1]:
-                problem = f"Set {keep_out.after_set} is the last set"
+            elif number == numbers[-1]:
+                problem = f"Set {number} is the last set"
             else:
-                problem = f"this program has no Set {keep_out.after_set}"
-            raise Exception(
-                f"Can't leave things on the table after Set {keep_out.after_set}: "
-                f"{problem}."
-            )
+                problem = f"this program has no Set {number}"
+            raise Exception(f"Can't {action} Set {number}: {problem}.")
 
 
 def _check_set_numbers(program_pieces):

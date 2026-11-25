@@ -832,6 +832,18 @@ class _SetSummary:
                     placed[position][instrument_type].append(f"{label}\u00a0×{extra}")
         return _by_position(placed)
 
+    def bring_forward(self, following, type_ids):
+        """Put out `following`'s single items of the instrument types in
+        `type_ids` with this set, where it doesn't use them itself, at the
+        position that first uses them in `following`. They stay out through
+        the Reset since `following` uses them, so nobody takes them off or
+        puts them out there."""
+        for key, (instrument_type, items) in following.items.items():
+            if instrument_type.id in type_ids and key not in self.items:
+                self.items[key] = (instrument_type, items)
+                self.first[key] = following.first[key]
+                self.last[key] = following.first[key]
+
     def carry(self, following, type_ids):
         """Leave this set's single items of the instrument types in
         `type_ids` on the table for `following`, the next set, where it
@@ -947,6 +959,12 @@ def resets(program, entries_by_piece=None):
     single items on the table at the Reset after a set, for the next set:
     the position holding them takes them off a Reset later instead. Each
     Reset's leave_on lists them. Counted items aren't carried.
+
+    Early put-outs (ProgramEarlyPutOut) work the other way: an instrument
+    type's single items for the set after a given set are put out before
+    that set, with its own, at the position that first uses them in the
+    later set. They stay out through the Reset between, as the later set
+    uses them. Counted items aren't brought forward either.
     """
     sets = program.sets()
     if not sets:
@@ -954,6 +972,14 @@ def resets(program, entries_by_piece=None):
     if entries_by_piece is None:
         entries_by_piece = _program_entries_by_piece(program)
     summaries = [_SetSummary(pieces, entries_by_piece) for pieces in sets]
+    early = defaultdict(set)  # {set number: {instrument type id, ...}}
+    for early_put_out in program.early_put_outs:
+        early[early_put_out.before_set].add(early_put_out.instrument_type_id)
+    # Last set first, so items brought into a set can be brought further.
+    for current, following, pieces in reversed(
+        list(zip(summaries, summaries[1:], sets))
+    ):
+        current.bring_forward(following, early[pieces[0].set_number])
     keep_outs = defaultdict(set)  # {set number: {instrument type id, ...}}
     for keep_out in program.keep_outs:
         keep_outs[keep_out.after_set].add(keep_out.instrument_type_id)

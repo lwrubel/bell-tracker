@@ -2,7 +2,13 @@ from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
 from test_reports import _assign, _ringer, _type
 
 from app import reports
-from app.models import CHECKED_NOTES, InstrumentOption, Program, ProgramKeepOut
+from app.models import (
+    CHECKED_NOTES,
+    InstrumentOption,
+    Program,
+    ProgramEarlyPutOut,
+    ProgramKeepOut,
+)
 
 
 def _sets(db, program, *set_numbers):
@@ -657,3 +663,167 @@ def test_admin_rejects_keep_out_after_the_last_set(
     )
     db.session.expire_all()
     assert db.session.get(Program, program.id).keep_outs == []
+
+
+# --- put out early ---------------------------------------------------------
+
+
+def _early(db, program, instrument_type, before_set):
+    db.session.add(
+        ProgramEarlyPutOut(
+            program_id=program.id,
+            instrument_type_id=instrument_type.id,
+            before_set=before_set,
+        )
+    )
+    db.session.commit()
+    db.session.refresh(program)
+
+
+def test_put_out_early_puts_out_the_next_sets_items_before_this_set(
+    db, program, instrument_type
+):
+    handbells = _type(db, "Handbells", note_range_low="C4", note_range_high="C8")
+    one, two, three = _sets(db, program, 1, 2, 3)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    # Set 2 needs E4 chimes at P2, and handbells that aren't put out early.
+    _assign(db, other, two, "P2", (instrument_type, "E4"), (handbells, "E5"))
+    _early(db, program, instrument_type, 1)
+
+    assert _resets(program) == [
+        (
+            "Before Set 1",
+            [],
+            [("P2", [("Chimes", ["E4"])]), ("P5", [("Chimes", ["D5"])])],
+        ),
+        (
+            "Reset between Sets 1 and 2",
+            # D5 comes off as usual; E4 is already out at P2.
+            [("P5", [("Chimes", ["D5"])])],
+            [("P2", [("Handbells", ["E5"])])],
+        ),
+        (
+            "Reset between Sets 2 and 3",
+            [("P2", [("Chimes", ["E4"]), ("Handbells", ["E5"])])],
+            [],
+        ),
+    ]
+
+
+def test_put_out_early_skips_what_this_set_already_puts_out(
+    db, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, other, two, "P2", (instrument_type, "D5,E4"))
+    _early(db, program, instrument_type, 1)
+
+    before, between = _resets(program)
+    # D5 goes out once, where Set 1 first uses it.
+    assert before[2] == [("P2", [("Chimes", ["E4"])]), ("P5", [("Chimes", ["D5"])])]
+    assert between[1:] == ([], [])
+
+
+def test_put_outs_early_in_a_row_reach_two_sets_ahead(db, program, instrument_type):
+    one, two, three = _sets(db, program, 1, 2, 3)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, two, "P5", (instrument_type, "D5"))
+    _assign(db, me, three, "P2", (instrument_type, "E4"))
+    _early(db, program, instrument_type, 1)
+    _early(db, program, instrument_type, 2)
+
+    assert _resets(program)[0][2] == [
+        ("P2", [("Chimes", ["E4"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+    between_1_2, between_2_3 = _resets(program)[1:]
+    assert between_1_2[1:] == ([], [])
+    # D5 comes off after Set 2, the last to use it; E4 is already out.
+    assert between_2_3[1:] == ([("P5", [("Chimes", ["D5"])])], [])
+
+
+def test_put_out_early_with_leave_on_table_keeps_both_sets_items_out(
+    db, program, instrument_type
+):
+    handbells = _type(db, "Handbells", note_range_low="C4", note_range_high="C8")
+    one, two, three = _sets(db, program, 1, 2, 3)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, other, two, "P2", (instrument_type, "E4"))
+    _assign(db, other, three, "P2", (handbells, "E5"))
+    _early(db, program, instrument_type, 1)
+    _keep_out(db, program, instrument_type, 1)
+
+    before, between_1_2, between_2_3 = _resets(program)
+    assert before[2] == [("P2", [("Chimes", ["E4"])]), ("P5", [("Chimes", ["D5"])])]
+    assert between_1_2[1:] == ([], [])
+    assert _leave_on(program)[1][1] == [("P5", [("Chimes", ["D5"])])]
+    assert between_2_3[1] == [
+        ("P2", [("Chimes", ["E4"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+
+
+def test_my_resets_put_out_early_items_at_their_position(
+    db, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P2", (instrument_type, "C4"))
+    _assign(db, me, two, "P2", (instrument_type, "E4"))
+    _early(db, program, instrument_type, 1)
+
+    assert _mine(program, me) == [
+        ("Before Set 1", None, [], "P2", [("Chimes", ["C4", "E4"])]),
+        ("Reset between Sets 1 and 2", "P2", [("Chimes", ["C4"])], "P2", []),
+    ]
+
+
+def _post_early(client, program, instrument_type, before_set):
+    data = {"cycle": program.cycle_id, "name": program.name}
+    for i, program_piece in enumerate(program.program_pieces):
+        data[f"program_pieces-{i}-id"] = program_piece.id
+        data[f"program_pieces-{i}-piece"] = program_piece.piece_id
+        data[f"program_pieces-{i}-position"] = program_piece.position
+        data[f"program_pieces-{i}-set_number"] = program_piece.set_number or ""
+    data["early_put_outs-0-instrument_type"] = instrument_type.id
+    data["early_put_outs-0-before_set"] = before_set
+    return client.post(
+        f"/admin/program/edit/?id={program.id}", data=data, follow_redirects=True
+    ).get_data(as_text=True)
+
+
+def test_admin_adds_an_early_put_out(client, db, admin_user, program, instrument_type):
+    _sets(db, program, 1, 2)
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    assert "Put out early" in client.get(
+        f"/admin/program/edit/?id={program.id}"
+    ).get_data(as_text=True)
+    _post_early(client, program, instrument_type, 1)
+
+    db.session.expire_all()
+    program = db.session.get(Program, program.id)
+    assert [
+        (e.instrument_type.name, e.before_set) for e in program.early_put_outs
+    ] == [("Chimes", 1)]
+
+
+def test_admin_rejects_early_put_out_before_the_last_set(
+    client, db, admin_user, program, instrument_type
+):
+    _sets(db, program, 1, 2)
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    body = _post_early(client, program, instrument_type, 2)
+    assert "put things out early before Set 2: Set 2 is the last set" in body
+    db.session.expire_all()
+    assert db.session.get(Program, program.id).early_put_outs == []
