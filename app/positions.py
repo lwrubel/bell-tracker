@@ -1,4 +1,5 @@
-"""Fixed ringing-position codes, admin-assigned per (user, piece)."""
+"""Fixed ringing-position codes, admin-assigned per (user, piece). A ringer
+usually has one position on a piece but can have more."""
 
 POSITION_CODES = [f"P{i}" for i in range(1, 12)] + ["LB1", "LB2", "LB3", "Float", "Other"]
 
@@ -26,6 +27,14 @@ POSITION_BASE_NOTES = {
     "P10": ("G6", "A6"),
     "P11": ("B6", "C7"),
 }
+
+
+_CODE_INDEX = {code: i for i, code in enumerate(POSITION_CODES)}
+
+
+def position_sort_key(code):
+    """Sorts positions in POSITION_CODES order, unknown codes last."""
+    return (_CODE_INDEX.get(code, len(_CODE_INDEX)), code)
 
 
 def position_label(code):

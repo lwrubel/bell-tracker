@@ -2,7 +2,7 @@ import re
 
 import pytest
 import sqlalchemy as sa
-from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, login
+from conftest import ADMIN_PASSWORD, RINGER_PASSWORD, add_piece, entry_url, login
 
 from app.models import Cycle, Entry, EntryInstrument, Piece, Program, ProgramPiece
 
@@ -313,8 +313,7 @@ def test_float_position_has_no_entry_link(client, db, ringer, program, piece):
     response = client.get(_cycle_url(program))
 
     assert b"Float" in response.data
-    entry_url = f"/pieces/{piece.id}/entry".encode()
-    assert entry_url not in response.data
+    assert entry_url(piece).encode() not in response.data
 
 
 def test_no_checkmark_before_equipment_is_saved(client, db, ringer, program, piece):
@@ -364,7 +363,7 @@ def test_checkmark_when_saved_with_nothing_selected(
     db.session.commit()
 
     login(client, ringer, RINGER_PASSWORD)
-    client.post(f"/pieces/{piece.id}/entry", data={"misc_notes": ""})
+    client.post(entry_url(piece), data={"misc_notes": ""})
     response = client.get(_cycle_url(program))
 
     assert b"Equipment saved" in response.data

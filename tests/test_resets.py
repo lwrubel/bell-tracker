@@ -243,10 +243,26 @@ def test_mallets_sticks_and_percussion(db, program, mallet_instrument_type):
     )
 
 
+def _names(types):
+    return [(t.name, items) for t, items in types]
+
+
+def _single(rows):
+    """my_resets rows for a ringer with at most one position per piece, as
+    (reset, end position, take off, leave on, start position, put out)."""
+    result = []
+    for reset, ends, starts in rows:
+        assert len(ends) <= 1 and len(starts) <= 1
+        end, off, leave = ends[0] if ends else (None, [], [])
+        start, out = starts[0] if starts else (None, [])
+        result.append((reset, end, off, leave, start, out))
+    return result
+
+
 def _mine(program, user):
     return [
-        (r.title, end, [(t.name, i) for t, i in off], start, [(t.name, i) for t, i in out])
-        for r, end, off, _, start, out in reports.my_resets(program, user)
+        (r.title, end, _names(off), start, _names(out))
+        for r, end, off, _, start, out in _single(reports.my_resets(program, user))
     ]
 
 
@@ -319,6 +335,49 @@ def test_my_resets_page_when_not_on_a_sets_last_piece(
 
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
     assert "you aren't on Piece 2, the last piece of Set 1" in body
+
+
+def test_my_resets_cover_each_position_on_a_sets_first_and_last_piece(
+    db, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, one, "P1", (instrument_type, "C4"))
+    _assign(db, me, two, "P2", (instrument_type, "E4"))
+    _assign(db, me, two, "P8", (instrument_type, "C6"))
+
+    (_, before_ends, before_starts), (_, ends, starts) = reports.my_resets(program, me)
+    assert before_ends == []
+    assert [(p, _names(out)) for p, out in before_starts] == [
+        ("P1", [("Chimes", ["C4"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+    assert [(p, _names(off)) for p, off, _ in ends] == [
+        ("P1", [("Chimes", ["C4"])]),
+        ("P5", [("Chimes", ["D5"])]),
+    ]
+    assert [(p, _names(out)) for p, out in starts] == [
+        ("P2", [("Chimes", ["E4"])]),
+        ("P8", [("Chimes", ["C6"])]),
+    ]
+
+
+def test_my_resets_page_shows_each_position(
+    client, db, ringer, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    _assign(db, ringer, one, "P1", (instrument_type, "C4"))
+    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    _assign(db, ringer, two, "P2", (instrument_type, "E4"))
+    login(client, ringer, RINGER_PASSWORD)
+
+    body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
+    reset = body[body.index("Reset between Sets 1 and 2"):]
+    assert "you end Set 1 at P1 - C4/D4 on Piece 1" in reset
+    assert "you end Set 1 at P5 - D5/E5 on Piece 1" in reset
+    assert "you start Set 2 at P2 - E4/F4 on Piece 2" in reset
 
 
 # --- pages ---------------------------------------------------------------
@@ -398,11 +457,11 @@ def test_everyones_resets_gives_each_ringer_their_own_rows(
     ringers = reports.everyones_resets(program)
     assert [user.name for user, _ in ringers] == ["Amy", "Zoe"]
     (_, amy_rows), (_, zoe_rows) = ringers
-    assert [(end, start) for _, end, _, _, start, _ in amy_rows] == [
+    assert [(end, start) for _, end, _, _, start, _ in _single(amy_rows)] == [
         (None, None),
         (None, "P2"),
     ]
-    assert [(end, start) for _, end, _, _, start, _ in zoe_rows] == [
+    assert [(end, start) for _, end, _, _, start, _ in _single(zoe_rows)] == [
         (None, "P5"),
         ("P5", None),
     ]

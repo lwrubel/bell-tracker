@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import wraps
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
@@ -15,7 +16,7 @@ from app.models import (
     Program,
     ProgramPiece,
 )
-from app.positions import FLOAT_POSITION
+from app.positions import FLOAT_POSITION, position_sort_key
 
 bp = Blueprint("routes", __name__)
 
@@ -64,11 +65,12 @@ def index():
 
 
 def _my_entries_by_piece(piece_filter):
-    """The current user's entries on pieces matching `piece_filter`, keyed
-    by piece id."""
-    return {
-        entry.piece_id: entry
-        for entry in Entry.query.join(Piece)
+    """The current user's entries on pieces matching `piece_filter`, as
+    {piece id: [entry, ...]} - usually one per piece, but a ringer can have
+    more than one position on a piece. Each list is in position order."""
+    entries_by_piece = defaultdict(list)
+    for entry in (
+        Entry.query.join(Piece)
         .filter(piece_filter, Entry.user_id == current_user.id)
         .options(
             selectinload(Entry.instrument_selections).joinedload(
@@ -76,7 +78,11 @@ def _my_entries_by_piece(piece_filter):
             )
         )
         .all()
-    }
+    ):
+        entries_by_piece[entry.piece_id].append(entry)
+    for entries in entries_by_piece.values():
+        entries.sort(key=lambda e: position_sort_key(e.position))
+    return dict(entries_by_piece)
 
 
 @bp.route("/cycles/<int:cycle_id>")
@@ -102,9 +108,9 @@ def my_equipment(program_id):
         Piece.id.in_([pp.piece_id for pp in program.program_pieces])
     )
     program_entries = [
-        (pp.position, entries_by_piece[pp.piece_id])
+        (pp.position, entry)
         for pp in program.program_pieces
-        if pp.piece_id in entries_by_piece
+        for entry in entries_by_piece.get(pp.piece_id, [])
     ]
     return render_template(
         "my_equipment.html", program=program, program_entries=program_entries
@@ -120,13 +126,18 @@ def program_order(program_id):
     return render_template("program_order.html", program=program)
 
 
-@bp.route("/pieces/<int:piece_id>/entry", methods=["GET", "POST"])
+@bp.route("/entries/<int:entry_id>/equipment", methods=["GET", "POST"])
 @login_required
-def piece_entry(piece_id):
-    piece = Piece.query.get_or_404(piece_id)
-    entry = Entry.query.filter_by(user_id=current_user.id, piece_id=piece_id).first()
-    if entry is None or entry.position == FLOAT_POSITION:
+def piece_entry(entry_id):
+    """A ringer's equipment form for one of their positions on a piece."""
+    entry = db.session.get(Entry, entry_id)
+    if (
+        entry is None
+        or entry.user_id != current_user.id
+        or entry.position == FLOAT_POSITION
+    ):
         abort(404)
+    piece = entry.piece
 
     form = equipment_form_for(
         entry, formdata=request.form if request.method == "POST" else None

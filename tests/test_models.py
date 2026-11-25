@@ -13,14 +13,22 @@ def test_password_is_hashed_not_stored_plaintext(db):
     assert user.check_password("wrong") is False
 
 
-def test_entry_is_unique_per_user_and_piece(db, ringer, piece):
+def test_entry_is_unique_per_user_piece_and_position(db, ringer, piece):
     db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
     db.session.commit()
 
-    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P2"))
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
     with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()
+
+
+def test_ringer_can_have_two_positions_on_a_piece(db, ringer, piece):
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P1"))
+    db.session.add(Entry(user_id=ringer.id, piece_id=piece.id, position="P2"))
+    db.session.commit()  # should not raise
+
+    assert Entry.query.filter_by(user_id=ringer.id, piece_id=piece.id).count() == 2
 
 
 def test_different_ringers_can_share_a_piece(db, ringer, other_ringer, piece):

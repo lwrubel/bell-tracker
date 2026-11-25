@@ -17,13 +17,13 @@
   </thead>
   <tbody>
     {% for piece in pieces %}
-      {% set entry = entries_by_piece[piece.id] %}
+      {% for entry in entries_by_piece[piece.id] %}
       <tr>
         <td>{{ piece.title }}</td>
         <td>{{ position_label(entry.position) }}</td>
         <td class="text-nowrap">
           {% if entry.position != float_position %}
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.piece_entry', piece_id=piece.id) }}">Enter equipment</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('routes.piece_entry', entry_id=entry.id) }}">Enter equipment</a>
           {% endif %}
           {% if entry.has_equipment() %}
             <svg class="text-success ml-2 align-middle" width="20" height="20" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="Equipment saved">
@@ -33,6 +33,7 @@
           {% endif %}
         </td>
       </tr>
+      {% endfor %}
     {% endfor %}
   </tbody>
 </table>

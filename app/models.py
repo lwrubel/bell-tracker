@@ -500,10 +500,21 @@ class Entry(db.Model):
 
     Created by an admin (user, piece, position) via Flask-Admin; the ringer
     only ever edits the equipment fields on an already-existing row.
+
+    A ringer usually has one position on a piece, but can be given two or
+    more; each is its own entry with its own equipment, since equipment
+    belongs to the position.
     """
 
     __tablename__ = "entries"
-    __table_args__ = (db.UniqueConstraint("user_id", "piece_id"),)
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "piece_id",
+            "position",
+            name="entries_user_id_piece_id_position_key",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
