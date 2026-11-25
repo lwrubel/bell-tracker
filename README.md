@@ -167,7 +167,13 @@ How the reports work it out (`resets()` in `app/reports.py`):
   before Set 1, and none come off or go out at the Reset between them. Use
   it with Leave on table after the same set to keep Set 1's chimes out
   through Set 2 as well.
-- Both apply only to single items (bells, percussion options, bell trees),
+- **Non-handbell** (tick it on the piece's row in the Program admin): a
+  piece not rung on handbells. It stays in its set and in Program order, but
+  Resets skip it: put out goes by the set's first handbell piece and take off
+  by its last, and any equipment on it is ignored. A set of only non-handbell
+  pieces is skipped, so the set before it runs straight into the set after
+  ("Reset between Sets 1 and 3").
+- Leave on table and Put out early apply only to single items (bells, percussion options, bell trees),
   not to mallets or singing bell sticks, and neither can name the last set.
 
 ## Assigning ringers to pieces and positions (admin)

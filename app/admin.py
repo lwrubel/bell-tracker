@@ -142,6 +142,7 @@ class ProgramAdminView(SecureModelView):
                     "position",
                     "set_number",
                     "cover_sheet",
+                    "non_handbell",
                 ],
                 "form_args": {
                     "position": {"label": "Order"},
@@ -151,6 +152,12 @@ class ProgramAdminView(SecureModelView):
                         "sheet; it's left off the Standard and Bass bells cover "
                         "sheets.",
                         "default": True,
+                    },
+                    "non_handbell": {
+                        "label": "Non-handbell",
+                        "description": "Tick for a piece not rung on handbells. "
+                        "It stays in its set but doesn't decide who puts out or "
+                        "takes off at a Reset.",
                     },
                     "set_number": {
                         "label": "Set",
