@@ -887,10 +887,11 @@ class Reset:
     between two sets.
 
     - title: "Before Set 1" or "Reset between Sets 1 and 2".
-    - ended: the program pieces of the set just finished (empty before the
-      first set), whose last piece decides who takes off what.
-    - started: the program pieces of the set about to start, whose first
-      piece decides who puts out what.
+    - ended: the handbell program pieces of the set just finished (empty
+      before the first set), whose last piece decides who takes off what.
+    - started: the handbell program pieces of the set about to start, whose
+      first piece decides who puts out what. Non-handbell pieces are left
+      out of both.
     - take_off, put_out, leave_on: [(position, [(instrument_type, [item,
       ...]), ...]), ...] by position code, in placement order. leave_on is
       what the finished set's last ringers leave on the table for the next
@@ -969,8 +970,21 @@ def resets(program, entries_by_piece=None):
     that set, with its own, at the position that first uses them in the
     later set. They stay out through the Reset between, as the later set
     uses them. Counted items aren't brought forward either.
+
+    Non-handbell pieces (ProgramPiece.non_handbell) are left out: a set's
+    first and last pieces, who put out and take off, are its first and last
+    handbell pieces, and equipment on non-handbell pieces doesn't count. A
+    set of only non-handbell pieces is skipped, so the set before it runs
+    straight into the set after ("Reset between Sets 1 and 3").
     """
-    sets = program.sets()
+    # Each set's handbell pieces; a set with none is skipped.
+    sets = [
+        pieces
+        for pieces in (
+            [pp for pp in group if not pp.non_handbell] for group in program.sets()
+        )
+        if pieces
+    ]
     if not sets:
         return []
     if entries_by_piece is None:

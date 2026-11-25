@@ -16,7 +16,7 @@
   <ol class="list-group">
     {% for pp in program_pieces %}
       <li class="list-group-item">
-        {{ pp.position }}. {{ pp.piece.title }}
+        {{ pp.position }}. {{ pp.piece.title }}{% if pp.non_handbell %} <span class="text-muted">(non-handbell)</span>{% endif %}
       </li>
     {% endfor %}
   </ol>
@@ -25,7 +25,7 @@
 <ol class="list-group">
   {% for pp in program.program_pieces %}
     <li class="list-group-item">
-      {{ pp.position }}. {{ pp.piece.title }}
+      {{ pp.position }}. {{ pp.piece.title }}{% if pp.non_handbell %} <span class="text-muted">(non-handbell)</span>{% endif %}
     </li>
   {% endfor %}
 </ol>

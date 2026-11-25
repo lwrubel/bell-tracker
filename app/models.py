@@ -228,6 +228,12 @@ class ProgramPiece(db.Model):
     cover_sheet = db.Column(
         db.Boolean, nullable=False, default=True, server_default=db.true()
     )
+    # A piece not rung on handbells (choir, piano, ...). It stays in its
+    # set, but Resets ignore it when finding a set's first and last pieces,
+    # who put out and take off.
+    non_handbell = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
 
     program = db.relationship("Program", back_populates="program_pieces")
     piece = db.relationship("Piece", back_populates="program_pieces")

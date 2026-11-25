@@ -848,3 +848,99 @@ def test_admin_rejects_early_put_out_before_the_last_set(
     assert "put things out early before Set 2: Set 2 is the last set" in body
     db.session.expire_all()
     assert db.session.get(Program, program.id).early_put_outs == []
+
+
+# --- non-handbell pieces ---------------------------------------------------
+
+
+def _non_handbell(db, program, *pieces):
+    ids = {p.id for p in pieces}
+    for program_piece in program.program_pieces:
+        if program_piece.piece_id in ids:
+            program_piece.non_handbell = True
+    db.session.commit()
+
+
+def test_non_handbell_first_piece_doesnt_decide_who_puts_out(
+    db, program, instrument_type
+):
+    choir, one, two = _sets(db, program, 1, 1, 2)
+    me, other = _ringer(db, "Me"), _ringer(db, "Other")
+    db.session.commit()
+    # Someone is down at P2 on the choir piece, but I start the handbells.
+    _assign(db, other, choir, "P2", (instrument_type, "E4"))
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, two, "P5", (instrument_type, "D5"))
+    _non_handbell(db, program, choir)
+
+    before = reports.resets(program)[0]
+    assert before.started_piece == one
+    assert _flat(before.put_out) == [("P5", [("Chimes", ["D5"])])]
+    assert _mine(program, me)[0] == (
+        "Before Set 1", None, [], "P5", [("Chimes", ["D5"])]
+    )
+    assert _mine(program, other)[0] == ("Before Set 1", None, [], None, [])
+
+
+def test_non_handbell_last_piece_doesnt_decide_who_takes_off(
+    client, db, ringer, program, instrument_type
+):
+    one, choir, two = _sets(db, program, 1, 1, 2)
+    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    _assign(db, ringer, two, "P2", (instrument_type, "E4"))
+    _non_handbell(db, program, choir)
+
+    reset = reports.resets(program)[1]
+    assert reset.ended_piece == one
+    assert _flat(reset.take_off) == [("P5", [("Chimes", ["D5"])])]
+    assert _mine(program, ringer)[1][1:3] == ("P5", [("Chimes", ["D5"])])
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
+    assert "you end Set 1 at P5 - D5/E5 on Piece 1" in body
+
+
+def test_set_of_only_non_handbell_pieces_is_skipped(db, program, instrument_type):
+    one, choir, three = _sets(db, program, 1, 2, 3)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, three, "P5", (instrument_type, "D5,E5"))
+    _non_handbell(db, program, choir)
+
+    assert _resets(program) == [
+        ("Before Set 1", [], [("P5", [("Chimes", ["D5"])])]),
+        ("Reset between Sets 1 and 3", [], [("P5", [("Chimes", ["E5"])])]),
+    ]
+
+
+def test_program_order_marks_non_handbell_pieces(client, db, ringer, program):
+    one, choir = _sets(db, program, 1, 1)
+    _non_handbell(db, program, choir)
+    login(client, ringer, RINGER_PASSWORD)
+
+    body = client.get(f"/programs/{program.id}/order").get_data(as_text=True)
+    assert body.count("(non-handbell)") == 1
+    assert body.index("Piece 2") < body.index("(non-handbell)")
+
+
+def test_admin_ticks_non_handbell(client, db, admin_user, program):
+    _sets(db, program, None, None)
+    first, second = program.program_pieces
+    login(client, admin_user, ADMIN_PASSWORD)
+
+    form = client.get(f"/admin/program/edit/?id={program.id}").get_data(as_text=True)
+    assert "Non-handbell" in form
+    data = {"cycle": program.cycle_id, "name": program.name}
+    for i, program_piece in enumerate([first, second]):
+        data[f"program_pieces-{i}-id"] = program_piece.id
+        data[f"program_pieces-{i}-piece"] = program_piece.piece_id
+        data[f"program_pieces-{i}-position"] = program_piece.position
+        data[f"program_pieces-{i}-set_number"] = ""
+        data[f"program_pieces-{i}-cover_sheet"] = "y"
+    data["program_pieces-1-non_handbell"] = "y"
+    client.post(f"/admin/program/edit/?id={program.id}", data=data)
+
+    db.session.expire_all()
+    program = db.session.get(Program, program.id)
+    assert [pp.non_handbell for pp in program.program_pieces] == [False, True]
