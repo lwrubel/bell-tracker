@@ -158,6 +158,12 @@ class Program(db.Model):
         order_by="(ProgramKeepOut.after_set, ProgramKeepOut.id)",
         cascade="all, delete-orphan",
     )
+    early_put_outs = db.relationship(
+        "ProgramEarlyPutOut",
+        back_populates="program",
+        order_by="(ProgramEarlyPutOut.before_set, ProgramEarlyPutOut.id)",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def pieces(self):
@@ -252,6 +258,37 @@ class ProgramKeepOut(db.Model):
         )
 
 
+class ProgramEarlyPutOut(db.Model):
+    """An instrument type whose items for the set after `before_set` are
+    put out before `before_set` instead, along with that set's own, so
+    everything either set uses is out from the start of the first. One row
+    per pair of sets; two rows in a row reach two sets ahead."""
+
+    __tablename__ = "program_early_put_outs"
+    __table_args__ = (
+        db.UniqueConstraint("program_id", "instrument_type_id", "before_set"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey("programs.id"), nullable=False)
+    instrument_type_id = db.Column(
+        db.Integer, db.ForeignKey("instrument_types.id"), nullable=False
+    )
+    # The set before which the next set's items are put out too.
+    before_set = db.Column(db.Integer, nullable=False)
+
+    program = db.relationship("Program", back_populates="early_put_outs")
+    instrument_type = db.relationship(
+        "InstrumentType", back_populates="early_put_outs"
+    )
+
+    def __repr__(self):
+        return (
+            f"<ProgramEarlyPutOut program={self.program_id} "
+            f"type={self.instrument_type_id} before set {self.before_set}>"
+        )
+
+
 piece_instrument_types = db.Table(
     "piece_instrument_types",
     db.Column("piece_id", db.Integer, db.ForeignKey("pieces.id"), primary_key=True),
@@ -342,6 +379,11 @@ class InstrumentType(db.Model):
     )
     keep_outs = db.relationship(
         "ProgramKeepOut", back_populates="instrument_type", cascade="all, delete-orphan"
+    )
+    early_put_outs = db.relationship(
+        "ProgramEarlyPutOut",
+        back_populates="instrument_type",
+        cascade="all, delete-orphan",
     )
 
     def label_on_form(self):
