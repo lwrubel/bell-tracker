@@ -278,7 +278,7 @@ def _single(rows):
     """my_resets rows for a ringer with at most one position per piece, as
     (reset, end position, take off, leave on, start position, put out)."""
     result = []
-    for reset, ends, starts in rows:
+    for reset, ends, starts, _, _ in rows:
         assert len(ends) <= 1 and len(starts) <= 1
         end, off, leave = ends[0] if ends else (None, [], [])
         start, out = starts[0] if starts else (None, [])
@@ -375,7 +375,9 @@ def test_my_resets_cover_each_position_on_a_sets_first_and_last_piece(
     _assign(db, me, two, "P2", (instrument_type, "E4"))
     _assign(db, me, two, "P8", (instrument_type, "C6"))
 
-    (_, before_ends, before_starts), (_, ends, starts) = reports.my_resets(program, me)
+    (_, before_ends, before_starts, _, _), (_, ends, starts, _, _) = reports.my_resets(
+        program, me
+    )
     assert before_ends == []
     assert [(p, _names(out)) for p, out in before_starts] == [
         ("P1", [("Chimes", ["C4"])]),
@@ -944,3 +946,94 @@ def test_admin_ticks_non_handbell(client, db, admin_user, program):
     db.session.expire_all()
     program = db.session.get(Program, program.id)
     assert [pp.non_handbell for pp in program.program_pieces] == [False, True]
+
+
+# --- pieces between the reset cards ----------------------------------------
+
+
+def _pieces(sets):
+    return [
+        (number, [(pp.piece.title, positions) for pp, positions in pieces])
+        for number, pieces in sets
+    ]
+
+
+def test_my_resets_list_each_sets_pieces_with_my_positions(
+    db, program, instrument_type
+):
+    one, two, three = _sets(db, program, 1, 1, 2)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, one, "P1", (instrument_type, "C4"))
+    _assign(db, me, three, "P2", (instrument_type, "E4"))
+
+    rows = reports.my_resets(program, me)
+    assert [_pieces(row[3]) for row in rows] == [[], []]
+    assert [_pieces(row[4]) for row in rows] == [
+        [(1, [("Piece 1", ["P1", "P5"]), ("Piece 2", [])])],
+        [(2, [("Piece 3", ["P2"])])],
+    ]
+
+
+def test_non_handbell_sets_are_listed_where_they_fall(db, program, instrument_type):
+    choir, one, choir_two, three = _sets(db, program, 1, 2, 3, 4)
+    me = _ringer(db, "Me")
+    db.session.commit()
+    _assign(db, me, one, "P5", (instrument_type, "D5"))
+    _assign(db, me, three, "P5", (instrument_type, "D5"))
+    _non_handbell(db, program, choir, choir_two)
+
+    rows = reports.my_resets(program, me)
+    assert [row[0].title for row in rows] == [
+        "Before Set 2",
+        "Reset between Sets 2 and 4",
+    ]
+    assert _pieces(rows[0][3]) == [(1, [("Piece 1", [])])]
+    assert _pieces(rows[0][4]) == [
+        (2, [("Piece 2", ["P5"])]),
+        (3, [("Piece 3", [])]),
+    ]
+    assert _pieces(rows[1][3]) == []
+    assert _pieces(rows[1][4]) == [(4, [("Piece 4", ["P5"])])]
+
+
+def test_my_resets_page_shows_pieces_between_cards(
+    client, db, ringer, program, instrument_type
+):
+    one, choir, two, three = _sets(db, program, 1, 1, 1, 2)
+    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    _assign(db, ringer, three, "P2", (instrument_type, "E4"))
+    _non_handbell(db, program, choir)
+    login(client, ringer, RINGER_PASSWORD)
+
+    body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
+    first_card = body.index("Before Set 1")
+    set_1 = body.index("<strong>Set 1</strong>")
+    second_card = body.index("Reset between Sets 1 and 2")
+    set_2 = body.index("<strong>Set 2</strong>")
+    assert first_card < set_1 < second_card < set_2
+    set_1_line = body[set_1:second_card]
+    assert "1. Piece 1 (P5)" in set_1_line
+    assert "2. Piece 2 (non-handbell)" in set_1_line
+    assert "3. Piece 3 (\u2014)" in set_1_line
+    assert "4. Piece 4 (P2)" in body[set_2:]
+
+
+def test_everyones_resets_page_lists_each_ringers_own_positions(
+    client, db, manager, ringer, program, instrument_type
+):
+    one, two = _sets(db, program, 1, 2)
+    other = _ringer(db, "Zed Ringer")
+    db.session.commit()
+    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    _assign(db, other, one, "P2", (instrument_type, "E4"))
+    login(client, manager, RINGER_PASSWORD)
+
+    body = client.get(
+        f"/programs/{program.id}/reports/everyones-resets"
+    ).get_data(as_text=True)
+    mine, theirs = body.split("<h1>Zed Ringer</h1>")
+    assert "1. Piece 1 (P5)" in mine
+    assert "1. Piece 1 (P2)" in theirs
+    assert theirs.count("<strong>Set 2</strong>") == 1

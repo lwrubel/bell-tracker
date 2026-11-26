@@ -896,15 +896,33 @@ class Reset:
       ...]), ...]), ...] by position code, in placement order. leave_on is
       what the finished set's last ringers leave on the table for the next
       set (ProgramKeepOut) rather than taking off.
+    - sets_after: the program's sets played after this Reset and before the
+      next one, as [[program_piece, ...], ...], non-handbell pieces
+      included: the set it starts, plus any sets of only non-handbell
+      pieces that follow before the next Reset.
+    - sets_before: on the first Reset only, any sets of only non-handbell
+      pieces played before it; empty otherwise.
     """
 
-    def __init__(self, title, ended, started, take_off, put_out, leave_on=()):
+    def __init__(
+        self,
+        title,
+        ended,
+        started,
+        take_off,
+        put_out,
+        leave_on=(),
+        sets_before=(),
+        sets_after=(),
+    ):
         self.title = title
         self.ended = ended
         self.started = started
         self.take_off = take_off
         self.put_out = put_out
         self.leave_on = list(leave_on)
+        self.sets_before = list(sets_before)
+        self.sets_after = list(sets_after)
 
     @property
     def ended_set_number(self):
@@ -1031,7 +1049,26 @@ def resets(program, entries_by_piece=None):
                 leave_on[i],
             )
         )
+    _place_sets(result, program.sets())
     return result
+
+
+def _place_sets(program_resets, all_sets):
+    """Fill in each Reset's sets_after and the first's sets_before from
+    `all_sets`, the program's full sets (Program.sets)."""
+    starts = [reset.started_set_number for reset in program_resets]
+    for i, reset in enumerate(program_resets):
+        end = starts[i + 1] if i + 1 < len(starts) else None
+        reset.sets_after = [
+            pieces
+            for pieces in all_sets
+            if pieces[0].set_number >= starts[i]
+            and (end is None or pieces[0].set_number < end)
+        ]
+    if program_resets:
+        program_resets[0].sets_before = [
+            pieces for pieces in all_sets if pieces[0].set_number < starts[0]
+        ]
 
 
 def _positions_on(program_piece, entries):
@@ -1046,8 +1083,13 @@ def _positions_on(program_piece, entries):
 
 
 def my_resets(program, user):
-    """Return [(reset, ends, starts), ...]: one row per Reset (see resets),
-    for one ringer.
+    """Return [(reset, ends, starts, sets_before, sets_after), ...]: one row
+    per Reset (see resets), for one ringer.
+
+    sets_before and sets_after are the Reset's sets_before and sets_after
+    with the ringer's positions on each piece, as [(set_number,
+    [(program_piece, [position, ...]), ...]), ...]; positions are in
+    placement order and empty for a piece they aren't on.
 
     ends is [(position, take_off, leave_on), ...]: each position they finish
     the set just ended at, what that position takes off and what it leaves
@@ -1091,8 +1133,38 @@ def _my_reset_rows(user_id, program_resets, entries_by_piece):
             (position, put_out.get(position, []))
             for position in _positions_on(reset.started[0], mine)
         ]
-        result.append((reset, ends, starts))
+        result.append(
+            (
+                reset,
+                ends,
+                starts,
+                _sets_with_positions(reset.sets_before, mine),
+                _sets_with_positions(reset.sets_after, mine),
+            )
+        )
     return result
+
+
+def _sets_with_positions(sets, mine):
+    """[(set_number, [(program_piece, [position, ...]), ...]), ...] for
+    `sets`, with the user's positions from `mine` ({piece_id: [entry,
+    ...]})."""
+    return [
+        (
+            pieces[0].set_number,
+            [
+                (
+                    program_piece,
+                    sorted(
+                        (e.position for e in mine.get(program_piece.piece_id, [])),
+                        key=_placement_key,
+                    ),
+                )
+                for program_piece in pieces
+            ],
+        )
+        for pieces in sets
+    ]
 
 
 def everyones_resets(program):
