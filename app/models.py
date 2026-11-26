@@ -144,6 +144,9 @@ class Program(db.Model):
     # Whether this program gets the Starting placement report (where each
     # piece of equipment is set out before the first piece).
     starting_placement = db.Column(db.Boolean, nullable=False, default=False)
+    # Free-text set-up instructions an admin adds for the Equipment pull
+    # list, for anything that doesn't come from ringers' entries.
+    pull_list_notes = db.Column(db.Text, nullable=True)
 
     cycle = db.relationship("Cycle", back_populates="programs")
     program_pieces = db.relationship(

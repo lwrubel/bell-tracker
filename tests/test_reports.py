@@ -473,6 +473,71 @@ def test_equipment_pull_list_page(client, db, admin_user, program, piece, instru
     assert f"/programs/{program.id}/reports/equipment-pull-list" in home
 
 
+def test_equipment_pull_list_shows_notes_at_the_bottom(
+    client, db, ringer, program, piece, instrument_type
+):
+    _case(db, instrument_type, "C1", "C4", "D4")
+    _sign_up(db, ringer, piece, instrument_type, "C4")
+    program.pull_list_notes = "Bring the extra foam.\nSet up two tables at stage left."
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-pull-list").get_data(
+        as_text=True
+    )
+
+    assert body.index("<strong>C1:</strong> C4") < body.index("<h2>Notes</h2>")
+    assert (
+        '<div class="pull-list-notes">Bring the extra foam.\n'
+        "Set up two tables at stage left.</div>"
+    ) in body
+
+
+def test_equipment_pull_list_shows_notes_even_with_no_equipment(
+    client, ringer, db, program
+):
+    program.pull_list_notes = "Borrow the church's bell tree."
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-pull-list").get_data(
+        as_text=True
+    )
+    assert "No equipment has been signed up" in body
+    assert "Borrow the church&#39;s bell tree." in body
+
+
+def test_equipment_pull_list_has_no_notes_section_when_blank(
+    client, ringer, db, program
+):
+    program.pull_list_notes = "   \n  "
+    db.session.commit()
+
+    login(client, ringer, RINGER_PASSWORD)
+    body = client.get(f"/programs/{program.id}/reports/equipment-pull-list").get_data(
+        as_text=True
+    )
+    assert "<h2>Notes</h2>" not in body
+
+
+def test_admin_sets_pull_list_notes(client, db, admin_user, program):
+    login(client, admin_user, ADMIN_PASSWORD)
+    form = client.get(f"/admin/program/edit/?id={program.id}").get_data(as_text=True)
+    assert "Pull list notes" in form
+
+    client.post(
+        f"/admin/program/edit/?id={program.id}",
+        data={
+            "cycle": program.cycle_id,
+            "name": program.name,
+            "pull_list_notes": "Bring the extra foam.",
+        },
+    )
+
+    db.session.expire_all()
+    assert db.session.get(Program, program.id).pull_list_notes == "Bring the extra foam."
+
+
 # --- bass bells -----------------------------------------------------------
 
 

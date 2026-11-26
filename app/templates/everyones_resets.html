@@ -8,6 +8,14 @@
   /* Each ringer's My resets on a letter page of its own, so the whole
      thing prints (or saves as a PDF) one ringer per page. */
   @page { size: letter; margin: 0.6in; }
+  /* The ringer's name: smaller and tighter than a page h1, to fit more
+     of a long program on each printed page. */
+  .ringer-resets > h1 {
+    font-size: 1.4rem;
+    margin: 0 0 .35rem;
+    padding: 0;
+    line-height: 1.2;
+  }
   .ringer-resets + .ringer-resets {
     margin-top: 2rem;
     padding-top: 1.5rem;
@@ -42,9 +50,6 @@
   {% for user, resets in ringers %}
   <section class="ringer-resets">
     <h1>{{ user.name }}</h1>
-    <p class="text-muted">
-      My resets &middot; {{ program.name }}{% if program.datetime %} &middot; {{ program.when_label() }}{% endif %}
-    </p>
     <p class="text-muted small">Main Bells are always out and aren't listed.</p>
     {{ reset_cards(resets) }}
   </section>
