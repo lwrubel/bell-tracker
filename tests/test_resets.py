@@ -404,9 +404,9 @@ def test_my_resets_page_shows_each_position(
 
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
     reset = body[body.index("Reset between Sets 1 and 2"):]
-    assert "you end Set 1 at P1 - C4/D4 on Piece 1" in reset
-    assert "you end Set 1 at P5 - D5/E5 on Piece 1" in reset
-    assert "you start Set 2 at P2 - E4/F4 on Piece 2" in reset
+    assert "You end Set 1 at P1 - C4/D4 on Piece 1" in reset
+    assert "You end Set 1 at P5 - D5/E5 on Piece 1" in reset
+    assert "You start Set 2 at P2 - E4/F4 on Piece 2" in reset
 
 
 # --- pages ---------------------------------------------------------------
@@ -433,8 +433,8 @@ def test_my_resets_page(client, db, ringer, program, instrument_type):
     assert "reports/resets" not in home
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
     assert "Reset between Sets 1 and 2" in body
-    assert "you end Set 1 at P5 - D5/E5 on Piece 1" in body
-    assert "you start Set 2 at P2 - E4/F4 on Piece 2" in body
+    assert "You end Set 1 at P5 - D5/E5 on Piece 1" in body
+    assert "You start Set 2 at P2 - E4/F4 on Piece 2" in body
     assert "<strong>Chimes:</strong> E4" in body
     assert 'id="print-date-footer"' in body
     assert client.get(f"/programs/{program.id}/reports/resets").status_code == 403
@@ -515,7 +515,7 @@ def test_everyones_resets_page(client, db, manager, ringer, program, instrument_
     assert body.count('<section class="ringer-resets">') == 2
     assert body.index("<h1>Ringer One</h1>") < body.index("<h1>Zed Ringer</h1>")
     assert 'id="print-date-footer"' in body
-    assert "you start Set 2 at P2 - E4/F4 on Piece 2" in body
+    assert "You start Set 2 at P2 - E4/F4 on Piece 2" in body
 
 
 def test_everyones_resets_404_without_sets(client, db, admin_user, program, piece):
@@ -634,7 +634,7 @@ def test_my_resets_page_shows_leave_on_table(
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
     reset = body[body.index("Reset between Sets 1 and 2"):]
     assert "Leave on table" in reset
-    assert "(stays out for Set 2)" in reset
+    assert "Stays out for Set 2</span>" in reset
     assert "<strong>Chimes:</strong> D5" in reset
     assert "Nothing to take off." not in reset
     client.post("/logout")
@@ -899,7 +899,7 @@ def test_non_handbell_last_piece_doesnt_decide_who_takes_off(
 
     login(client, ringer, RINGER_PASSWORD)
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
-    assert "you end Set 1 at P5 - D5/E5 on Piece 1" in body
+    assert "You end Set 1 at P5 - D5/E5 on Piece 1" in body
 
 
 def test_set_of_only_non_handbell_pieces_is_skipped(db, program, instrument_type):

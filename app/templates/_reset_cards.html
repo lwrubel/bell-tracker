@@ -32,7 +32,7 @@
         {% if not loop.first %}
         {% for end_position, take_off, leave_on in ends %}
         <div class="reset-step">
-          <h6 class="mb-1">Take off <span class="fw-normal text-muted">(you end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }})</span></h6>
+          <h6 class="mb-1">Take off <span class="reset-step-detail">You end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }}</span></h6>
           {% if take_off %}
             {{ reset_items(take_off) }}
           {% elif not leave_on %}
@@ -41,7 +41,7 @@
         </div>
         {% if leave_on %}
         <div class="reset-step">
-          <h6 class="mb-1">Leave on table <span class="fw-normal text-muted">(stays out for Set {{ reset.started_set_number }}{% if ends | length > 1 %}, from {{ position_label(end_position) }}{% endif %})</span></h6>
+          <h6 class="mb-1">Leave on table <span class="reset-step-detail">Stays out for Set {{ reset.started_set_number }}{% if ends | length > 1 %}, from {{ position_label(end_position) }}{% endif %}</span></h6>
           {{ reset_items(leave_on) }}
         </div>
         {% endif %}
@@ -54,7 +54,7 @@
         {% endif %}
         {% for start_position, put_out in starts %}
         <div class="reset-step">
-          <h6 class="mb-1">Put out <span class="fw-normal text-muted">(you start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }})</span></h6>
+          <h6 class="mb-1">Put out <span class="reset-step-detail">You start Set {{ reset.started_set_number }} at {{ position_label(start_position) }} on {{ reset.started_piece.title }}</span></h6>
           {% if put_out %}
             {{ reset_items(put_out) }}
           {% else %}

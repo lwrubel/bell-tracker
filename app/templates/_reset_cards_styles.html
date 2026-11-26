@@ -4,6 +4,16 @@
   .reset-items { margin: .15rem 0 0; padding-left: 1.5rem; }
   .reset-items li + li { margin-top: .15rem; }
   .reset-step + .reset-step { margin-top: .9rem; }
+  /* "You end Set 2 at P6 ... on ..." under a step heading, on its own
+     line, in the plain body font rather than the heading serif so it
+     reads clearly. */
+  .reset-step-detail {
+    display: block;
+    margin-top: .1rem;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    color: var(--ink);
+  }
   /* Each set's pieces, between the cards (set_pieces). */
   .set-pieces { margin: -.25rem 0 1rem; font-size: .9rem; break-inside: avoid; }
   .set-piece-list { list-style: none; margin: .1rem 0 0; padding-left: 1.5rem; }
