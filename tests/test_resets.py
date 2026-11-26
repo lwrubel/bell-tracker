@@ -514,6 +514,8 @@ def test_everyones_resets_page(client, db, manager, ringer, program, instrument_
     body = client.get(url).get_data(as_text=True)
     assert body.count('<section class="ringer-resets">') == 2
     assert body.index("<h1>Ringer One</h1>") < body.index("<h1>Zed Ringer</h1>")
+    # No "My resets · program" line under each name, to save space.
+    assert "My resets &middot;" not in body
     assert 'id="print-date-footer"' in body
     assert "You start Set 2 at P2 - E4/F4 on Piece 2" in body
 
