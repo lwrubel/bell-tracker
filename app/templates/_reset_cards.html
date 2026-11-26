@@ -2,8 +2,30 @@
    resets and the printable everyone's resets. A ringer with more than one
    position on a set's first or last piece gets a step for each. #}
 {% from "_reset_items.html" import reset_items %}
+
+{# Each set's pieces in program order, with the ringer's position(s) on
+   each: [(set_number, [(program_piece, [position, ...]), ...]), ...]. #}
+{% macro set_pieces(sets) %}
+  {% for set_number, pieces in sets %}
+    <div class="set-pieces">
+      <strong>Set {{ set_number }}</strong>
+      <ul class="set-piece-list">
+      {% for program_piece, positions in pieces %}
+        {%- if program_piece.non_handbell -%}
+          {%- set where = "non-handbell" ~ (": " ~ positions | join(", ") if positions else "") -%}
+        {%- else -%}
+          {%- set where = positions | join(", ") if positions else "—" -%}
+        {%- endif %}
+        <li>{{ program_piece.position }}. {{ program_piece.piece.title }} ({{ where }})</li>
+      {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+{% endmacro %}
+
 {% macro reset_cards(resets) %}
-  {% for reset, ends, starts in resets %}
+  {% for reset, ends, starts, sets_before, sets_after in resets %}
+    {{ set_pieces(sets_before) }}
     <div class="card mb-3" style="break-inside: avoid;">
       <div class="card-body">
         <h5 class="card-title mb-2">{{ reset.title }}</h5>
@@ -47,5 +69,6 @@
         {% endfor %}
       </div>
     </div>
+    {{ set_pieces(sets_after) }}
   {% endfor %}
 {% endmacro %}
