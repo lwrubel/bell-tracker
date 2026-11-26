@@ -3,6 +3,10 @@
 {% block title %}Equipment Pull List - {{ program.name }}{% endblock %}
 {% block head %}
 {% include "_print_sheet_styles.html" %}
+<style>
+  /* Keep the admin's own line breaks. */
+  .pull-list-notes { white-space: pre-line; }
+</style>
 {% endblock %}
 {% block content %}
 <div class="print-sheet">
@@ -40,6 +44,11 @@
   {% endif %}
 {% else %}
   <p class="text-muted">No equipment has been signed up for this program yet.</p>
+{% endif %}
+
+{% if program.pull_list_notes and program.pull_list_notes.strip() %}
+  <h2>Notes</h2>
+  <div class="pull-list-notes">{{ program.pull_list_notes.strip() }}</div>
 {% endif %}
 </div>
 {% endblock %}
