@@ -41,7 +41,9 @@
         <a href="{{ url_for('routes.report_equipment_pull_list', program_id=program.id) }}">Pull list</a>
         {% if current_user.can_view_reports %}
           {% if program.has_sets %}
-            <a href="{{ url_for('routes.report_resets', program_id=program.id) }}">Resets</a>
+            {% if current_user.is_admin %}
+              <a href="{{ url_for('routes.report_resets', program_id=program.id) }}">Resets</a>
+            {% endif %}
             <a href="{{ url_for('routes.report_everyones_resets', program_id=program.id) }}">Everyone's resets</a>
           {% endif %}
           <a href="{{ url_for('routes.report_bass_bells', program_id=program.id) }}">Bass bell assignments</a>

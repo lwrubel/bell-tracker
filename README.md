@@ -113,7 +113,7 @@ to these pages, all printable:
 | **Starting placement** | Everyone, in programs with it ticked | Where each item is set out before the first piece: at the position that first uses it. |
 | **Equipment tables** | Everyone | Every pitch used, sorted into each treble position's range, plus bell trees, percussion, sticks, mallets and misc notes. |
 | **Pull list** | Everyone | Which bells to take out of each case. |
-| **Resets** | Admins and managers, in programs with sets | Every position's take-off and put-out at each Reset. |
+| **Resets** | Admins, in programs with sets | Every position's take-off and put-out at each Reset. |
 | **Everyone's resets** | Admins and managers, in programs with sets | Each ringer's My resets on its own printed page; print to PDF from the browser. |
 | **Bass bell assignments** | Admins and managers | Each piece's LB positions and their bells. |
 | **Cases used list** | Admins and managers | The cases to bring. |

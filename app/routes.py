@@ -34,6 +34,19 @@ def reports_required(view):
     return wrapped
 
 
+def admin_required(view):
+    """Admins only."""
+
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def _bass_program_ids(user, programs):
     """Ids of the programs, out of `programs`, where `user` rings an LB
     position on at least one piece."""
@@ -256,9 +269,10 @@ def my_resets(program_id):
 
 
 @bp.route("/programs/<int:program_id>/reports/resets")
-@reports_required
+@admin_required
 def report_resets(program_id):
-    """Every position's Resets. Only for programs split into sets."""
+    """Every position's Resets. Admins only, and only for programs split
+    into sets."""
     program = Program.query.get_or_404(program_id)
     if not program.has_sets:
         abort(404)
