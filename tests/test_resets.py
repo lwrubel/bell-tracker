@@ -276,20 +276,20 @@ def _names(types):
 
 def _single(rows):
     """my_resets rows for a ringer with at most one position per piece, as
-    (reset, end position, take off, leave on, start position, put out)."""
+    (reset, end position, take off, start position, put out)."""
     result = []
     for reset, ends, starts, _, _ in rows:
         assert len(ends) <= 1 and len(starts) <= 1
-        end, off, leave = ends[0] if ends else (None, [], [])
+        end, off = ends[0] if ends else (None, [])
         start, out = starts[0] if starts else (None, [])
-        result.append((reset, end, off, leave, start, out))
+        result.append((reset, end, off, start, out))
     return result
 
 
 def _mine(program, user):
     return [
         (r.title, end, _names(off), start, _names(out))
-        for r, end, off, _, start, out in _single(reports.my_resets(program, user))
+        for r, end, off, start, out in _single(reports.my_resets(program, user))
     ]
 
 
@@ -383,7 +383,7 @@ def test_my_resets_cover_each_position_on_a_sets_first_and_last_piece(
         ("P1", [("Chimes", ["C4"])]),
         ("P5", [("Chimes", ["D5"])]),
     ]
-    assert [(p, _names(off)) for p, off, _ in ends] == [
+    assert [(p, _names(off)) for p, off in ends] == [
         ("P1", [("Chimes", ["C4"])]),
         ("P5", [("Chimes", ["D5"])]),
     ]
@@ -486,11 +486,11 @@ def test_everyones_resets_gives_each_ringer_their_own_rows(
     ringers = reports.everyones_resets(program)
     assert [user.name for user, _ in ringers] == ["Amy", "Zoe"]
     (_, amy_rows), (_, zoe_rows) = ringers
-    assert [(end, start) for _, end, _, _, start, _ in _single(amy_rows)] == [
+    assert [(end, start) for _, end, _, start, _ in _single(amy_rows)] == [
         (None, None),
         (None, "P2"),
     ]
-    assert [(end, start) for _, end, _, _, start, _ in _single(zoe_rows)] == [
+    assert [(end, start) for _, end, _, start, _ in _single(zoe_rows)] == [
         (None, "P5"),
         ("P5", None),
     ]
@@ -624,26 +624,37 @@ def test_keep_outs_in_a_row_leave_a_type_out_for_two_more_sets(
     ]
 
 
-def test_my_resets_page_shows_leave_on_table(
+def test_reset_pages_dont_list_whats_left_on_the_table(
     client, db, ringer, manager, program, instrument_type
 ):
-    one, two = _sets(db, program, 1, 2)
-    _assign(db, ringer, one, "P5", (instrument_type, "D5"))
+    one, two, three = _sets(db, program, 1, 2, 3)
+    _assign(db, ringer, one, "P5", (instrument_type, "A5"))
     _assign(db, ringer, two, "P5", (instrument_type, "E4"))
+    _assign(db, ringer, three, "P5", (instrument_type, "C6"))
     _keep_out(db, program, instrument_type, 1)
     login(client, ringer, RINGER_PASSWORD)
 
     body = client.get(f"/programs/{program.id}/my-resets").get_data(as_text=True)
-    reset = body[body.index("Reset between Sets 1 and 2"):]
-    assert "Leave on table" in reset
-    assert "Stays out for Set 2</span>" in reset
-    assert "<strong>Chimes:</strong> D5" in reset
-    assert "Nothing to take off." not in reset
+    first = body[
+        body.index("Reset between Sets 1 and 2"):body.index("Reset between Sets 2 and 3")
+    ]
+    second = body[body.index("Reset between Sets 2 and 3"):]
+    # A5 stays out through the first Reset without being mentioned, then
+    # comes off with E4 at the end of Set 2.
+    assert "Leave on table" not in body
+    assert "A5" not in first
+    assert "Nothing to take off." in first
+    assert "<strong>Chimes:</strong> E4, A5" in second
     client.post("/logout")
 
     login(client, manager, RINGER_PASSWORD)
     body = client.get(f"/programs/{program.id}/reports/resets").get_data(as_text=True)
-    assert "Leave on table for Set 2" in body
+    assert "Leave on table" not in body
+    first = body[
+        body.index("Reset between Sets 1 and 2"):body.index("Reset between Sets 2 and 3")
+    ]
+    assert "A5" not in first
+    assert "<strong>Chimes:</strong> E4, A5" in body
 
 
 def _post_keep_out(client, program, instrument_type, after_set):

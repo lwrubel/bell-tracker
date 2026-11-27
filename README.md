@@ -159,7 +159,9 @@ How the reports work it out (`resets()` in `app/reports.py`):
   off P5's items and puts out P2's.
 - **Leave on table** (Program admin): an instrument type and a set. That
   set's items of the type stay out through the next Reset instead of coming
-  off, and the position holding them takes them off a Reset later.
+  off, and the position holding them takes them off a Reset later. The
+  Reset where they stay out doesn't list them; they appear in the take-off
+  list at the Reset where they finally come off.
 - **Put out early** (Program admin): an instrument type and a set. Before
   that set, everything of the type that the set *or the next one* uses is
   put out, the next set's items at the position that first uses them there.

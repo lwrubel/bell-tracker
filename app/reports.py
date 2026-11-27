@@ -895,7 +895,8 @@ class Reset:
     - take_off, put_out, leave_on: [(position, [(instrument_type, [item,
       ...]), ...]), ...] by position code, in placement order. leave_on is
       what the finished set's last ringers leave on the table for the next
-      set (ProgramKeepOut) rather than taking off.
+      set (ProgramKeepOut) rather than taking off. It isn't shown on any
+      page: those items turn up in a later Reset's take_off instead.
     - sets_after: the program's sets played after this Reset and before the
       next one, as [[program_piece, ...], ...], non-handbell pieces
       included: the set it starts, plus any sets of only non-handbell
@@ -945,21 +946,14 @@ class Reset:
         return self.started[0].piece
 
     def by_position(self):
-        """[(position, take_off, put_out, leave_on), ...]: each position
-        with anything to do, in placement order, and its three lists of
-        [(instrument_type, [item, ...]), ...]."""
+        """[(position, take_off, put_out), ...]: each position with anything
+        to take off or put out, in placement order, and its two lists of
+        [(instrument_type, [item, ...]), ...]. What's left on the table
+        isn't listed; it shows up in a later Reset's take_off instead."""
         take_off, put_out = dict(self.take_off), dict(self.put_out)
-        leave_on = dict(self.leave_on)
         return [
-            (
-                position,
-                take_off.get(position, []),
-                put_out.get(position, []),
-                leave_on.get(position, []),
-            )
-            for position in sorted(
-                {*take_off, *put_out, *leave_on}, key=_placement_key
-            )
+            (position, take_off.get(position, []), put_out.get(position, []))
+            for position in sorted({*take_off, *put_out}, key=_placement_key)
         ]
 
 
@@ -981,7 +975,9 @@ def resets(program, entries_by_piece=None):
     The program's keep-outs (ProgramKeepOut) leave an instrument type's
     single items on the table at the Reset after a set, for the next set:
     the position holding them takes them off a Reset later instead. Each
-    Reset's leave_on lists them. Counted items aren't carried.
+    Reset's leave_on records them, though the pages don't list them; they
+    appear in take_off where they finally come off. Counted items aren't
+    carried.
 
     Early put-outs (ProgramEarlyPutOut) work the other way: an instrument
     type's single items for the set after a given set are put out before
@@ -1091,13 +1087,14 @@ def my_resets(program, user):
     [(program_piece, [position, ...]), ...]), ...]; positions are in
     placement order and empty for a piece they aren't on.
 
-    ends is [(position, take_off, leave_on), ...]: each position they finish
-    the set just ended at, what that position takes off and what it leaves
-    on the table for the next set. starts is [(position, put_out), ...]:
+    ends is [(position, take_off), ...]: each position they finish the set
+    just ended at and what that position takes off. What it leaves on the
+    table for the next set isn't listed; it's in the take_off of the Reset
+    where it finally comes off. starts is [(position, put_out), ...]:
     each position they start the next set at and what it puts out. The two
     are looked up apart, since a ringer can come back from a Reset at a
     different position. Equipment belongs to the position, so whoever is
-    there takes it off or puts it out. take_off, leave_on and put_out are
+    there takes it off or puts it out. take_off and put_out are
     [(instrument_type, [item, ...]), ...].
 
     Only whoever starts a set puts out and only whoever finishes it takes
@@ -1121,10 +1118,9 @@ def _my_reset_rows(user_id, program_resets, entries_by_piece):
                 mine[piece_id].append(entry)
     result = []
     for reset in program_resets:
-        take_off, leave_on = dict(reset.take_off), dict(reset.leave_on)
-        put_out = dict(reset.put_out)
+        take_off, put_out = dict(reset.take_off), dict(reset.put_out)
         ends = [
-            (position, take_off.get(position, []), leave_on.get(position, []))
+            (position, take_off.get(position, []))
             for position in _positions_on(
                 reset.ended[-1] if reset.ended else None, mine
             )
