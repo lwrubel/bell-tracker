@@ -450,11 +450,11 @@ def test_my_resets_page_for_someone_not_in_the_program(
     assert "You haven't been assigned" in body
 
 
-def test_resets_report_page(client, db, manager, ringer, program, instrument_type):
+def test_resets_report_page(client, db, admin_user, ringer, program, instrument_type):
     one, two = _sets(db, program, 1, 2)
     _assign(db, ringer, one, "P5", (instrument_type, "D5"))
     _assign(db, ringer, two, "P2", (instrument_type, "E4"))
-    login(client, manager, RINGER_PASSWORD)
+    login(client, admin_user, ADMIN_PASSWORD)
 
     assert f"/programs/{program.id}/reports/resets" in client.get("/").get_data(
         as_text=True
@@ -464,6 +464,17 @@ def test_resets_report_page(client, db, manager, ringer, program, instrument_typ
     assert "<h2>Reset between Sets 1 and 2</h2>" in body
     assert "<h5>P5 - D5/E5</h5>" in body
     assert "<em>Take off</em>" in body
+
+
+def test_resets_report_is_admin_only(client, db, manager, program):
+    _sets(db, program, 1, 2)
+    login(client, manager, RINGER_PASSWORD)
+
+    home = client.get("/").get_data(as_text=True)
+    assert f"/programs/{program.id}/reports/resets" not in home
+    # Managers still get Everyone's resets.
+    assert f"/programs/{program.id}/reports/everyones-resets" in home
+    assert client.get(f"/programs/{program.id}/reports/resets").status_code == 403
 
 
 def test_program_order_shows_set_headings(client, db, ringer, program):
@@ -625,7 +636,7 @@ def test_keep_outs_in_a_row_leave_a_type_out_for_two_more_sets(
 
 
 def test_reset_pages_dont_list_whats_left_on_the_table(
-    client, db, ringer, manager, program, instrument_type
+    client, db, ringer, admin_user, program, instrument_type
 ):
     one, two, three = _sets(db, program, 1, 2, 3)
     _assign(db, ringer, one, "P5", (instrument_type, "A5"))
@@ -647,7 +658,7 @@ def test_reset_pages_dont_list_whats_left_on_the_table(
     assert "<strong>Chimes:</strong> E4, A5" in second
     client.post("/logout")
 
-    login(client, manager, RINGER_PASSWORD)
+    login(client, admin_user, ADMIN_PASSWORD)
     body = client.get(f"/programs/{program.id}/reports/resets").get_data(as_text=True)
     assert "Leave on table" not in body
     first = body[
