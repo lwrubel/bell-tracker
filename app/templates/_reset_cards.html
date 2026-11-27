@@ -30,21 +30,15 @@
       <div class="card-body">
         <h5 class="card-title mb-2">{{ reset.title }}</h5>
         {% if not loop.first %}
-        {% for end_position, take_off, leave_on in ends %}
+        {% for end_position, take_off in ends %}
         <div class="reset-step">
           <h6 class="mb-1">Take off <span class="reset-step-detail">You end Set {{ reset.ended_set_number }} at {{ position_label(end_position) }} on {{ reset.ended_piece.title }}</span></h6>
           {% if take_off %}
             {{ reset_items(take_off) }}
-          {% elif not leave_on %}
+          {% else %}
             <div class="text-muted">Nothing to take off.</div>
           {% endif %}
         </div>
-        {% if leave_on %}
-        <div class="reset-step">
-          <h6 class="mb-1">Leave on table <span class="reset-step-detail">Stays out for Set {{ reset.started_set_number }}{% if ends | length > 1 %}, from {{ position_label(end_position) }}{% endif %}</span></h6>
-          {{ reset_items(leave_on) }}
-        </div>
-        {% endif %}
         {% else %}
         <div class="reset-step">
           <h6 class="mb-1">Take off</h6>

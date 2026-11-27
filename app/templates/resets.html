@@ -23,19 +23,15 @@
   {% set positions = reset.by_position() %}
   {% if positions %}
   <div class="sheet-columns">
-    {% for position, take_off, put_out, leave_on in positions %}
+    {% for position, take_off, put_out in positions %}
     <div class="sheet-block">
       <h5>{{ position_label(position) }}</h5>
       {% if take_off %}
         <div><em>Take off</em></div>
         {{ reset_items(take_off) }}
       {% endif %}
-      {% if leave_on %}
-        <div{% if take_off %} class="mt-1"{% endif %}><em>Leave on table for Set {{ reset.started_set_number }}</em></div>
-        {{ reset_items(leave_on) }}
-      {% endif %}
       {% if put_out %}
-        <div{% if take_off or leave_on %} class="mt-1"{% endif %}><em>Put out</em></div>
+        <div{% if take_off %} class="mt-1"{% endif %}><em>Put out</em></div>
         {{ reset_items(put_out) }}
       {% endif %}
     </div>
